@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/felipemalacarne/mesa/web"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -27,11 +28,20 @@ func main() {
 		// r.Route("/users", usersHandler)
 	})
 
-	// Servir o Frontend (React SPA)
-	// Em produção, usaríamos o web.DistFS que discutimos antes
-	// workDir, _ := os.Getwd()
-	// filesDir := http.Dir(workDir + "/web/dist")
-	// FileServer(r, "/", filesDir)
+	// Servir o Frontend Embutido
+	publicFS := web.GetPublicFS()
+	fileServer := http.FileServer(http.FS(publicFS))
+
+	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+		file, err := publicFS.Open(r.URL.Path[1:]) // Remove a "/" inicial
+		if err != nil {
+			r.URL.Path = "/"
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+		file.Close()
+		fileServer.ServeHTTP(w, r)
+	})
 
 	http.ListenAndServe(":8080", r)
 }
