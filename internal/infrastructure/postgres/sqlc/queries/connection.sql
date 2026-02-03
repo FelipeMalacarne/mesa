@@ -27,7 +27,8 @@ WHERE id = $1;
 -- name: ListConnections :many
 SELECT id, name, driver, host, port, username, password, created_at
 FROM connections
-ORDER BY created_at DESC;
+ORDER BY created_at DESC
+LIMIT 100;
 
 -- name: DeleteConnection :exec
 DELETE FROM connections

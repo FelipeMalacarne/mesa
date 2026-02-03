@@ -47,6 +47,7 @@ const listConnections = `-- name: ListConnections :many
 SELECT id, name, driver, host, port, username, password, created_at
 FROM connections
 ORDER BY created_at DESC
+LIMIT 100
 `
 
 func (q *Queries) ListConnections(ctx context.Context) ([]Connection, error) {
