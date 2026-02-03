@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/felipemalacarne/mesa/internal/config"
-	"github.com/felipemalacarne/mesa/internal/domain/infrastructure/postgres"
+	"github.com/felipemalacarne/mesa/internal/infrastructure/postgres"
 	"github.com/felipemalacarne/mesa/web"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
