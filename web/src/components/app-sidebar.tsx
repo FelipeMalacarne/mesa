@@ -1,3 +1,4 @@
+import { Layers } from "lucide-react";
 import Header from "./app-header";
 import {
   Breadcrumb,
@@ -22,7 +23,18 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar variant="inset">
-        <SidebarHeader />
+        <SidebarHeader>
+          <div className="flex h-14 items-center gap-3 border-b border-sidebar-border">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-foreground">
+              <Layers className="h-4.5 w-4.5 text-background" />
+            </div>
+            <span className="text-base font-semibold text-foreground tracking-tight">
+              Mesa
+            </span>
+          </div>
+          {/* <Layers className="h-4 w-4 text-primary-foreground" /> */}
+          {/* <span className="font-semibold text-foreground">Mesa</span> */}
+        </SidebarHeader>
         <SidebarContent>
           sas
           <SidebarGroup />
