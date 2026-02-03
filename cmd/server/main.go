@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/felipemalacarne/mesa/internal/application"
 	"github.com/felipemalacarne/mesa/internal/config"
+	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	"github.com/felipemalacarne/mesa/internal/infrastructure/postgres"
 	"github.com/felipemalacarne/mesa/web"
 	"github.com/go-chi/chi/v5"
@@ -24,6 +26,12 @@ func main() {
 	}
 	defer db.Close()
 	log.Println("Connected to the database successfully.")
+
+	repos := application.Repositories{
+		Connection: postgres.NewConnectionRepository(db),
+	}
+
+	app := application.NewApp(repos)
 
 	r := chi.NewRouter()
 
