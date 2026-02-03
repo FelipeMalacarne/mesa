@@ -2,154 +2,115 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
+	"github.com/felipemalacarne/mesa/internal/infrastructure/postgres/sqlc"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ConnectionRepository struct {
-	db *pgxpool.Pool
+	queries *sqlc.Queries
 }
+
+var (
+	errNullConnectionID        = errors.New("connection id is NULL")
+	errNullConnectionCreatedAt = errors.New("connection created_at is NULL")
+)
 
 func NewConnectionRepository(pool *pgxpool.Pool) *ConnectionRepository {
 	return &ConnectionRepository{
-		db: pool,
+		queries: sqlc.New(pool),
 	}
 }
 
-type connectionRecord struct {
-	ID        uuid.UUID `db:"id"`
-	Name      string    `db:"name"`
-	Driver    string    `db:"driver"`
-	Host      string    `db:"host"`
-	Port      int       `db:"port"`
-	Username  string    `db:"username"`
-	Password  string    `db:"password"`
-	CreatedAt time.Time `db:"created_at"`
-}
+func toDomainConnection(record sqlc.Connection) (*connection.Connection, error) {
+	id, err := uuidFromPg(record.ID)
+	if err != nil {
+		return nil, err
+	}
 
-func (cr *connectionRecord) toDomain() (*connection.Connection, error) {
-	driver, err := connection.NewDriver(cr.Driver)
+	createdAt, err := timeFromPg(record.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	parsedDriver, err := connection.NewDriver(record.Driver)
 	if err != nil {
 		return nil, err
 	}
 
 	return &connection.Connection{
-		ID:        cr.ID,
-		Name:      cr.Name,
-		Driver:    *driver,
-		Host:      cr.Host,
-		Port:      cr.Port,
-		Username:  cr.Username,
-		Password:  cr.Password,
-		CreatedAt: cr.CreatedAt,
+		ID:        id,
+		Name:      record.Name,
+		Driver:    *parsedDriver,
+		Host:      record.Host,
+		Port:      int(record.Port),
+		Username:  record.Username,
+		Password:  record.Password,
+		CreatedAt: createdAt,
 	}, nil
 }
 
 func (r *ConnectionRepository) Save(ctx context.Context, conn *connection.Connection) error {
-	const query = `
-		INSERT INTO connections (id, name, driver, host, port, username, password, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (id) DO UPDATE
-		SET name = EXCLUDED.name,
-			driver = EXCLUDED.driver,
-			host = EXCLUDED.host,
-			port = EXCLUDED.port,
-			username = EXCLUDED.username,
-			password = EXCLUDED.password
-	`
-
-	_, err := r.db.Exec(
-		ctx,
-		query,
-		conn.ID,
-		conn.Name,
-		string(conn.Driver),
-		conn.Host,
-		conn.Port,
-		conn.Username,
-		conn.Password,
-		conn.CreatedAt,
-	)
-	return err
+	return r.queries.UpsertConnection(ctx, sqlc.UpsertConnectionParams{
+		ID:        pgtype.UUID{Bytes: conn.ID, Valid: true},
+		Name:      conn.Name,
+		Driver:    string(conn.Driver),
+		Host:      conn.Host,
+		Port:      int32(conn.Port),
+		Username:  conn.Username,
+		Password:  conn.Password,
+		CreatedAt: pgtype.Timestamptz{Time: conn.CreatedAt, Valid: true},
+	})
 }
 
 func (r *ConnectionRepository) FindByID(ctx context.Context, id uuid.UUID) (*connection.Connection, error) {
-	const query = `
-		SELECT id, name, driver, host, port, username, password, created_at
-		FROM connections
-		WHERE id = $1
-	`
-
-	var record connectionRecord
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&record.ID,
-		&record.Name,
-		&record.Driver,
-		&record.Host,
-		&record.Port,
-		&record.Username,
-		&record.Password,
-		&record.CreatedAt,
-	)
+	record, err := r.queries.GetConnection(ctx, pgtype.UUID{Bytes: id, Valid: true})
 	if err != nil {
 		return nil, err
 	}
 
-	return record.toDomain()
+	return toDomainConnection(record)
 }
 
 func (r *ConnectionRepository) ListAll(ctx context.Context) ([]*connection.Connection, error) {
-	const query = `
-		SELECT id, name, driver, host, port, username, password, created_at
-		FROM connections
-		ORDER BY created_at DESC
-	`
-
-	rows, err := r.db.Query(ctx, query)
+	rows, err := r.queries.ListConnections(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var connections []*connection.Connection
-	for rows.Next() {
-		var record connectionRecord
-		if err := rows.Scan(
-			&record.ID,
-			&record.Name,
-			&record.Driver,
-			&record.Host,
-			&record.Port,
-			&record.Username,
-			&record.Password,
-			&record.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-
-		conn, err := record.toDomain()
+	connections := make([]*connection.Connection, 0, len(rows))
+	for _, record := range rows {
+		conn, err := toDomainConnection(record)
 		if err != nil {
 			return nil, err
 		}
 		connections = append(connections, conn)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
 	return connections, nil
 }
 
 func (r *ConnectionRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	const query = `
-		DELETE FROM connections
-		WHERE id = $1
-	`
+	return r.queries.DeleteConnection(ctx, pgtype.UUID{Bytes: id, Valid: true})
+}
 
-	_, err := r.db.Exec(ctx, query, id)
-	return err
+func uuidFromPg(value pgtype.UUID) (uuid.UUID, error) {
+	if !value.Valid {
+		return uuid.Nil, errNullConnectionID
+	}
+
+	return uuid.UUID(value.Bytes), nil
+}
+
+func timeFromPg(value pgtype.Timestamptz) (time.Time, error) {
+	if !value.Valid {
+		return time.Time{}, errNullConnectionCreatedAt
+	}
+
+	return value.Time, nil
 }

@@ -1,6 +1,7 @@
 MIGRATIONS_DIR := ./internal/infrastructure/postgres/migrations/
 DATABASE_URL := postgres://mesa:mesa@localhost:5432/mesa?sslmode=disable
 MIGRATE ?= migrate
+SQLC ?= sqlc
 
 %:
 	@:
@@ -19,3 +20,7 @@ migrate-up:
 .PHONY: migrate-down
 migrate-down:
 	$(MIGRATE) -path $(MIGRATIONS_DIR) -database $(DATABASE_URL) down
+
+.PHONY: sqlc-generate
+sqlc-generate:
+	$(SQLC) generate
