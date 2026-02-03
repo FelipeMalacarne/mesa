@@ -1,3 +1,4 @@
+// Package web implements the embedded static file server for the web application.
 package web
 
 import (

@@ -1,16 +1,30 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"net/http"
 
+	"github.com/felipemalacarne/mesa/internal/config"
+	"github.com/felipemalacarne/mesa/internal/infrastructure/postgres"
 	"github.com/felipemalacarne/mesa/web"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
-	fmt.Println("Server is starting...")
+
+	cfg := config.Load()
+	ctx := context.Background()
+
+	db, err := postgres.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to connect to database: %w", err))
+	}
+	defer db.Close()
+	log.Println("Connected to the database successfully.")
+
 	r := chi.NewRouter()
 
 	// Middlewares padrão de "Cloud Grade"

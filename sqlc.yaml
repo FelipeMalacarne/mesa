@@ -1,0 +1,13 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema:
+      - "internal/infrastructure/postgres/migrations/*.up.sql"
+    queries:
+      - "internal/infrastructure/postgres/sqlc/queries"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/infrastructure/postgres/sqlc"
+        sql_package: "pgx/v5"
+        emit_empty_slices: true
