@@ -24,3 +24,8 @@ migrate-down:
 .PHONY: sqlc-generate
 sqlc-generate:
 	$(SQLC) generate
+
+.PHONY: generate-master-key
+generate-app-key:
+	@openssl rand -hex 32
+
