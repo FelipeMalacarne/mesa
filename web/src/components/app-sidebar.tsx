@@ -1,44 +1,84 @@
-import { Layers } from "lucide-react";
+import { HardDrive, Layers, Terminal, Users } from "lucide-react";
 import Header from "./app-header";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "./ui/breadcrumb";
-import { Separator } from "./ui/separator";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarHeader,
   SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
 } from "./ui/sidebar";
+import { NavConnections } from "./nav-connections";
+import { NavMain } from "./nav-main";
+
+const data = {
+  navMain: [
+    {
+      name: "SQL Editor",
+      url: "#",
+      icon: Terminal,
+    },
+    {
+      name: "Users",
+      url: "#",
+      icon: Users,
+    },
+  ],
+  navConnections: [
+    {
+      title: "Production",
+      url: "#",
+      icon: HardDrive,
+      isActive: true,
+      items: [
+        {
+          title: "History",
+          url: "#",
+        },
+        {
+          title: "Starred",
+          url: "#",
+        },
+        {
+          title: "Settings",
+          url: "#",
+        },
+      ],
+    },
+  ],
+};
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <Sidebar variant="inset">
+      <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader>
-          <div className="flex h-14 items-center gap-3 border-b border-sidebar-border">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-foreground">
-              <Layers className="h-4.5 w-4.5 text-background" />
-            </div>
-            <span className="text-base font-semibold text-foreground tracking-tight">
-              Mesa
-            </span>
-          </div>
-          {/* <Layers className="h-4 w-4 text-primary-foreground" /> */}
-          {/* <span className="font-semibold text-foreground">Mesa</span> */}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                size={"lg"}
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              >
+                <a href="#">
+                  <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                    <Layers className="size-4" />
+                  </div>
+                  <span className="text-base font-semibold text-foreground tracking-tight">
+                    Mesa
+                  </span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
-          sas
-          <SidebarGroup />
-          <SidebarGroup />
+          <NavMain items={data.navMain} />
+          <NavConnections items={data.navConnections} />
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
