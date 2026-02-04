@@ -16,7 +16,7 @@ func NewListConnectionsHandler(repo connection.Repository) *ListConnectionsHandl
 	return &ListConnectionsHandler{repo: repo}
 }
 
-func (h *ListConnectionsHandler) Handle(ctx context.Context, cmd *ListConnections) ([]*connection.Connection, error) {
+func (h *ListConnectionsHandler) Handle(ctx context.Context, cmd ListConnections) ([]*connection.Connection, error) {
 	conns, err := h.repo.ListAll(ctx)
 	if err != nil {
 		return nil, err

@@ -6,9 +6,10 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/felipemalacarne/mesa/internal/api"
 	"github.com/felipemalacarne/mesa/internal/application"
 	"github.com/felipemalacarne/mesa/internal/config"
-	"github.com/felipemalacarne/mesa/internal/domain/connection"
+	"github.com/felipemalacarne/mesa/internal/infrastructure/crypto"
 	"github.com/felipemalacarne/mesa/internal/infrastructure/postgres"
 	"github.com/felipemalacarne/mesa/web"
 	"github.com/go-chi/chi/v5"
@@ -16,7 +17,6 @@ import (
 )
 
 func main() {
-
 	cfg := config.Load()
 	ctx := context.Background()
 
@@ -30,25 +30,35 @@ func main() {
 	repos := application.Repositories{
 		Connection: postgres.NewConnectionRepository(db),
 	}
+	log.Println("Repositories initialized.")
 
-	app := application.NewApp(repos)
+	crypto, err := crypto.NewAESManager(cfg.AppKey)
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to initialize crypto manager: %w", err))
+	}
+	log.Println("Crypto manager initialized.")
 
-	r := chi.NewRouter()
+	app := application.NewApp(repos, crypto)
+	log.Println("Application initialized.")
 
-	// Middlewares padrão de "Cloud Grade"
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RealIP) // Essencial rodando atrás de um Ingress no K8s
+	srv := api.NewServer(*app)
 
-	// Agrupamento da API
-	r.Route("/api", func(r chi.Router) {
-		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(`{"status": "ok"}`))
-		})
-
-		// r.Route("/connections", connectionsHandler)
-		// r.Route("/users", usersHandler)
-	})
+	// r := chi.NewRouter()
+	//
+	// // Middlewares padrão de "Cloud Grade"
+	// r.Use(middleware.Logger)
+	// r.Use(middleware.Recoverer)
+	// r.Use(middleware.RealIP) // Essencial rodando atrás de um Ingress no K8s
+	//
+	// // Agrupamento da API
+	// r.Route("/api", func(r chi.Router) {
+	// 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	// 		w.Write([]byte(`{"status": "ok"}`))
+	// 	})
+	//
+	// 	// r.Route("/connections", connectionsHandler)
+	// 	// r.Route("/users", usersHandler)
+	// })
 
 	// Servir o Frontend Embutido
 	publicFS := web.GetPublicFS()
