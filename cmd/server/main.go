@@ -4,6 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/felipemalacarne/mesa/internal/application"
 	"github.com/felipemalacarne/mesa/internal/config"
@@ -39,8 +44,23 @@ func main() {
 
 	srv := rest.NewServer(*app)
 
-	err = srv.Start(cfg.Port)
-	if err != nil {
-		log.Fatal(fmt.Errorf("failed to start server: %w", err))
+	go func() {
+		if err := srv.Start(cfg.Port); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Stop(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
 	}
+
+	log.Println("Server exiting")
 }
