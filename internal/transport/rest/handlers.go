@@ -2,6 +2,7 @@ package rest
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/felipemalacarne/mesa/internal/application/queries"
@@ -9,7 +10,9 @@ import (
 )
 
 func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(`{"status": "ok"}`))
+	if _, err := w.Write([]byte(`{"status": "ok"}`)); err != nil {
+		log.Printf("healthCheck write response: %v", err)
+	}
 }
 func (s *Server) webHandler(w http.ResponseWriter, r *http.Request) {
 	publicFS := web.GetPublicFS()
@@ -20,7 +23,9 @@ func (s *Server) webHandler(w http.ResponseWriter, r *http.Request) {
 		fileServer.ServeHTTP(w, r)
 		return
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		log.Printf("webHandler close file %q: %v", r.URL.Path, err)
+	}
 	fileServer.ServeHTTP(w, r)
 
 }
