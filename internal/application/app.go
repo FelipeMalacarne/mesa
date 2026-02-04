@@ -5,7 +5,9 @@
 package application
 
 import (
+	"github.com/felipemalacarne/mesa/internal/application/commands"
 	"github.com/felipemalacarne/mesa/internal/application/queries"
+	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 )
 
@@ -17,21 +19,23 @@ type Queries struct {
 	ListConnections *queries.ListConnectionsHandler
 }
 
-type Commands struct{}
+type Commands struct {
+	CreateConnection *commands.CreateConnectionHandler
+}
 
 type App struct {
 	Queries  Queries
 	Commands Commands
 }
 
-func NewApp(repos Repositories) *App {
-	listConnectionsHandler := queries.NewListConnectionsHandler(repos.Connection)
-
+func NewApp(repos Repositories, crypto domain.Cryptographer) *App {
 	app := &App{
 		Queries: Queries{
-			ListConnections: listConnectionsHandler,
+			ListConnections: queries.NewListConnectionsHandler(repos.Connection),
 		},
-		Commands: Commands{},
+		Commands: Commands{
+			CreateConnection: commands.NewCreateConnectionHandler(repos.Connection, crypto),
+		},
 	}
 
 	return app
