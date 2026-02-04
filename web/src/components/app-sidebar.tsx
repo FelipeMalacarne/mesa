@@ -33,18 +33,72 @@ const data = {
       title: "Production",
       url: "#",
       icon: HardDrive,
-      isActive: true,
-      items: [
+      isActive: false,
+      databases: [
         {
-          title: "History",
+          title: "app_db",
           url: "#",
+          isActive: false,
+          tables: [
+            {
+              title: "users",
+              url: "#",
+              isActive: false,
+            },
+            {
+              title: "sessions",
+              url: "#",
+            },
+            {
+              title: "invoices",
+              url: "#",
+            },
+          ],
         },
         {
-          title: "Starred",
+          title: "analytics",
           url: "#",
+          tables: [
+            {
+              title: "events",
+              url: "#",
+            },
+            {
+              title: "funnels",
+              url: "#",
+            },
+            {
+              title: "retention",
+              url: "#",
+            },
+          ],
         },
         {
-          title: "Settings",
+          title: "postgres",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "Development",
+      url: "#",
+      icon: HardDrive,
+      isActive: false,
+      databases: [
+        {
+          title: "app_db",
+          url: "#",
+          isActive: false,
+          tables: [
+            {
+              title: "users",
+              url: "#",
+              isActive: false,
+            },
+          ],
+        },
+        {
+          title: "postgres",
           url: "#",
         },
       ],

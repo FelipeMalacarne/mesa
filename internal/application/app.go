@@ -1,3 +1,7 @@
+// Package application provides the application layer of the Mesa project,
+// which includes the business logic and use cases.
+// It defines the structure of the application, including repositories, queries, and commands.
+// The App struct serves as the main entry point for accessing the application's functionality.
 package application
 
 import (

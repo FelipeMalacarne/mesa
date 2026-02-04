@@ -35,7 +35,7 @@ export function NavMain({
   const { isMobile } = useSidebar();
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+    <SidebarGroup>
       {/* <SidebarGroupLabel>Projects</SidebarGroupLabel> */}
       <SidebarMenu>
         {items.map((item) => (
