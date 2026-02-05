@@ -7,6 +7,7 @@ servers:
 paths:
   /connections:
     get:
+      operationId: ListConnections
       tags:
         - Connections
       summary: List Connections
@@ -20,6 +21,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/Connection"
     post:
+      operationId: CreateConnection
       tags:
         - Connections
       summary: Create Connection
@@ -53,15 +55,24 @@ components:
           type: string
         name:
           type: string
+          maxLength: 255
+          minLength: 3
         driver:
           type: string
           enum: [postgres, mysql]
         host:
           type: string
+          maxLength: 255
+          minLength: 1
         port:
           type: integer
+          description: A port value between 0 and 65535
+          maximum: 65535
+          minimum: 0
         username:
           type: string
+          maxLength: 255
+          minLength: 1
         createdAt:
           type: string
           format: date-time

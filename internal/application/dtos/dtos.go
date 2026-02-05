@@ -11,6 +11,7 @@ type ConnectionDTO struct {
 	Name      string `json:"name"`
 	Driver    string `json:"driver"`
 	Host      string `json:"host"`
+	Port      int    `json:"port"`
 	Username  string `json:"username"`
 	UpdatedAt string `json:"updated_at"`
 	CreatedAt string `json:"created_at"`
@@ -22,6 +23,7 @@ func NewConnectionDTO(conn *connection.Connection) *ConnectionDTO {
 		Name:      conn.Name,
 		Driver:    conn.Driver.String(),
 		Host:      conn.Host,
+		Port:      conn.Port,
 		Username:  conn.Username,
 		UpdatedAt: conn.UpdatedAt.Format(time.RFC3339),
 		CreatedAt: conn.CreatedAt.Format(time.RFC3339),
