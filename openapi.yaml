@@ -55,7 +55,7 @@ components:
           type: string
         driver:
           type: string
-          enum: [postgresql, mysql]
+          enum: [postgres, mysql]
         host:
           type: string
         port:

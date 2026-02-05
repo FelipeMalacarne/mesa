@@ -3,7 +3,7 @@ INSERT INTO connections (
 ) VALUES ( 
   'b027abcf-cef6-4e34-83ed-e37258eda3c4',
   'test-connection',
-  'postgresql',
+  'postgres',
   'localhost',
   5432,
   'mesa',

@@ -14,7 +14,7 @@ export type Connection = {
 };
 export namespace Connection {
     export enum driver {
-        POSTGRESQL = 'postgresql',
+        POSTGRES = 'postgres',
         MYSQL = 'mysql',
     }
 }

@@ -5,7 +5,7 @@ import "strings"
 type Driver string
 
 const (
-	PostgresDriver Driver = "postgresql"
+	PostgresDriver Driver = "postgres"
 	MySQLDriver    Driver = "mysql"
 )
 
