@@ -5,7 +5,7 @@ import "strings"
 type Driver string
 
 const (
-	PostgresDriver Driver = "postgres"
+	PostgresDriver Driver = "postgresql"
 	MySQLDriver    Driver = "mysql"
 )
 
@@ -20,4 +20,7 @@ func NewDriver(driver string) (*Driver, error) {
 
 func (d *Driver) IsValid() bool {
 	return *d == PostgresDriver || *d == MySQLDriver
+}
+func (d *Driver) String() string {
+	return string(*d)
 }

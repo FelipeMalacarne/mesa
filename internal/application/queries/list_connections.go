@@ -3,6 +3,7 @@ package queries
 import (
 	"context"
 
+	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 )
 
@@ -16,11 +17,17 @@ func NewListConnectionsHandler(repo connection.Repository) *ListConnectionsHandl
 	return &ListConnectionsHandler{repo: repo}
 }
 
-func (h *ListConnectionsHandler) Handle(ctx context.Context, cmd ListConnections) ([]*connection.Connection, error) {
+func (h *ListConnectionsHandler) Handle(ctx context.Context, query ListConnections) ([]*dtos.ConnectionDTO, error) {
 	conns, err := h.repo.ListAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return conns, nil
+	connDTOs := make([]*dtos.ConnectionDTO, len(conns))
+
+	for i, conn := range conns {
+		connDTOs[i] = dtos.NewConnectionDTO(conn)
+	}
+
+	return connDTOs, nil
 }

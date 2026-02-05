@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ErrInvalidDriver = errors.New("supported drivers are: postgres, mysql")
+	ErrInvalidDriver = errors.New("supported drivers are: postgresql, mysql")
 	ErrInvalidPort   = errors.New("port must be between 1 and 65535")
 )
 

@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 
@@ -31,13 +30,13 @@ func (s *Server) webHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listConnections(w http.ResponseWriter, r *http.Request) {
-	var cmd queries.ListConnections
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	var query queries.ListConnections
+	// if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 
-	conns, err := s.app.Queries.ListConnections.Handle(r.Context(), cmd)
+	conns, err := s.app.Queries.ListConnections.Handle(r.Context(), query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
