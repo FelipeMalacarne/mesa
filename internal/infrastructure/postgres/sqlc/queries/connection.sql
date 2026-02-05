@@ -7,9 +7,10 @@ INSERT INTO connections (
     port,
     username,
     password,
+    updated_at,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name,
@@ -20,12 +21,12 @@ SET name = EXCLUDED.name,
     password = EXCLUDED.password;
 
 -- name: GetConnection :one
-SELECT id, name, driver, host, port, username, password, created_at
+SELECT id, name, driver, host, port, username, password, updated_at, created_at
 FROM connections
 WHERE id = $1;
 
 -- name: ListConnections :many
-SELECT id, name, driver, host, port, username, password, created_at
+SELECT id, name, driver, host, port, username, password, updated_at, created_at
 FROM connections
 ORDER BY created_at DESC
 LIMIT 100;

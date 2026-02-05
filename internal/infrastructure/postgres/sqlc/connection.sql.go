@@ -22,7 +22,7 @@ func (q *Queries) DeleteConnection(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getConnection = `-- name: GetConnection :one
-SELECT id, name, driver, host, port, username, password, created_at
+SELECT id, name, driver, host, port, username, password, updated_at, created_at
 FROM connections
 WHERE id = $1
 `
@@ -38,13 +38,14 @@ func (q *Queries) GetConnection(ctx context.Context, id pgtype.UUID) (Connection
 		&i.Port,
 		&i.Username,
 		&i.Password,
+		&i.UpdatedAt,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listConnections = `-- name: ListConnections :many
-SELECT id, name, driver, host, port, username, password, created_at
+SELECT id, name, driver, host, port, username, password, updated_at, created_at
 FROM connections
 ORDER BY created_at DESC
 LIMIT 100
@@ -67,6 +68,7 @@ func (q *Queries) ListConnections(ctx context.Context) ([]Connection, error) {
 			&i.Port,
 			&i.Username,
 			&i.Password,
+			&i.UpdatedAt,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -88,9 +90,10 @@ INSERT INTO connections (
     port,
     username,
     password,
+    updated_at,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name,
@@ -109,6 +112,7 @@ type UpsertConnectionParams struct {
 	Port      int32
 	Username  string
 	Password  string
+	UpdatedAt pgtype.Timestamptz
 	CreatedAt pgtype.Timestamptz
 }
 
@@ -121,6 +125,7 @@ func (q *Queries) UpsertConnection(ctx context.Context, arg UpsertConnectionPara
 		arg.Port,
 		arg.Username,
 		arg.Password,
+		arg.UpdatedAt,
 		arg.CreatedAt,
 	)
 	return err

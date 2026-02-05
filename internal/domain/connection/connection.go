@@ -22,6 +22,7 @@ type Connection struct {
 	Port      int
 	Username  string
 	Password  string // Já deve chegar aqui criptografada pela camada de application
+	UpdatedAt time.Time
 	CreatedAt time.Time
 }
 
@@ -44,6 +45,7 @@ func NewConnection(name, driver, host string, port int, user, encryptedPass stri
 		Port:      port,
 		Username:  user,
 		Password:  encryptedPass,
+		UpdatedAt: time.Now(),
 		CreatedAt: time.Now(),
 	}, nil
 }

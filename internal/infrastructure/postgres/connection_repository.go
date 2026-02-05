@@ -38,6 +38,8 @@ func toDomainConnection(record sqlc.Connection) (*connection.Connection, error) 
 		return nil, err
 	}
 
+	updatedAt, err := timeFromPg(record.UpdatedAt)
+
 	parsedDriver, err := connection.NewDriver(record.Driver)
 	if err != nil {
 		return nil, err
@@ -51,6 +53,7 @@ func toDomainConnection(record sqlc.Connection) (*connection.Connection, error) 
 		Port:      int(record.Port),
 		Username:  record.Username,
 		Password:  record.Password,
+		UpdatedAt: updatedAt,
 		CreatedAt: createdAt,
 	}, nil
 }

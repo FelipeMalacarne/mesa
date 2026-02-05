@@ -16,5 +16,6 @@ type Connection struct {
 	Port      int32
 	Username  string
 	Password  string
+	UpdatedAt pgtype.Timestamptz
 	CreatedAt pgtype.Timestamptz
 }

@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS connections (
     port INTEGER NOT NULL,
     username TEXT NOT NULL,
     password TEXT NOT NULL, -- AES-256 Encrypted
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
