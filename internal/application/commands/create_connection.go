@@ -25,10 +25,10 @@ func NewCreateConnectionHandler(r connection.Repository, c domain.Cryptographer)
 	return &CreateConnectionHandler{repo: r, crypto: c}
 }
 
-func (h *CreateConnectionHandler) Handle(ctx context.Context, cmd CreateConnection) error {
+func (h *CreateConnectionHandler) Handle(ctx context.Context, cmd CreateConnection) (*connection.Connection, error) {
 	encryptedPass, err := h.crypto.Encrypt(cmd.Password)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	conn, err := connection.NewConnection(
@@ -40,8 +40,12 @@ func (h *CreateConnectionHandler) Handle(ctx context.Context, cmd CreateConnecti
 		encryptedPass,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return h.repo.Save(ctx, conn)
+	if err := h.repo.Save(ctx, conn); err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }

@@ -1,0 +1,87 @@
+openapi: 3.0.3
+info:
+  title: Mesa API
+  version: 0.1.0
+servers:
+  - url: https://api.example.com
+paths:
+  /connections:
+    get:
+      tags:
+        - Connections
+      summary: List Connections
+      responses:
+        "200":
+          description: Connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Connection"
+    post:
+      tags:
+        - Connections
+      summary: Create Connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConnectionRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+components:
+  parameters:
+    ConnectionId:
+      in: path
+      name: connectionId
+      required: true
+      schema:
+        type: string
+  schemas:
+    Connection:
+      type: object
+      required: [id, name, driver, host, port, username, updated_at, created_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        driver:
+          type: string
+          enum: [postgresql, mysql]
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateConnectionRequest:
+      type: object
+      required: [name, driver, host, port, username, password]
+      properties:
+        name:
+          type: string
+        driver:
+          type: string
+          enum: [postgresql, mysql]
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        password:
+          type: string
