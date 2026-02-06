@@ -22,7 +22,7 @@ services:
       context: .
       dockerfile: docker/node/Dockerfile
     environment:
-      VITE_API_BASE: http://localhost:8080
+      VITE_API_BASE: http://localhost:8080/api
       CI: "true"
     ports:
       - "3000:3000"
@@ -32,7 +32,24 @@ services:
       - node_modules_store:/app/node_modules
     command: ["sh", "-c", "pnpm install --frozen-lockfile && pnpm run dev"]
 
+  api:
+    image: cosmtrek/air
+    working_dir: /app
+    command: ["-c", ".air.toml"]
+    ports:
+      - 8080:8080
+    environment:
+      APP_KEY: default_app_key_please_change_me
+      PORT: 8080
+      DATABASE_URL: postgres://mesa:mesa@postgres:5432/mesa?sslmode=disable
+    volumes:
+      - ./:/app/
+      - go_pkg_mod:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+
 volumes:
   postgres_data:
   pnpm_store:
   node_modules_store:
+  go_pkg_mod:
+  go_build_cache:
