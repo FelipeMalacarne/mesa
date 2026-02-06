@@ -17,5 +17,22 @@ services:
       timeout: 5s
       retries: 5
 
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/node/Dockerfile
+    environment:
+      VITE_API_BASE: http://localhost:8080
+      CI: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web:/app
+      - pnpm_store:/root/.pnpm-store
+      - node_modules_store:/app/node_modules
+    command: ["sh", "-c", "pnpm install --frozen-lockfile && pnpm run dev"]
+
 volumes:
   postgres_data:
+  pnpm_store:
+  node_modules_store:
