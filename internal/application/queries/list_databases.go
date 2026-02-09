@@ -10,21 +10,26 @@ import (
 type ListDatabases struct{}
 
 type ListDatabasesHandler struct {
-	inspector connection.Inspector
-	crypto    domain.Cryptographer
+	crypto     domain.Cryptographer
+	inspectors connection.InspectorFactory
 }
 
-func NewListDatabasesHandler(inspector connection.Inspector) *ListDatabasesHandler {
-	return &ListDatabasesHandler{inspector: inspector}
+func NewListDatabasesHandler(crypto domain.Cryptographer, inspectors connection.InspectorFactory) *ListDatabasesHandler {
+	return &ListDatabasesHandler{crypto: crypto, inspectors: inspectors}
 }
 
 func (h *ListDatabasesHandler) Handle(ctx context.Context, query ListDatabases, conn connection.Connection) ([]connection.Database, error) {
+	inspector, err := h.inspectors.ForDriver(conn.Driver)
+	if err != nil {
+		return nil, err
+	}
+
 	password, err := h.crypto.Decrypt(conn.Password)
 	if err != nil {
 		return nil, err
 	}
 
-	databases, err := h.inspector.GetDatabases(ctx, conn, password)
+	databases, err := inspector.GetDatabases(ctx, conn, password)
 	if err != nil {
 		return nil, err
 	}

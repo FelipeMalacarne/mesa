@@ -27,3 +27,7 @@ type Inspector interface {
 	GetTables(ctx context.Context, conn Connection, password string, dbName string) ([]Table, error)
 	GetColumns(ctx context.Context, conn Connection, password, dbName, tableName string) ([]Column, error)
 }
+
+type InspectorFactory interface {
+	ForDriver(driver Driver) (Inspector, error)
+}

@@ -13,12 +13,13 @@ import (
 
 type Repositories struct {
 	Connection connection.Repository
+	Inspectors connection.InspectorFactory
 }
 
 type Queries struct {
 	FindConnection  *queries.FindConnectionHandler
 	ListConnections *queries.ListConnectionsHandler
-	ListDatabases   *queries.ListDatabases
+	ListDatabases   *queries.ListDatabasesHandler
 }
 
 type Commands struct {
@@ -35,6 +36,7 @@ func NewApp(repos Repositories, crypto domain.Cryptographer) *App {
 		Queries: Queries{
 			FindConnection:  queries.NewFindConnectionHandler(repos.Connection),
 			ListConnections: queries.NewListConnectionsHandler(repos.Connection),
+			ListDatabases:   queries.NewListDatabasesHandler(crypto, repos.Inspectors),
 		},
 		Commands: Commands{
 			CreateConnection: commands.NewCreateConnectionHandler(repos.Connection, crypto),

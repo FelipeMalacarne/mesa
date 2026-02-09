@@ -54,8 +54,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Connection"
+        "404":
+          description: Not Found
 
-      deprecated: false
+  # /connections/{connectionId}/databases:
+  #   get:
+  #     operationId: ListDatabases
+  #     summary: List databases from a connection
+  #     tags:
+  #       - Connections
+  #     parameters:
+  #       - $ref: "#/components/parameters/ConnectionId"
+
 components:
   parameters:
     ConnectionId:

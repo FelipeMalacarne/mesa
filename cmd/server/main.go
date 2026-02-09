@@ -13,6 +13,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/application"
 	"github.com/felipemalacarne/mesa/internal/config"
 	"github.com/felipemalacarne/mesa/internal/infrastructure/crypto"
+	"github.com/felipemalacarne/mesa/internal/infrastructure/inspector"
 	"github.com/felipemalacarne/mesa/internal/infrastructure/postgres"
 	"github.com/felipemalacarne/mesa/internal/transport/rest"
 )
@@ -30,6 +31,7 @@ func main() {
 
 	repos := application.Repositories{
 		Connection: postgres.NewConnectionRepository(db),
+		Inspectors: inspector.NewFactory(),
 	}
 	log.Println("Repositories initialized.")
 
