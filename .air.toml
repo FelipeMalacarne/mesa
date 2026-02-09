@@ -2,7 +2,7 @@ root = "."
 tmp_dir = "/tmp/air"
 
 [build]
-  cmd = "go build -o /tmp/air/api ./cmd/server"
+  cmd = "go build -buildvcs=false -o /tmp/air/api ./cmd/server"
   entrypoint = "/tmp/air/api"
   include_ext = ["go", "tpl", "tmpl", "html"]
   exclude_dir = ["tmp", "vendor", "bin"]
