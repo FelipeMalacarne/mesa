@@ -38,6 +38,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Connection"
+
+  /connections/{connectionId}:
+    get:
+      operationId: FindConnection
+      summary: Retrieves a connection by ID
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+      responses:
+        "200":
+          description: Connection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+
+      deprecated: false
 components:
   parameters:
     ConnectionId:
@@ -46,6 +64,8 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
+      description: The unique identifier for the connection
   schemas:
     Connection:
       type: object

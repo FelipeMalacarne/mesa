@@ -7,6 +7,9 @@ export type Connection = {
     name: string;
     driver: Connection.driver;
     host: string;
+    /**
+     * A port value between 0 and 65535
+     */
     port: number;
     username: string;
     createdAt?: string;

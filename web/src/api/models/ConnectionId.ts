@@ -2,4 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+/**
+ * The unique identifier for the connection
+ */
 export type ConnectionId = string;

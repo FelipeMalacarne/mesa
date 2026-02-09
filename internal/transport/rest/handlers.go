@@ -6,6 +6,14 @@ import (
 
 	"github.com/felipemalacarne/mesa/internal/application/queries"
 	"github.com/felipemalacarne/mesa/web"
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+)
+
+var (
+	ErrInvalidUUID         = "invalid UUID format"
+	ErrConnectionNotFound  = "connection not found"
+	ErrInternalServerError = "internal server error"
 )
 
 func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
@@ -13,6 +21,7 @@ func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
 		log.Printf("healthCheck write response: %v", err)
 	}
 }
+
 func (s *Server) webHandler(w http.ResponseWriter, r *http.Request) {
 	publicFS := web.GetPublicFS()
 	fileServer := http.FileServer(http.FS(publicFS))
@@ -26,7 +35,6 @@ func (s *Server) webHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("webHandler close file %q: %v", r.URL.Path, err)
 	}
 	fileServer.ServeHTTP(w, r)
-
 }
 
 func (s *Server) listConnections(w http.ResponseWriter, r *http.Request) {
@@ -44,3 +52,28 @@ func (s *Server) listConnections(w http.ResponseWriter, r *http.Request) {
 
 	s.respondJSON(w, http.StatusOK, conns)
 }
+
+func (s *Server) findConnection(w http.ResponseWriter, r *http.Request) {
+	connectionID := chi.URLParam(r, "connectionID")
+
+	id, err := uuid.Parse(connectionID)
+	if err != nil {
+		log.Printf("ERROR: getConnection parse uuid %q: %v", connectionID, err)
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	conn, err := s.app.Queries.FindConnection.Handle(r.Context(), queries.FindConnection{ConnectionID: id})
+	if err != nil {
+		log.Printf("ERROR: getConnection find connection %q: %v", connectionID, err)
+		http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, conn)
+}
+
+// func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
+// 	connectionID := chi.URLParam(r, "connectionID")
+//
+// }

@@ -13,7 +13,7 @@ export class ConnectionsService {
      * @returns Connection Connections
      * @throws ApiError
      */
-    public static getConnections(): CancelablePromise<Array<Connection>> {
+    public static listConnections(): CancelablePromise<Array<Connection>> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/connections',
@@ -24,7 +24,7 @@ export class ConnectionsService {
      * @returns Connection Created
      * @throws ApiError
      */
-    public static postConnections({
+    public static createConnection({
         requestBody,
     }: {
         requestBody: CreateConnectionRequest,
@@ -34,6 +34,27 @@ export class ConnectionsService {
             url: '/connections',
             body: requestBody,
             mediaType: 'application/json',
+        });
+    }
+    /**
+     * Retrieves a connection by ID
+     * @returns Connection Connection
+     * @throws ApiError
+     */
+    public static findConnection({
+        connectionId,
+    }: {
+        /**
+         * The unique identifier for the connection
+         */
+        connectionId: string,
+    }): CancelablePromise<Connection> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/connections/{connectionId}',
+            path: {
+                'connectionId': connectionId,
+            },
         });
     }
 }

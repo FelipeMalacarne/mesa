@@ -37,8 +37,13 @@ func NewConnection(name, driver, host string, port int, user, encryptedPass stri
 		return nil, ErrInvalidPort
 	}
 
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Connection{
-		ID:        uuid.New(),
+		ID:        uuid,
 		Name:      strings.TrimSpace(name),
 		Driver:    *validatedDriver,
 		Host:      host,
