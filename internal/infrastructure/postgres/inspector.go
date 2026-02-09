@@ -98,7 +98,7 @@ func (i *Inspector) GetTables(ctx context.Context, conn connection.Connection, p
 	var tables []connection.Table
 	for rows.Next() {
 		var t connection.Table
-		if err := rows.Scan(&t.Name, &t.Type, &t.RowCount, &t.SizeBytes); err != nil {
+		if err := rows.Scan(&t.Name, &t.Type, &t.RowCount, &t.Size); err != nil {
 			return nil, err
 		}
 		tables = append(tables, t)

@@ -7,10 +7,10 @@ type Database struct {
 }
 
 type Table struct {
-	Name      string
-	Type      string // "TABLE" ou "VIEW"
-	SizeBytes int64  // tamanho total em bytes (0 para views)
-	RowCount  int64  // estimativa do Postgres (0 para views)
+	Name     string
+	Type     string // "TABLE" ou "VIEW"
+	Size     int64  // tamanho total em bytes (0 para views)
+	RowCount int64  // estimativa do Postgres (0 para views)
 }
 
 type Column struct {
