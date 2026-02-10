@@ -14,6 +14,7 @@ func (s *Server) RegisterRoutes() {
 
 func (s *Server) connectionRoutes(r chi.Router) {
 	r.Get("/", s.listConnections)
+	r.Post("/", s.createConnection)
 	r.Get("/{connectionID}", s.findConnection)
 	// r.Get("/{connectionID}/databases", s.listDatabases)
 }

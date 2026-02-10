@@ -39,6 +39,9 @@ func toDomainConnection(record sqlc.Connection) (*connection.Connection, error) 
 	}
 
 	updatedAt, err := timeFromPg(record.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
 
 	parsedDriver, err := connection.NewDriver(record.Driver)
 	if err != nil {

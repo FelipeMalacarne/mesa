@@ -1,9 +1,11 @@
 package rest
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
+	"github.com/felipemalacarne/mesa/internal/application/commands"
 	"github.com/felipemalacarne/mesa/internal/application/queries"
 	"github.com/felipemalacarne/mesa/web"
 	"github.com/go-chi/chi/v5"
@@ -71,6 +73,23 @@ func (s *Server) findConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.respondJSON(w, http.StatusOK, conn)
+}
+
+func (s *Server) createConnection(w http.ResponseWriter, r *http.Request) {
+	var cmd commands.CreateConnection
+
+	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	conn, err := s.app.Commands.CreateConnection.Handle(r.Context(), cmd)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	s.respondJSON(w, http.StatusCreated, conn)
 }
 
 // func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
