@@ -12,7 +12,7 @@ export type CreateConnectionRequest = {
 };
 export namespace CreateConnectionRequest {
     export enum driver {
-        POSTGRESQL = 'postgresql',
+        POSTGRES = 'postgres',
         MYSQL = 'mysql',
     }
 }

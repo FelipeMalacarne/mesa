@@ -8,6 +8,7 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
+import { ConnectionForm } from "./connection-form";
 
 export function AddConnectionDialog() {
   return (
@@ -25,6 +26,7 @@ export function AddConnectionDialog() {
             account and remove your data from our servers.
           </DialogDescription>
         </DialogHeader>
+        <ConnectionForm />
       </DialogContent>
     </Dialog>
   );

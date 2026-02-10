@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { configureApiClient } from "@/lib/api";
+import { Toaster } from "@/components/ui/sonner";
 
 configureApiClient();
 
@@ -18,6 +19,7 @@ export const Route = createRootRoute({
             {/* <Header /> */}
             <Outlet />
           </AppSidebar>
+          <Toaster />
         </QueryClientProvider>
       </ThemeProvider>
 

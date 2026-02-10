@@ -55,6 +55,9 @@ export class ConnectionsService {
             path: {
                 'connectionId': connectionId,
             },
+            errors: {
+                404: `Not Found`,
+            },
         });
     }
 }
