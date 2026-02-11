@@ -71,9 +71,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Database"
+                $ref: "#/components/schemas/ListDatabasesResponse"
 
   /connections/{connectionId}/databases/{databaseName}/tables:
     get:
@@ -90,9 +88,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Table"
+                $ref: "#/components/schemas/ListTablesResponse"
 
 components:
   parameters:
@@ -144,6 +140,11 @@ components:
         updatedAt:
           type: string
           format: date-time
+        status:
+          type: string
+          enum: [ok, error]
+        status_error:
+          type: string
     Database:
       type: object
       required: [name]
@@ -164,6 +165,32 @@ components:
         size:
           type: integer
           format: int64
+    ListDatabasesResponse:
+      type: object
+      required: [status, databases]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        error:
+          type: string
+        databases:
+          type: array
+          items:
+            $ref: "#/components/schemas/Database"
+    ListTablesResponse:
+      type: object
+      required: [status, tables]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        error:
+          type: string
+        tables:
+          type: array
+          items:
+            $ref: "#/components/schemas/Table"
     CreateConnectionRequest:
       type: object
       required: [name, driver, host, port, username, password]

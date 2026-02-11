@@ -36,7 +36,7 @@ func NewApp(repos Repositories, crypto domain.Cryptographer) *App {
 	app := &App{
 		Queries: Queries{
 			FindConnection:  queries.NewFindConnectionHandler(repos.Connection),
-			ListConnections: queries.NewListConnectionsHandler(repos.Connection),
+			ListConnections: queries.NewListConnectionsHandler(repos.Connection, crypto, repos.Inspectors),
 			ListDatabases:   queries.NewListDatabasesHandler(crypto, repos.Inspectors),
 			ListTables:      queries.NewListTablesHandler(crypto, repos.Inspectors),
 		},

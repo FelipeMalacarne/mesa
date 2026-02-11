@@ -114,7 +114,7 @@ func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
 	databases, err := s.app.Queries.ListDatabases.Handle(r.Context(), queries.ListDatabases{}, *conn)
 	if err != nil {
 		log.Printf("WARN: listDatabases get databases %q: %v", connectionID, err)
-		s.respondJSON(w, http.StatusOK, make([]*dtos.DatabaseDTO, 0))
+		s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesErrorResponse(err))
 		return
 	}
 
@@ -123,7 +123,7 @@ func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
 		databaseDTOs[i] = dtos.NewDatabaseDTO(database)
 	}
 
-	s.respondJSON(w, http.StatusOK, databaseDTOs)
+	s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesResponse(databaseDTOs))
 }
 
 func (s *Server) listTables(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +158,7 @@ func (s *Server) listTables(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		log.Printf("WARN: listTables get tables %q/%q: %v", connectionID, databaseName, err)
-		s.respondJSON(w, http.StatusOK, make([]*dtos.TableDTO, 0))
+		s.respondJSON(w, http.StatusOK, dtos.NewListTablesErrorResponse(err))
 		return
 	}
 
@@ -167,5 +167,5 @@ func (s *Server) listTables(w http.ResponseWriter, r *http.Request) {
 		tableDTOs[i] = dtos.NewTableDTO(table)
 	}
 
-	s.respondJSON(w, http.StatusOK, tableDTOs)
+	s.respondJSON(w, http.StatusOK, dtos.NewListTablesResponse(tableDTOs))
 }

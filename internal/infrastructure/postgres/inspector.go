@@ -155,3 +155,13 @@ func (i *Inspector) GetColumns(ctx context.Context, conn connection.Connection, 
 	}
 	return columns, nil
 }
+
+func (i *Inspector) Ping(ctx context.Context, conn connection.Connection, password string) error {
+	db, err := i.connect(conn, password, "postgres")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.PingContext(ctx)
+}

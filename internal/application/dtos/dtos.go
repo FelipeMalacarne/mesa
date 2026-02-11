@@ -15,6 +15,8 @@ type ConnectionDTO struct {
 	Username  string `json:"username"`
 	UpdatedAt string `json:"updated_at"`
 	CreatedAt string `json:"created_at"`
+	Status    string `json:"status"`
+	StatusErr string `json:"status_error,omitempty"`
 }
 
 type DatabaseDTO struct {
@@ -26,6 +28,23 @@ type TableDTO struct {
 	Type     string `json:"type"`
 	Size     int64  `json:"size"`
 	RowCount int64  `json:"row_count"`
+}
+
+const (
+	StatusOK    = "ok"
+	StatusError = "error"
+)
+
+type ListDatabasesResponse struct {
+	Status    string         `json:"status"`
+	Error     string         `json:"error,omitempty"`
+	Databases []*DatabaseDTO `json:"databases"`
+}
+
+type ListTablesResponse struct {
+	Status string      `json:"status"`
+	Error  string      `json:"error,omitempty"`
+	Tables []*TableDTO `json:"tables"`
 }
 
 func NewConnectionDTO(conn *connection.Connection) *ConnectionDTO {
@@ -53,5 +72,35 @@ func NewTableDTO(table connection.Table) *TableDTO {
 		Type:     table.Type,
 		Size:     table.Size,
 		RowCount: table.RowCount,
+	}
+}
+
+func NewListDatabasesResponse(databases []*DatabaseDTO) *ListDatabasesResponse {
+	return &ListDatabasesResponse{
+		Status:    StatusOK,
+		Databases: databases,
+	}
+}
+
+func NewListDatabasesErrorResponse(err error) *ListDatabasesResponse {
+	return &ListDatabasesResponse{
+		Status:    StatusError,
+		Error:     err.Error(),
+		Databases: []*DatabaseDTO{},
+	}
+}
+
+func NewListTablesResponse(tables []*TableDTO) *ListTablesResponse {
+	return &ListTablesResponse{
+		Status: StatusOK,
+		Tables: tables,
+	}
+}
+
+func NewListTablesErrorResponse(err error) *ListTablesResponse {
+	return &ListTablesResponse{
+		Status: StatusError,
+		Error:  err.Error(),
+		Tables: []*TableDTO{},
 	}
 }

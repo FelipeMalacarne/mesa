@@ -75,7 +75,6 @@ export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
         description: `${connection.name} (${connection.driver})`,
       });
       queryClient.invalidateQueries({ queryKey: ["connections"] });
-      queryClient.invalidateQueries({ queryKey: ["connections-tree"] });
       form.reset();
       onSuccess?.();
     },

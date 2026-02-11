@@ -14,12 +14,6 @@ import { NavConnections } from "./nav-connections";
 import { NavMain } from "./nav-main";
 import { useQuery } from "@tanstack/react-query";
 import { ConnectionsService } from "@/api";
-import {
-  listDatabases,
-  listTables,
-  type Database,
-  type Table,
-} from "@/lib/inspector-api";
 
 const navMain = [
   {
@@ -34,51 +28,10 @@ const navMain = [
   },
 ];
 
-const loadNavConnections = async () => {
-  const connections = await ConnectionsService.listConnections();
-
-  return Promise.all(
-    connections.map(async (connection) => {
-      let databases: Database[] = [];
-      try {
-        databases = await listDatabases(connection.id);
-      } catch {
-        databases = [];
-      }
-
-      const databaseItems = await Promise.all(
-        databases.map(async (database) => {
-          let tables: Table[] = [];
-          try {
-            tables = await listTables(connection.id, database.name);
-          } catch {
-            tables = [];
-          }
-
-          return {
-            title: database.name,
-            url: "#",
-            tables: tables.map((table) => ({
-              title: table.name,
-              url: "#",
-            })),
-          };
-        }),
-      );
-
-      return {
-        title: connection.name,
-        url: "#",
-        databases: databaseItems,
-      };
-    }),
-  );
-};
-
 export function AppSidebar({ children }: { children: React.ReactNode }) {
-  const { data: navConnections = [] } = useQuery({
-    queryKey: ["connections-tree"],
-    queryFn: loadNavConnections,
+  const { data: connections = [], isLoading } = useQuery({
+    queryKey: ["connections"],
+    queryFn: async () => (await ConnectionsService.listConnections()) ?? [],
   });
 
   return (
@@ -106,7 +59,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
           <NavMain items={navMain} />
-          <NavConnections items={navConnections} />
+          <NavConnections connections={connections} isLoading={isLoading} />
         </SidebarContent>
       </Sidebar>
       <SidebarInset>

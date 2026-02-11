@@ -14,11 +14,17 @@ export type Connection = {
     username: string;
     createdAt?: string;
     updatedAt?: string;
+    status?: Connection.status;
+    status_error?: string;
 };
 export namespace Connection {
     export enum driver {
         POSTGRES = 'postgres',
         MYSQL = 'mysql',
+    }
+    export enum status {
+        OK = 'ok',
+        ERROR = 'error',
     }
 }
 

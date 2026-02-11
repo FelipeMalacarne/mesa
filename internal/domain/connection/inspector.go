@@ -26,6 +26,7 @@ type Inspector interface {
 	GetDatabases(ctx context.Context, conn Connection, password string) ([]Database, error)
 	GetTables(ctx context.Context, conn Connection, password string, dbName string) ([]Table, error)
 	GetColumns(ctx context.Context, conn Connection, password, dbName, tableName string) ([]Column, error)
+	Ping(ctx context.Context, conn Connection, password string) error
 }
 
 type InspectorFactory interface {

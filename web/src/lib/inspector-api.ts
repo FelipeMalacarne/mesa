@@ -13,9 +13,21 @@ export type Table = {
   size: number;
 };
 
+export type ListDatabasesResponse = {
+  status: "ok" | "error";
+  error?: string;
+  databases: Database[];
+};
+
+export type ListTablesResponse = {
+  status: "ok" | "error";
+  error?: string;
+  tables: Table[];
+};
+
 export const listDatabases = (
   connectionId: string,
-): CancelablePromise<Database[]> =>
+): CancelablePromise<ListDatabasesResponse> =>
   __request(OpenAPI, {
     method: "GET",
     url: "/connections/{connectionId}/databases",
@@ -27,7 +39,7 @@ export const listDatabases = (
 export const listTables = (
   connectionId: string,
   databaseName: string,
-): CancelablePromise<Table[]> =>
+): CancelablePromise<ListTablesResponse> =>
   __request(OpenAPI, {
     method: "GET",
     url: "/connections/{connectionId}/databases/{databaseName}/tables",
