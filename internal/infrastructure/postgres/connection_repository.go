@@ -19,6 +19,7 @@ type ConnectionRepository struct {
 var (
 	errNullConnectionID        = errors.New("connection id is NULL")
 	errNullConnectionCreatedAt = errors.New("connection created_at is NULL")
+	errNullConnectionUpdatedAt = errors.New("connection updated_at is NULL")
 )
 
 func NewConnectionRepository(pool *pgxpool.Pool) *ConnectionRepository {
@@ -33,12 +34,12 @@ func toDomainConnection(record sqlc.Connection) (*connection.Connection, error) 
 		return nil, err
 	}
 
-	createdAt, err := timeFromPg(record.CreatedAt)
+	createdAt, err := timeFromPg(record.CreatedAt, errNullConnectionCreatedAt)
 	if err != nil {
 		return nil, err
 	}
 
-	updatedAt, err := timeFromPg(record.UpdatedAt)
+	updatedAt, err := timeFromPg(record.UpdatedAt, errNullConnectionUpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +71,7 @@ func (r *ConnectionRepository) Save(ctx context.Context, conn *connection.Connec
 		Port:      int32(conn.Port),
 		Username:  conn.Username,
 		Password:  conn.Password,
+		UpdatedAt: pgtype.Timestamptz{Time: conn.UpdatedAt, Valid: true},
 		CreatedAt: pgtype.Timestamptz{Time: conn.CreatedAt, Valid: true},
 	})
 }
@@ -113,9 +115,9 @@ func uuidFromPg(value pgtype.UUID) (uuid.UUID, error) {
 	return uuid.UUID(value.Bytes), nil
 }
 
-func timeFromPg(value pgtype.Timestamptz) (time.Time, error) {
+func timeFromPg(value pgtype.Timestamptz, nullErr error) (time.Time, error) {
 	if !value.Valid {
-		return time.Time{}, errNullConnectionCreatedAt
+		return time.Time{}, nullErr
 	}
 
 	return value.Time, nil
