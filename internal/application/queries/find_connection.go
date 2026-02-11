@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var ConnectionNotFoundError = errors.New("connection not found")
+var ErrConnectionNotFound = errors.New("connection not found")
 
 type FindConnection struct {
 	ConnectionID uuid.UUID
@@ -29,7 +29,7 @@ func (h *FindConnectionHandler) Handle(ctx context.Context, query FindConnection
 	}
 
 	if conn == nil {
-		return nil, ConnectionNotFoundError
+		return nil, ErrConnectionNotFound
 	}
 
 	return conn, nil
