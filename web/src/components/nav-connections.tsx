@@ -15,6 +15,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -26,21 +27,17 @@ import { useMemo, useState } from "react";
 import { ConnectionForm } from "./connection-form";
 import { Button } from "./ui/button";
 import { useQueries } from "@tanstack/react-query";
-import { ApiError, ConnectionsService } from "@/api";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  ApiError,
   Connection,
-  type ListDatabasesResponse,
-  type ListTablesResponse,
+  ConnectionsService,
+  ListDatabasesResponse,
+  ListTablesResponse,
 } from "@/api";
 
 type FetchStatus = "idle" | "loading" | "ok" | "error";
-type ConnectionStatus = "ok" | "error" | "unknown";
-const STATUS_OK = "ok";
-const STATUS_ERROR = "error";
-type ConnectionWithStatus = Connection & {
-  status?: "ok" | "error";
-  status_error?: string;
-};
+type ConnectionStatus = Connection.status | "unknown";
 
 const databaseKey = (connectionId: string, databaseName: string) =>
   JSON.stringify([connectionId, databaseName]);
@@ -69,6 +66,7 @@ export function NavConnections({
   connections: Connection[];
   isLoading?: boolean;
 }) {
+  const navigate = useNavigate();
   const [createConnectionOpen, setCreateConnectionOpen] = useState(false);
   const [openConnections, setOpenConnections] = useState<
     Record<string, boolean>
@@ -98,13 +96,7 @@ export function NavConnections({
   };
 
   const connectionsByID = useMemo(
-    () =>
-      new Map(
-        (connections as ConnectionWithStatus[]).map((connection) => [
-          connection.id,
-          connection,
-        ]),
-      ),
+    () => new Map(connections.map((connection) => [connection.id, connection])),
     [connections],
   );
 
@@ -120,7 +112,7 @@ export function NavConnections({
     () =>
       expandedConnectionIds.filter((id) => {
         const connection = connectionsByID.get(id);
-        return connection?.status === STATUS_OK;
+        return connection?.status === Connection.status.OK;
       }),
     [connectionsByID, expandedConnectionIds],
   );
@@ -157,7 +149,7 @@ export function NavConnections({
         });
         return;
       }
-      if (query.data?.status === STATUS_ERROR) {
+      if (query.data?.status === ListDatabasesResponse.status.ERROR) {
         map.set(connectionId, {
           status: "error",
           data: query.data,
@@ -183,7 +175,7 @@ export function NavConnections({
           const [connectionId] = parseDatabaseKey(key);
           const connection = connectionsByID.get(connectionId);
           return openConnections[connectionId] &&
-            connection?.status === STATUS_OK
+            connection?.status === Connection.status.OK
             ? key
             : null;
         })
@@ -229,7 +221,7 @@ export function NavConnections({
         });
         return;
       }
-      if (query.data?.status === STATUS_ERROR) {
+      if (query.data?.status === ListTablesResponse.status.ERROR) {
         map.set(key, {
           status: "error",
           data: query.data,
@@ -270,16 +262,17 @@ export function NavConnections({
               </SidebarMenuButton>
             </SidebarMenuItem>
           ) : null}
-          {(connections as ConnectionWithStatus[]).map((connection) => {
+          {connections.map((connection) => {
             const isConnectionOpen = openConnections[connection.id] ?? false;
             const databaseState = databasesByConnection.get(connection.id);
-            const connectionStatus: ConnectionStatus = connection.status;
+            const connectionStatus: ConnectionStatus =
+              connection.status ?? "unknown";
             const databases = databaseState?.data?.databases ?? [];
 
             const statusDot =
-              connectionStatus === STATUS_OK
+              connectionStatus === Connection.status.OK
                 ? "bg-emerald-500"
-                : connectionStatus === STATUS_ERROR
+                : connectionStatus === Connection.status.ERROR
                   ? "bg-rose-500"
                   : "bg-muted-foreground/40";
 
@@ -294,24 +287,35 @@ export function NavConnections({
                 className="group/connection-collapsible"
               >
                 <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton
-                      tooltip={connection.name}
-                      isActive={isConnectionOpen}
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={connection.name}
+                    isActive={isConnectionOpen}
+                  >
+                    <Link
+                      to="/connections/$connectionId"
+                      params={{ connectionId: connection.id }}
                     >
                       <HardDrive />
                       <span>{connection.name}</span>
-                      <span className="ml-auto flex items-center gap-2">
+                      <span className="ml-auto flex items-center">
                         <span className={`h-2 w-2 rounded-full ${statusDot}`} />
-                        <ChevronRight className="transition-transform duration-200 group-data-[state=open]/connection-collapsible:rotate-90" />
                       </span>
-                    </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuButton>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuAction
+                      type="button"
+                      aria-label={`Toggle ${connection.name}`}
+                    >
+                      <ChevronRight className="transition-transform duration-200 group-data-[state=open]/connection-collapsible:rotate-90" />
+                    </SidebarMenuAction>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       {connectionStatus === Connection.status.ERROR ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton>
+                          <SidebarMenuSubButton aria-disabled tabIndex={-1}>
                             {connection.status_error ??
                               "Unable to connect to this database"}
                           </SidebarMenuSubButton>
@@ -319,7 +323,7 @@ export function NavConnections({
                       ) : null}
                       {connectionStatus === "unknown" ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton>
+                          <SidebarMenuSubButton aria-disabled tabIndex={-1}>
                             Status unavailable
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
@@ -327,7 +331,7 @@ export function NavConnections({
                       {connectionStatus === Connection.status.OK &&
                       databaseState?.status === "loading" ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton>
+                          <SidebarMenuSubButton aria-disabled tabIndex={-1}>
                             Loading databases...
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
@@ -335,7 +339,7 @@ export function NavConnections({
                       {connectionStatus === Connection.status.OK &&
                       databaseState?.status === "error" ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton>
+                          <SidebarMenuSubButton aria-disabled tabIndex={-1}>
                             {databaseState?.errorMessage ??
                               "Unable to load databases"}
                           </SidebarMenuSubButton>
@@ -345,7 +349,7 @@ export function NavConnections({
                       databaseState?.status === "ok" &&
                       databases.length === 0 ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton>
+                          <SidebarMenuSubButton aria-disabled tabIndex={-1}>
                             No databases found
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
@@ -376,25 +380,55 @@ export function NavConnections({
                                 className="group/database-collapsible"
                               >
                                 <SidebarMenuSubItem>
-                                  <CollapsibleTrigger asChild>
-                                    <SidebarMenuSubButton className="[&>svg]:text-sidebar-foreground">
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    className="pr-8 [&>svg]:text-sidebar-foreground"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        navigate({
+                                          to: "/connections/$connectionId/databases/$databaseName",
+                                          params: {
+                                            connectionId: connection.id,
+                                            databaseName: database.name,
+                                          },
+                                        })
+                                      }
+                                    >
                                       <Database className="text-sidebar-foreground" />
                                       <span>{database.name}</span>
-                                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/database-collapsible:rotate-90" />
-                                    </SidebarMenuSubButton>
+                                    </button>
+                                  </SidebarMenuSubButton>
+                                  <CollapsibleTrigger asChild>
+                                    <button
+                                      type="button"
+                                      aria-label={`Toggle ${database.name}`}
+                                      className="text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground absolute top-1 right-1 flex size-5 items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 group-data-[collapsible=icon]:hidden"
+                                    >
+                                      <ChevronRight className="transition-transform duration-200 group-data-[state=open]/database-collapsible:rotate-90" />
+                                    </button>
                                   </CollapsibleTrigger>
                                   <CollapsibleContent>
                                     <SidebarMenuSub className="ml-4">
                                       {tableStatus === "loading" ? (
                                         <SidebarMenuSubItem>
-                                          <SidebarMenuSubButton size="sm">
+                                          <SidebarMenuSubButton
+                                            size="sm"
+                                            aria-disabled
+                                            tabIndex={-1}
+                                          >
                                             Loading tables...
                                           </SidebarMenuSubButton>
                                         </SidebarMenuSubItem>
                                       ) : null}
                                       {tableStatus === "error" ? (
                                         <SidebarMenuSubItem>
-                                          <SidebarMenuSubButton size="sm">
+                                          <SidebarMenuSubButton
+                                            size="sm"
+                                            aria-disabled
+                                            tabIndex={-1}
+                                          >
                                             {tableState?.errorMessage ??
                                               "Unable to load tables"}
                                           </SidebarMenuSubButton>
@@ -403,7 +437,11 @@ export function NavConnections({
                                       {tableStatus === "ok" &&
                                       tables.length === 0 ? (
                                         <SidebarMenuSubItem>
-                                          <SidebarMenuSubButton size="sm">
+                                          <SidebarMenuSubButton
+                                            size="sm"
+                                            aria-disabled
+                                            tabIndex={-1}
+                                          >
                                             No tables found
                                           </SidebarMenuSubButton>
                                         </SidebarMenuSubItem>
@@ -414,11 +452,40 @@ export function NavConnections({
                                               key={table.name}
                                             >
                                               <SidebarMenuSubButton
+                                                asChild
                                                 size="sm"
                                                 className="[&>svg]:text-sidebar-foreground"
+                                                onClick={() =>
+                                                  navigate({
+                                                    to: "/connections/$connectionId/databases/$databaseName/tables/$tableName",
+                                                    params: {
+                                                      connectionId:
+                                                        connection.id,
+                                                      databaseName:
+                                                        database.name,
+                                                      tableName: table.name,
+                                                    },
+                                                  })
+                                                }
                                               >
-                                                <TableIcon className="text-sidebar-foreground" />
-                                                <span>{table.name}</span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    navigate({
+                                                      to: "/connections/$connectionId/databases/$databaseName/tables/$tableName",
+                                                      params: {
+                                                        connectionId:
+                                                          connection.id,
+                                                        databaseName:
+                                                          database.name,
+                                                        tableName: table.name,
+                                                      },
+                                                    })
+                                                  }
+                                                >
+                                                  <TableIcon className="text-sidebar-foreground" />
+                                                  <span>{table.name}</span>
+                                                </button>
                                               </SidebarMenuSubButton>
                                             </SidebarMenuSubItem>
                                           ))

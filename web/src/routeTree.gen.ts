@@ -11,6 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TesteIndexRouteImport } from './routes/teste/index'
+import { Route as ConnectionsConnectionIdRouteImport } from './routes/connections/$connectionId'
+import { Route as ConnectionsConnectionIdIndexRouteImport } from './routes/connections/$connectionId/index'
+import { Route as ConnectionsConnectionIdDatabasesDatabaseNameRouteImport } from './routes/connections/$connectionId/databases/$databaseName'
+import { Route as ConnectionsConnectionIdDatabasesDatabaseNameIndexRouteImport } from './routes/connections/$connectionId/databases/$databaseName/index'
+import { Route as ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRouteImport } from './routes/connections/$connectionId/databases/$databaseName/tables/$tableName'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,30 +27,95 @@ const TesteIndexRoute = TesteIndexRouteImport.update({
   path: '/teste/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnectionsConnectionIdRoute = ConnectionsConnectionIdRouteImport.update({
+  id: '/connections/$connectionId',
+  path: '/connections/$connectionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectionsConnectionIdIndexRoute =
+  ConnectionsConnectionIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ConnectionsConnectionIdRoute,
+  } as any)
+const ConnectionsConnectionIdDatabasesDatabaseNameRoute =
+  ConnectionsConnectionIdDatabasesDatabaseNameRouteImport.update({
+    id: '/databases/$databaseName',
+    path: '/databases/$databaseName',
+    getParentRoute: () => ConnectionsConnectionIdRoute,
+  } as any)
+const ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute =
+  ConnectionsConnectionIdDatabasesDatabaseNameIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ConnectionsConnectionIdDatabasesDatabaseNameRoute,
+  } as any)
+const ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute =
+  ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRouteImport.update(
+    {
+      id: '/tables/$tableName',
+      path: '/tables/$tableName',
+      getParentRoute: () => ConnectionsConnectionIdDatabasesDatabaseNameRoute,
+    } as any,
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/connections/$connectionId': typeof ConnectionsConnectionIdRouteWithChildren
   '/teste/': typeof TesteIndexRoute
+  '/connections/$connectionId/': typeof ConnectionsConnectionIdIndexRoute
+  '/connections/$connectionId/databases/$databaseName': typeof ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren
+  '/connections/$connectionId/databases/$databaseName/': typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute
+  '/connections/$connectionId/databases/$databaseName/tables/$tableName': typeof ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/teste': typeof TesteIndexRoute
+  '/connections/$connectionId': typeof ConnectionsConnectionIdIndexRoute
+  '/connections/$connectionId/databases/$databaseName': typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute
+  '/connections/$connectionId/databases/$databaseName/tables/$tableName': typeof ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/connections/$connectionId': typeof ConnectionsConnectionIdRouteWithChildren
   '/teste/': typeof TesteIndexRoute
+  '/connections/$connectionId/': typeof ConnectionsConnectionIdIndexRoute
+  '/connections/$connectionId/databases/$databaseName': typeof ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren
+  '/connections/$connectionId/databases/$databaseName/': typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute
+  '/connections/$connectionId/databases/$databaseName/tables/$tableName': typeof ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/teste/'
+  fullPaths:
+    | '/'
+    | '/connections/$connectionId'
+    | '/teste/'
+    | '/connections/$connectionId/'
+    | '/connections/$connectionId/databases/$databaseName'
+    | '/connections/$connectionId/databases/$databaseName/'
+    | '/connections/$connectionId/databases/$databaseName/tables/$tableName'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/teste'
-  id: '__root__' | '/' | '/teste/'
+  to:
+    | '/'
+    | '/teste'
+    | '/connections/$connectionId'
+    | '/connections/$connectionId/databases/$databaseName'
+    | '/connections/$connectionId/databases/$databaseName/tables/$tableName'
+  id:
+    | '__root__'
+    | '/'
+    | '/connections/$connectionId'
+    | '/teste/'
+    | '/connections/$connectionId/'
+    | '/connections/$connectionId/databases/$databaseName'
+    | '/connections/$connectionId/databases/$databaseName/'
+    | '/connections/$connectionId/databases/$databaseName/tables/$tableName'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConnectionsConnectionIdRoute: typeof ConnectionsConnectionIdRouteWithChildren
   TesteIndexRoute: typeof TesteIndexRoute
 }
 
@@ -65,11 +135,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TesteIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connections/$connectionId': {
+      id: '/connections/$connectionId'
+      path: '/connections/$connectionId'
+      fullPath: '/connections/$connectionId'
+      preLoaderRoute: typeof ConnectionsConnectionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connections/$connectionId/': {
+      id: '/connections/$connectionId/'
+      path: '/'
+      fullPath: '/connections/$connectionId/'
+      preLoaderRoute: typeof ConnectionsConnectionIdIndexRouteImport
+      parentRoute: typeof ConnectionsConnectionIdRoute
+    }
+    '/connections/$connectionId/databases/$databaseName': {
+      id: '/connections/$connectionId/databases/$databaseName'
+      path: '/databases/$databaseName'
+      fullPath: '/connections/$connectionId/databases/$databaseName'
+      preLoaderRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameRouteImport
+      parentRoute: typeof ConnectionsConnectionIdRoute
+    }
+    '/connections/$connectionId/databases/$databaseName/': {
+      id: '/connections/$connectionId/databases/$databaseName/'
+      path: '/'
+      fullPath: '/connections/$connectionId/databases/$databaseName/'
+      preLoaderRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRouteImport
+      parentRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameRoute
+    }
+    '/connections/$connectionId/databases/$databaseName/tables/$tableName': {
+      id: '/connections/$connectionId/databases/$databaseName/tables/$tableName'
+      path: '/tables/$tableName'
+      fullPath: '/connections/$connectionId/databases/$databaseName/tables/$tableName'
+      preLoaderRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRouteImport
+      parentRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameRoute
+    }
   }
 }
 
+interface ConnectionsConnectionIdDatabasesDatabaseNameRouteChildren {
+  ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute
+  ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute
+}
+
+const ConnectionsConnectionIdDatabasesDatabaseNameRouteChildren: ConnectionsConnectionIdDatabasesDatabaseNameRouteChildren =
+  {
+    ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute:
+      ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute,
+    ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute:
+      ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute,
+  }
+
+const ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren =
+  ConnectionsConnectionIdDatabasesDatabaseNameRoute._addFileChildren(
+    ConnectionsConnectionIdDatabasesDatabaseNameRouteChildren,
+  )
+
+interface ConnectionsConnectionIdRouteChildren {
+  ConnectionsConnectionIdIndexRoute: typeof ConnectionsConnectionIdIndexRoute
+  ConnectionsConnectionIdDatabasesDatabaseNameRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren
+}
+
+const ConnectionsConnectionIdRouteChildren: ConnectionsConnectionIdRouteChildren =
+  {
+    ConnectionsConnectionIdIndexRoute: ConnectionsConnectionIdIndexRoute,
+    ConnectionsConnectionIdDatabasesDatabaseNameRoute:
+      ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren,
+  }
+
+const ConnectionsConnectionIdRouteWithChildren =
+  ConnectionsConnectionIdRoute._addFileChildren(
+    ConnectionsConnectionIdRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConnectionsConnectionIdRoute: ConnectionsConnectionIdRouteWithChildren,
   TesteIndexRoute: TesteIndexRoute,
 }
 export const routeTree = rootRouteImport
