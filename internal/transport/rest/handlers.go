@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/felipemalacarne/mesa/internal/application/commands"
+	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/application/queries"
 	"github.com/felipemalacarne/mesa/web"
 	"github.com/go-chi/chi/v5"
@@ -92,7 +94,78 @@ func (s *Server) createConnection(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusCreated, conn)
 }
 
-// func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
-// 	connectionID := chi.URLParam(r, "connectionID")
-//
-// }
+func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
+	connectionID := chi.URLParam(r, "connectionID")
+
+	id, err := uuid.Parse(connectionID)
+	if err != nil {
+		log.Printf("ERROR: listDatabases parse uuid %q: %v", connectionID, err)
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	conn, err := s.app.Queries.FindConnection.Handle(r.Context(), queries.FindConnection{ConnectionID: id})
+	if err != nil {
+		log.Printf("ERROR: listDatabases find connection %q: %v", connectionID, err)
+		http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+		return
+	}
+
+	databases, err := s.app.Queries.ListDatabases.Handle(r.Context(), queries.ListDatabases{}, *conn)
+	if err != nil {
+		log.Printf("WARN: listDatabases get databases %q: %v", connectionID, err)
+		s.respondJSON(w, http.StatusOK, make([]*dtos.DatabaseDTO, 0))
+		return
+	}
+
+	databaseDTOs := make([]*dtos.DatabaseDTO, len(databases))
+	for i, database := range databases {
+		databaseDTOs[i] = dtos.NewDatabaseDTO(database)
+	}
+
+	s.respondJSON(w, http.StatusOK, databaseDTOs)
+}
+
+func (s *Server) listTables(w http.ResponseWriter, r *http.Request) {
+	connectionID := chi.URLParam(r, "connectionID")
+	databaseNameParam := chi.URLParam(r, "databaseName")
+
+	databaseName, err := url.PathUnescape(databaseNameParam)
+	if err != nil || databaseName == "" {
+		log.Printf("ERROR: listTables invalid database name %q: %v", databaseNameParam, err)
+		http.Error(w, "invalid database name", http.StatusBadRequest)
+		return
+	}
+
+	id, err := uuid.Parse(connectionID)
+	if err != nil {
+		log.Printf("ERROR: listTables parse uuid %q: %v", connectionID, err)
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	conn, err := s.app.Queries.FindConnection.Handle(r.Context(), queries.FindConnection{ConnectionID: id})
+	if err != nil {
+		log.Printf("ERROR: listTables find connection %q: %v", connectionID, err)
+		http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+		return
+	}
+
+	tables, err := s.app.Queries.ListTables.Handle(
+		r.Context(),
+		queries.ListTables{DatabaseName: databaseName},
+		*conn,
+	)
+	if err != nil {
+		log.Printf("WARN: listTables get tables %q/%q: %v", connectionID, databaseName, err)
+		s.respondJSON(w, http.StatusOK, make([]*dtos.TableDTO, 0))
+		return
+	}
+
+	tableDTOs := make([]*dtos.TableDTO, len(tables))
+	for i, table := range tables {
+		tableDTOs[i] = dtos.NewTableDTO(table)
+	}
+
+	s.respondJSON(w, http.StatusOK, tableDTOs)
+}

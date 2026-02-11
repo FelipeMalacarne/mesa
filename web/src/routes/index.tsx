@@ -15,16 +15,6 @@ function App() {
     queryFn: async () => (await ConnectionsService.listConnections()) ?? [],
   });
 
-  const connectionId = connections?.[0]?.id ?? "";
-
-  const { data: connection } = useQuery({
-    queryKey: ["firstConnection"],
-    queryFn: async () =>
-      (await ConnectionsService.findConnection({
-        connectionId: "b027abcf-cef6-4e34-83ed-e37258eda3c4",
-      })) ?? [],
-  });
-
   console.log("connections", connections);
   // console.log("connection", connection);
 

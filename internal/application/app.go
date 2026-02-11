@@ -20,6 +20,7 @@ type Queries struct {
 	FindConnection  *queries.FindConnectionHandler
 	ListConnections *queries.ListConnectionsHandler
 	ListDatabases   *queries.ListDatabasesHandler
+	ListTables      *queries.ListTablesHandler
 }
 
 type Commands struct {
@@ -37,6 +38,7 @@ func NewApp(repos Repositories, crypto domain.Cryptographer) *App {
 			FindConnection:  queries.NewFindConnectionHandler(repos.Connection),
 			ListConnections: queries.NewListConnectionsHandler(repos.Connection),
 			ListDatabases:   queries.NewListDatabasesHandler(crypto, repos.Inspectors),
+			ListTables:      queries.NewListTablesHandler(crypto, repos.Inspectors),
 		},
 		Commands: Commands{
 			CreateConnection: commands.NewCreateConnectionHandler(repos.Connection, crypto),

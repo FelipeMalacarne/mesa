@@ -1,112 +1,86 @@
-import { HardDrive, Layers, Terminal, Users } from "lucide-react";
+import { Layers, Terminal, Users } from "lucide-react";
 import Header from "./app-header";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
 } from "./ui/sidebar";
 import { NavConnections } from "./nav-connections";
 import { NavMain } from "./nav-main";
+import { useQuery } from "@tanstack/react-query";
+import { ConnectionsService } from "@/api";
+import {
+  listDatabases,
+  listTables,
+  type Database,
+  type Table,
+} from "@/lib/inspector-api";
 
-const data = {
-  navMain: [
-    {
-      name: "SQL Editor",
-      url: "#",
-      icon: Terminal,
-    },
-    {
-      name: "Users",
-      url: "#",
-      icon: Users,
-    },
-  ],
-  navConnections: [
-    {
-      title: "Production",
-      url: "#",
-      icon: HardDrive,
-      isActive: false,
-      databases: [
-        {
-          title: "app_db",
-          url: "#",
-          isActive: false,
-          tables: [
-            {
-              title: "users",
+const navMain = [
+  {
+    name: "SQL Editor",
+    url: "#",
+    icon: Terminal,
+  },
+  {
+    name: "Users",
+    url: "#",
+    icon: Users,
+  },
+];
+
+const loadNavConnections = async () => {
+  const connections = await ConnectionsService.listConnections();
+
+  return Promise.all(
+    connections.map(async (connection) => {
+      let databases: Database[] = [];
+      try {
+        databases = await listDatabases(connection.id);
+      } catch {
+        databases = [];
+      }
+
+      const databaseItems = await Promise.all(
+        databases.map(async (database) => {
+          let tables: Table[] = [];
+          try {
+            tables = await listTables(connection.id, database.name);
+          } catch {
+            tables = [];
+          }
+
+          return {
+            title: database.name,
+            url: "#",
+            tables: tables.map((table) => ({
+              title: table.name,
               url: "#",
-              isActive: false,
-            },
-            {
-              title: "sessions",
-              url: "#",
-            },
-            {
-              title: "invoices",
-              url: "#",
-            },
-          ],
-        },
-        {
-          title: "analytics",
-          url: "#",
-          tables: [
-            {
-              title: "events",
-              url: "#",
-            },
-            {
-              title: "funnels",
-              url: "#",
-            },
-            {
-              title: "retention",
-              url: "#",
-            },
-          ],
-        },
-        {
-          title: "postgres",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Development",
-      url: "#",
-      icon: HardDrive,
-      isActive: false,
-      databases: [
-        {
-          title: "app_db",
-          url: "#",
-          isActive: false,
-          tables: [
-            {
-              title: "users",
-              url: "#",
-              isActive: false,
-            },
-          ],
-        },
-        {
-          title: "postgres",
-          url: "#",
-        },
-      ],
-    },
-  ],
+            })),
+          };
+        }),
+      );
+
+      return {
+        title: connection.name,
+        url: "#",
+        databases: databaseItems,
+      };
+    }),
+  );
 };
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
+  const { data: navConnections = [] } = useQuery({
+    queryKey: ["connections-tree"],
+    queryFn: loadNavConnections,
+  });
+
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="inset">
@@ -131,8 +105,8 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
-          <NavMain items={data.navMain} />
-          <NavConnections items={data.navConnections} />
+          <NavMain items={navMain} />
+          <NavConnections items={navConnections} />
         </SidebarContent>
       </Sidebar>
       <SidebarInset>

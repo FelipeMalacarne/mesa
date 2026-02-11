@@ -57,14 +57,42 @@ paths:
         "404":
           description: Not Found
 
-  # /connections/{connectionId}/databases:
-  #   get:
-  #     operationId: ListDatabases
-  #     summary: List databases from a connection
-  #     tags:
-  #       - Connections
-  #     parameters:
-  #       - $ref: "#/components/parameters/ConnectionId"
+  /connections/{connectionId}/databases:
+    get:
+      operationId: ListDatabases
+      summary: List databases from a connection
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+      responses:
+        "200":
+          description: Databases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Database"
+
+  /connections/{connectionId}/databases/{databaseName}/tables:
+    get:
+      operationId: ListTables
+      summary: List tables from a database
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+        - $ref: "#/components/parameters/DatabaseName"
+      responses:
+        "200":
+          description: Tables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Table"
 
 components:
   parameters:
@@ -76,6 +104,13 @@ components:
         type: string
         format: uuid
       description: The unique identifier for the connection
+    DatabaseName:
+      in: path
+      name: databaseName
+      required: true
+      schema:
+        type: string
+      description: Database name
   schemas:
     Connection:
       type: object
@@ -109,6 +144,26 @@ components:
         updatedAt:
           type: string
           format: date-time
+    Database:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    Table:
+      type: object
+      required: [name, type, row_count, size]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        row_count:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int64
     CreateConnectionRequest:
       type: object
       required: [name, driver, host, port, username, password]
