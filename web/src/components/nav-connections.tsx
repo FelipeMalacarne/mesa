@@ -1,4 +1,10 @@
-import { ChevronRight, Database, HardDrive, Plus, Table as TableIcon } from "lucide-react";
+import {
+  ChevronRight,
+  Database,
+  HardDrive,
+  Plus,
+  Table as TableIcon,
+} from "lucide-react";
 
 import {
   Collapsible,
@@ -20,16 +26,17 @@ import { useMemo, useState } from "react";
 import { ConnectionForm } from "./connection-form";
 import { Button } from "./ui/button";
 import { useQueries } from "@tanstack/react-query";
-import { ApiError, type Connection } from "@/api";
+import { ApiError, ConnectionsService } from "@/api";
 import {
-  listDatabases,
-  listTables,
+  Connection,
   type ListDatabasesResponse,
   type ListTablesResponse,
-} from "@/lib/inspector-api";
+} from "@/api";
 
 type FetchStatus = "idle" | "loading" | "ok" | "error";
 type ConnectionStatus = "ok" | "error" | "unknown";
+const STATUS_OK = "ok";
+const STATUS_ERROR = "error";
 type ConnectionWithStatus = Connection & {
   status?: "ok" | "error";
   status_error?: string;
@@ -113,7 +120,7 @@ export function NavConnections({
     () =>
       expandedConnectionIds.filter((id) => {
         const connection = connectionsByID.get(id);
-        return connection?.status === "ok";
+        return connection?.status === STATUS_OK;
       }),
     [connectionsByID, expandedConnectionIds],
   );
@@ -121,7 +128,8 @@ export function NavConnections({
   const databaseQueries = useQueries({
     queries: activeConnectionIds.map((connectionId) => ({
       queryKey: ["connection-databases", connectionId],
-      queryFn: () => listDatabases(connectionId),
+      queryFn: () =>
+        ConnectionsService.listDatabases({ connectionId: connectionId }),
       staleTime: 60_000,
     })),
   });
@@ -149,7 +157,7 @@ export function NavConnections({
         });
         return;
       }
-      if (query.data?.status === "error") {
+      if (query.data?.status === STATUS_ERROR) {
         map.set(connectionId, {
           status: "error",
           data: query.data,
@@ -174,7 +182,8 @@ export function NavConnections({
         .map(([key]) => {
           const [connectionId] = parseDatabaseKey(key);
           const connection = connectionsByID.get(connectionId);
-          return openConnections[connectionId] && connection?.status === "ok"
+          return openConnections[connectionId] &&
+            connection?.status === STATUS_OK
             ? key
             : null;
         })
@@ -187,7 +196,11 @@ export function NavConnections({
       const [connectionId, databaseName] = parseDatabaseKey(key);
       return {
         queryKey: ["connection-tables", connectionId, databaseName],
-        queryFn: () => listTables(connectionId, databaseName),
+        queryFn: () =>
+          ConnectionsService.listTables({
+            connectionId,
+            databaseName,
+          }),
         staleTime: 60_000,
       };
     }),
@@ -216,7 +229,7 @@ export function NavConnections({
         });
         return;
       }
-      if (query.data?.status === "error") {
+      if (query.data?.status === STATUS_ERROR) {
         map.set(key, {
           status: "error",
           data: query.data,
@@ -252,20 +265,21 @@ export function NavConnections({
         <SidebarMenu>
           {isLoading ? (
             <SidebarMenuItem>
-              <SidebarMenuButton disabled>Loading connections...</SidebarMenuButton>
+              <SidebarMenuButton disabled>
+                Loading connections...
+              </SidebarMenuButton>
             </SidebarMenuItem>
           ) : null}
           {(connections as ConnectionWithStatus[]).map((connection) => {
             const isConnectionOpen = openConnections[connection.id] ?? false;
             const databaseState = databasesByConnection.get(connection.id);
-            const connectionStatus: ConnectionStatus =
-              connection.status ?? "unknown";
+            const connectionStatus: ConnectionStatus = connection.status;
             const databases = databaseState?.data?.databases ?? [];
 
             const statusDot =
-              connectionStatus === "ok"
+              connectionStatus === STATUS_OK
                 ? "bg-emerald-500"
-                : connectionStatus === "error"
+                : connectionStatus === STATUS_ERROR
                   ? "bg-rose-500"
                   : "bg-muted-foreground/40";
 
@@ -295,9 +309,9 @@ export function NavConnections({
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {connectionStatus === "error" ? (
+                      {connectionStatus === Connection.status.ERROR ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton disabled>
+                          <SidebarMenuSubButton>
                             {connection.status_error ??
                               "Unable to connect to this database"}
                           </SidebarMenuSubButton>
@@ -305,41 +319,44 @@ export function NavConnections({
                       ) : null}
                       {connectionStatus === "unknown" ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton disabled>
+                          <SidebarMenuSubButton>
                             Status unavailable
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ) : null}
-                      {connectionStatus === "ok" &&
+                      {connectionStatus === Connection.status.OK &&
                       databaseState?.status === "loading" ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton disabled>
+                          <SidebarMenuSubButton>
                             Loading databases...
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ) : null}
-                      {connectionStatus === "ok" &&
+                      {connectionStatus === Connection.status.OK &&
                       databaseState?.status === "error" ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton disabled>
+                          <SidebarMenuSubButton>
                             {databaseState?.errorMessage ??
                               "Unable to load databases"}
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ) : null}
-                      {connectionStatus === "ok" &&
+                      {connectionStatus === Connection.status.OK &&
                       databaseState?.status === "ok" &&
                       databases.length === 0 ? (
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton disabled>
+                          <SidebarMenuSubButton>
                             No databases found
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ) : null}
-                      {connectionStatus === "ok" &&
+                      {connectionStatus === Connection.status.OK &&
                       databaseState?.status === "ok"
                         ? databases.map((database) => {
-                            const key = databaseKey(connection.id, database.name);
+                            const key = databaseKey(
+                              connection.id,
+                              database.name,
+                            );
                             const isDatabaseOpen = openDatabases[key] ?? false;
                             const tableState = tablesByDatabaseKey.get(key);
                             const tableStatus = tableState?.status ?? "idle";
@@ -370,29 +387,32 @@ export function NavConnections({
                                     <SidebarMenuSub className="ml-4">
                                       {tableStatus === "loading" ? (
                                         <SidebarMenuSubItem>
-                                          <SidebarMenuSubButton size="sm" disabled>
+                                          <SidebarMenuSubButton size="sm">
                                             Loading tables...
                                           </SidebarMenuSubButton>
                                         </SidebarMenuSubItem>
                                       ) : null}
                                       {tableStatus === "error" ? (
                                         <SidebarMenuSubItem>
-                                          <SidebarMenuSubButton size="sm" disabled>
+                                          <SidebarMenuSubButton size="sm">
                                             {tableState?.errorMessage ??
                                               "Unable to load tables"}
                                           </SidebarMenuSubButton>
                                         </SidebarMenuSubItem>
                                       ) : null}
-                                      {tableStatus === "ok" && tables.length === 0 ? (
+                                      {tableStatus === "ok" &&
+                                      tables.length === 0 ? (
                                         <SidebarMenuSubItem>
-                                          <SidebarMenuSubButton size="sm" disabled>
+                                          <SidebarMenuSubButton size="sm">
                                             No tables found
                                           </SidebarMenuSubButton>
                                         </SidebarMenuSubItem>
                                       ) : null}
                                       {tableStatus === "ok"
                                         ? tables.map((table) => (
-                                            <SidebarMenuSubItem key={table.name}>
+                                            <SidebarMenuSubItem
+                                              key={table.name}
+                                            >
                                               <SidebarMenuSubButton
                                                 size="sm"
                                                 className="[&>svg]:text-sidebar-foreground"
