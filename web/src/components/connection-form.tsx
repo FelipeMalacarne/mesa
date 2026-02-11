@@ -51,7 +51,7 @@ const formSchema = z.object({
 
 type ConnectionFormValues = z.infer<typeof formSchema>;
 
-export function ConnectionForm() {
+export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
   const [selectContainer, setSelectContainer] =
     React.useState<HTMLElement | null>(null);
   const queryClient = useQueryClient();
@@ -73,27 +73,18 @@ export function ConnectionForm() {
     onSuccess: (connection) => {
       toast("Connection created", {
         description: `${connection.name} (${connection.driver})`,
-        position: "bottom-right",
-        style: {
-          "--border-radius": "calc(var(--radius)  + 4px)",
-        } as React.CSSProperties,
       });
       queryClient.invalidateQueries({ queryKey: ["connections"] });
-      form.reset({
-        name: "",
-        driver: CreateConnectionRequest.driver.POSTGRES,
-        host: "",
-        port: 5432,
-        username: "",
-        password: "",
-      });
+
+      form.reset();
+      onSuccess?.();
     },
     onError: (error) => {
       const message =
         error instanceof ApiError
-          ? error.body?.message ??
+          ? (error.body?.message ??
             error.statusText ??
-            `Request failed (${error.status})`
+            `Request failed (${error.status})`)
           : "Unable to create connection.";
 
       toast("Connection failed", {

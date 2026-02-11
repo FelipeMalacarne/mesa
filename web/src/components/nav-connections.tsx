@@ -2,6 +2,7 @@ import {
   ChevronRight,
   Database,
   HardDrive,
+  Plus,
   Table as TableIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +23,10 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { AddConnectionDialog } from "./add-connection-dialog";
+import { ResponsiveDialog } from "./responsive-dialog";
+import { useState } from "react";
+import { ConnectionForm } from "./connection-form";
+import { Button } from "./ui/button";
 
 export function NavConnections({
   items,
@@ -42,114 +47,134 @@ export function NavConnections({
     }[];
   }[];
 }) {
+  const [createConnectionOpen, setCreateConnectionOpen] = useState(false);
+
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel className="flex items-center justify-between">
-        Connections
-        <AddConnectionDialog />
-      </SidebarGroupLabel>
-      <SidebarMenu>
-        {items.map((item) => {
-          const isConnectionOpen =
-            item.isActive ||
-            item.databases?.some(
-              (database) =>
-                database.isActive ||
-                database.tables?.some((table) => table.isActive),
-            );
-          const hasDatabases = (item.databases?.length ?? 0) > 0;
+    <>
+      <SidebarGroup>
+        <SidebarGroupLabel className="flex items-center justify-between">
+          Connections
+          <Button
+            onClick={() => setCreateConnectionOpen(true)}
+            variant="ghost"
+            size="icon"
+            className="size-6"
+          >
+            <Plus />
+          </Button>
+          {/* <AddConnectionDialog /> */}
+        </SidebarGroupLabel>
+        <SidebarMenu>
+          {items.map((item) => {
+            const isConnectionOpen =
+              item.isActive ||
+              item.databases?.some(
+                (database) =>
+                  database.isActive ||
+                  database.tables?.some((table) => table.isActive),
+              );
+            const hasDatabases = (item.databases?.length ?? 0) > 0;
 
-          return (
-            <Collapsible
-              key={item.title}
-              asChild
-              defaultOpen={isConnectionOpen}
-              className="group/connection-collapsible"
-            >
-              <SidebarMenuItem>
-                <CollapsibleTrigger asChild>
-                  <SidebarMenuButton
-                    tooltip={item.title}
-                    isActive={item.isActive}
-                  >
-                    <HardDrive />
-                    <span>{item.title}</span>
-                    {hasDatabases ? (
-                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/connection-collapsible:rotate-90" />
-                    ) : null}
-                  </SidebarMenuButton>
-                </CollapsibleTrigger>
-                {hasDatabases ? (
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {item.databases?.map((database) => {
-                        const isDatabaseOpen =
-                          database.isActive ||
-                          database.tables?.some((table) => table.isActive);
-                        const hasTables = (database.tables?.length ?? 0) > 0;
+            return (
+              <Collapsible
+                key={item.title}
+                asChild
+                defaultOpen={isConnectionOpen}
+                className="group/connection-collapsible"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={item.isActive}
+                    >
+                      <HardDrive />
+                      <span>{item.title}</span>
+                      {hasDatabases ? (
+                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/connection-collapsible:rotate-90" />
+                      ) : null}
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  {hasDatabases ? (
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {item.databases?.map((database) => {
+                          const isDatabaseOpen =
+                            database.isActive ||
+                            database.tables?.some((table) => table.isActive);
+                          const hasTables = (database.tables?.length ?? 0) > 0;
 
-                        if (!hasTables) {
-                          return (
-                            <SidebarMenuSubItem key={database.title}>
-                              <SidebarMenuSubButton
-                                isActive={database.isActive}
-                                href={database.url}
-                                className="[&>svg]:text-sidebar-foreground"
-                              >
-                                <Database className="text-sidebar-foreground" />
-                                <span>{database.title}</span>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          );
-                        }
-
-                        return (
-                          <Collapsible
-                            key={database.title}
-                            asChild
-                            defaultOpen={isDatabaseOpen}
-                            className="group/database-collapsible"
-                          >
-                            <SidebarMenuSubItem>
-                              <CollapsibleTrigger asChild>
+                          if (!hasTables) {
+                            return (
+                              <SidebarMenuSubItem key={database.title}>
                                 <SidebarMenuSubButton
                                   isActive={database.isActive}
+                                  href={database.url}
                                   className="[&>svg]:text-sidebar-foreground"
                                 >
                                   <Database className="text-sidebar-foreground" />
                                   <span>{database.title}</span>
-                                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/database-collapsible:rotate-90" />
                                 </SidebarMenuSubButton>
-                              </CollapsibleTrigger>
-                              <CollapsibleContent>
-                                <SidebarMenuSub className="ml-4">
-                                  {database.tables?.map((table) => (
-                                    <SidebarMenuSubItem key={table.title}>
-                                      <SidebarMenuSubButton
-                                        size="sm"
-                                        isActive={table.isActive}
-                                        href={table.url}
-                                        className="[&>svg]:text-sidebar-foreground"
-                                      >
-                                        <TableIcon className="text-sidebar-foreground" />
-                                        <span>{table.title}</span>
-                                      </SidebarMenuSubButton>
-                                    </SidebarMenuSubItem>
-                                  ))}
-                                </SidebarMenuSub>
-                              </CollapsibleContent>
-                            </SidebarMenuSubItem>
-                          </Collapsible>
-                        );
-                      })}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                ) : null}
-              </SidebarMenuItem>
-            </Collapsible>
-          );
-        })}
-      </SidebarMenu>
-    </SidebarGroup>
+                              </SidebarMenuSubItem>
+                            );
+                          }
+
+                          return (
+                            <Collapsible
+                              key={database.title}
+                              asChild
+                              defaultOpen={isDatabaseOpen}
+                              className="group/database-collapsible"
+                            >
+                              <SidebarMenuSubItem>
+                                <CollapsibleTrigger asChild>
+                                  <SidebarMenuSubButton
+                                    isActive={database.isActive}
+                                    className="[&>svg]:text-sidebar-foreground"
+                                  >
+                                    <Database className="text-sidebar-foreground" />
+                                    <span>{database.title}</span>
+                                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/database-collapsible:rotate-90" />
+                                  </SidebarMenuSubButton>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <SidebarMenuSub className="ml-4">
+                                    {database.tables?.map((table) => (
+                                      <SidebarMenuSubItem key={table.title}>
+                                        <SidebarMenuSubButton
+                                          size="sm"
+                                          isActive={table.isActive}
+                                          href={table.url}
+                                          className="[&>svg]:text-sidebar-foreground"
+                                        >
+                                          <TableIcon className="text-sidebar-foreground" />
+                                          <span>{table.title}</span>
+                                        </SidebarMenuSubButton>
+                                      </SidebarMenuSubItem>
+                                    ))}
+                                  </SidebarMenuSub>
+                                </CollapsibleContent>
+                              </SidebarMenuSubItem>
+                            </Collapsible>
+                          );
+                        })}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  ) : null}
+                </SidebarMenuItem>
+              </Collapsible>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroup>
+
+      <ResponsiveDialog
+        title="Add Connection"
+        isOpen={createConnectionOpen}
+        setIsOpen={setCreateConnectionOpen}
+      >
+        <ConnectionForm onSuccess={() => setCreateConnectionOpen(false)} />
+      </ResponsiveDialog>
+    </>
   );
 }
