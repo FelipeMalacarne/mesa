@@ -75,7 +75,6 @@ export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
         description: `${connection.name} (${connection.driver})`,
       });
       queryClient.invalidateQueries({ queryKey: ["connections"] });
-
       form.reset();
       onSuccess?.();
     },
@@ -89,10 +88,6 @@ export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
 
       toast("Connection failed", {
         description: message,
-        position: "bottom-right",
-        style: {
-          "--border-radius": "calc(var(--radius)  + 4px)",
-        } as React.CSSProperties,
       });
     },
   });
@@ -247,19 +242,9 @@ export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
           )}
         />
 
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => form.reset()}
-            disabled={isSubmitting}
-          >
-            Reset
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : "Submit"}
-          </Button>
-        </div>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Saving..." : "Submit"}
+        </Button>
       </form>
     </Form>
   );
