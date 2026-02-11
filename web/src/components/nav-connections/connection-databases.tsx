@@ -1,12 +1,10 @@
-import type {
-  Connection,
-  ListDatabasesResponse,
-} from "@/api";
+import type { Connection, ListDatabasesResponse } from "@/api";
 
 import { databaseKey } from "./hooks";
 import type { FetchResult, TablesByDatabaseKey } from "./types";
 import { DatabaseMenuItem } from "./database-menu-item";
 import { DisabledSubButton } from "./disabled-sub-button";
+import { Spinner } from "../ui/spinner";
 
 export type ConnectionDatabasesProps = {
   connection: Connection;
@@ -31,7 +29,11 @@ export const ConnectionDatabases = ({
   const databases = data?.databases ?? [];
 
   if (status === "loading") {
-    return <DisabledSubButton>Loading databases...</DisabledSubButton>;
+    return (
+      <DisabledSubButton>
+        <Spinner />
+      </DisabledSubButton>
+    );
   }
 
   if (status === "error") {

@@ -5,6 +5,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  SidebarMenuAction,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
@@ -15,6 +16,7 @@ import type { ListTablesResponse } from "@/api";
 import type { DatabaseEntry, FetchResult } from "./types";
 import { DisabledSubButton } from "./disabled-sub-button";
 import { TableMenuItem } from "./table-menu-item";
+import { Spinner } from "../ui/spinner";
 
 export type DatabaseMenuItemProps = {
   connectionId: string;
@@ -55,18 +57,19 @@ export const DatabaseMenuItem = ({
           </Link>
         </SidebarMenuSubButton>
         <CollapsibleTrigger asChild>
-          <button
-            type="button"
+          <SidebarMenuAction
             aria-label={`Toggle ${database.name}`}
-            className="text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground absolute top-1 right-1 flex size-5 items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 group-data-[collapsible=icon]:hidden"
+            className="top-1"
           >
             <ChevronRight className="transition-transform duration-200 group-data-[state=open]/database-collapsible:rotate-90" />
-          </button>
+          </SidebarMenuAction>
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub className="ml-4">
             {tableStatus === "loading" ? (
-              <DisabledSubButton size="sm">Loading tables...</DisabledSubButton>
+              <DisabledSubButton>
+                <Spinner />
+              </DisabledSubButton>
             ) : null}
             {tableStatus === "error" ? (
               <DisabledSubButton size="sm">
