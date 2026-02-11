@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 
+	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 )
@@ -25,7 +26,7 @@ func NewCreateConnectionHandler(r connection.Repository, c domain.Cryptographer)
 	return &CreateConnectionHandler{repo: r, crypto: c}
 }
 
-func (h *CreateConnectionHandler) Handle(ctx context.Context, cmd CreateConnection) (*connection.Connection, error) {
+func (h *CreateConnectionHandler) Handle(ctx context.Context, cmd CreateConnection) (*dtos.ConnectionDTO, error) {
 	encryptedPass, err := h.crypto.Encrypt(cmd.Password)
 	if err != nil {
 		return nil, err
@@ -47,5 +48,5 @@ func (h *CreateConnectionHandler) Handle(ctx context.Context, cmd CreateConnecti
 		return nil, err
 	}
 
-	return conn, nil
+	return dtos.NewConnectionDTO(conn), nil
 }
