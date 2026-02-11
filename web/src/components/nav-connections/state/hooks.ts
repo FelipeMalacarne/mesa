@@ -10,18 +10,15 @@ import {
 } from "@/api";
 
 import type {
+  ConnectionStatus,
+  ConnectionTreeNode,
+  DatabaseTreeNode,
   FetchResult,
   QueryState,
   TablesByDatabaseKey,
 } from "./types";
-
-export const databaseKey = (connectionId: string, databaseName: string) =>
-  JSON.stringify([connectionId, databaseName]);
-
-export const parseDatabaseKey = (key: string): [string, string] => {
-  const parsed = JSON.parse(key) as [string, string];
-  return [parsed[0], parsed[1]];
-};
+import { useNavConnectionsState } from "./context";
+import { databaseKey, parseDatabaseKey } from "./utils";
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof ApiError) {
@@ -178,4 +175,57 @@ export const useTablesByDatabase = (
 
     return map;
   }, [expandedDatabaseKeys, tableQueries]);
+};
+
+export const useConnectionTreeData = (connections: Connection[]) => {
+  const { openConnections, openDatabases } = useNavConnectionsState();
+
+  const { connectionsByID, activeConnectionIds } = useExpandedConnections(
+    connections,
+    openConnections,
+  );
+  const expandedDatabaseKeys = useExpandedDatabaseKeys(
+    openDatabases,
+    connectionsByID,
+    openConnections,
+  );
+  const databasesByConnection = useDatabasesByConnection(activeConnectionIds);
+  const tablesByDatabaseKey = useTablesByDatabase(expandedDatabaseKeys);
+
+  const connectionNodes = useMemo(() => {
+    return connections.map<ConnectionTreeNode>((connection) => {
+      const databaseState = databasesByConnection.get(connection.id);
+      const connectionStatus: ConnectionStatus = connection.status ?? "unknown";
+
+      const databases: DatabaseTreeNode[] =
+        connectionStatus === Connection.status.OK && databaseState?.status === "ok"
+          ? (databaseState.data?.databases ?? []).map((database) => {
+              const key = databaseKey(connection.id, database.name);
+              return {
+                key,
+                connectionId: connection.id,
+                database,
+                isOpen: openDatabases[key] ?? false,
+                tableState: tablesByDatabaseKey.get(key),
+              };
+            })
+          : [];
+
+      return {
+        connection,
+        isOpen: openConnections[connection.id] ?? false,
+        status: connectionStatus,
+        databaseState,
+        databases,
+      };
+    });
+  }, [
+    connections,
+    databasesByConnection,
+    openConnections,
+    openDatabases,
+    tablesByDatabaseKey,
+  ]);
+
+  return { connectionNodes };
 };

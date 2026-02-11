@@ -24,3 +24,19 @@ export type QueryState<T> = {
   error: unknown;
   data?: T;
 };
+
+export type DatabaseTreeNode = {
+  key: string;
+  connectionId: string;
+  database: DatabaseEntry;
+  isOpen: boolean;
+  tableState?: FetchResult<ListTablesResponse>;
+};
+
+export type ConnectionTreeNode = {
+  connection: Connection;
+  isOpen: boolean;
+  status: ConnectionStatus;
+  databaseState?: FetchResult<ListDatabasesResponse>;
+  databases: DatabaseTreeNode[];
+};

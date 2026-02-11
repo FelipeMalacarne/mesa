@@ -8,19 +8,16 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { ResponsiveDialog } from "./responsive-dialog";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { ConnectionForm } from "./connection-form";
 import { Button } from "./ui/button";
 import type { Connection } from "@/api";
 
 import {
-  parseDatabaseKey,
-  useDatabasesByConnection,
-  useExpandedConnections,
-  useExpandedDatabaseKeys,
-  useTablesByDatabase,
-} from "./nav-connections/hooks";
-import { ConnectionMenuItem } from "./nav-connections/connection-menu-item";
+  NavConnectionsProvider,
+  useConnectionTreeData,
+  ConnectionMenuItem,
+} from "./nav-connections/index";
 
 export function NavConnections({
   connections,
@@ -29,55 +26,22 @@ export function NavConnections({
   connections: Connection[];
   isLoading?: boolean;
 }) {
+  return (
+    <NavConnectionsProvider>
+      <NavConnectionsContent connections={connections} isLoading={isLoading} />
+    </NavConnectionsProvider>
+  );
+}
+
+function NavConnectionsContent({
+  connections,
+  isLoading,
+}: {
+  connections: Connection[];
+  isLoading?: boolean;
+}) {
   const [createConnectionOpen, setCreateConnectionOpen] = useState(false);
-  const [openConnections, setOpenConnections] = useState<
-    Record<string, boolean>
-  >({});
-  const [openDatabases, setOpenDatabases] = useState<Record<string, boolean>>(
-    {},
-  );
-
-  const { connectionsByID, activeConnectionIds } = useExpandedConnections(
-    connections,
-    openConnections,
-  );
-  const expandedDatabaseKeys = useExpandedDatabaseKeys(
-    openDatabases,
-    connectionsByID,
-    openConnections,
-  );
-  const databasesByConnection = useDatabasesByConnection(activeConnectionIds);
-  const tablesByDatabaseKey = useTablesByDatabase(expandedDatabaseKeys);
-
-  const handleConnectionToggle = useCallback(
-    (connectionId: string, nextOpen: boolean) => {
-      setOpenConnections((prev) => ({
-        ...prev,
-        [connectionId]: nextOpen,
-      }));
-
-      if (!nextOpen) {
-        setOpenDatabases((prev) => {
-          const next = { ...prev };
-          Object.keys(next).forEach((key) => {
-            const [id] = parseDatabaseKey(key);
-            if (id === connectionId) {
-              delete next[key];
-            }
-          });
-          return next;
-        });
-      }
-    },
-    [],
-  );
-
-  const handleDatabaseToggle = useCallback((key: string, nextOpen: boolean) => {
-    setOpenDatabases((prev) => ({
-      ...prev,
-      [key]: nextOpen,
-    }));
-  }, []);
+  const { connectionNodes } = useConnectionTreeData(connections);
 
   return (
     <>
@@ -101,19 +65,8 @@ export function NavConnections({
               </SidebarMenuButton>
             </SidebarMenuItem>
           ) : null}
-          {connections.map((connection) => (
-            <ConnectionMenuItem
-              key={connection.id}
-              connection={connection}
-              isOpen={openConnections[connection.id] ?? false}
-              onToggle={(nextOpen) =>
-                handleConnectionToggle(connection.id, nextOpen)
-              }
-              databaseState={databasesByConnection.get(connection.id)}
-              openDatabases={openDatabases}
-              onDatabaseToggle={handleDatabaseToggle}
-              tablesByDatabaseKey={tablesByDatabaseKey}
-            />
+          {connectionNodes.map((node) => (
+            <ConnectionMenuItem key={node.connection.id} node={node} />
           ))}
         </SidebarMenu>
       </SidebarGroup>

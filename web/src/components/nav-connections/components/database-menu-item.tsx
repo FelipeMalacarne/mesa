@@ -12,27 +12,23 @@ import {
 } from "@/components/ui/sidebar";
 import { Link } from "@tanstack/react-router";
 
-import type { ListTablesResponse } from "@/api";
-import type { DatabaseEntry, FetchResult } from "./types";
+import type { DatabaseTreeNode } from "../state/types";
 import { DisabledSubButton } from "./disabled-sub-button";
 import { TableMenuItem } from "./table-menu-item";
-import { Spinner } from "../ui/spinner";
+import { Spinner } from "../../ui/spinner";
+import { useNavConnectionsState } from "../state/context";
 
 export type DatabaseMenuItemProps = {
   connectionId: string;
-  database: DatabaseEntry;
-  isOpen: boolean;
-  onToggle: (nextOpen: boolean) => void;
-  tableState?: FetchResult<ListTablesResponse>;
+  node: DatabaseTreeNode;
 };
 
 export const DatabaseMenuItem = ({
   connectionId,
-  database,
-  isOpen,
-  onToggle,
-  tableState,
+  node,
 }: DatabaseMenuItemProps) => {
+  const { setDatabaseOpen } = useNavConnectionsState();
+  const { database, isOpen, tableState, key } = node;
   const tableStatus = tableState?.status ?? "idle";
   const tables = tableState?.data?.tables ?? [];
 
@@ -40,7 +36,7 @@ export const DatabaseMenuItem = ({
     <Collapsible
       asChild
       open={isOpen}
-      onOpenChange={onToggle}
+      onOpenChange={(nextOpen) => setDatabaseOpen(key, nextOpen)}
       className="group/database-collapsible"
     >
       <SidebarMenuSubItem>
