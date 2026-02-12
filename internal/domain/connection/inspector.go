@@ -1,34 +1,51 @@
 package connection
 
-import "context"
+import "time"
 
 type Database struct {
-	Name string
+	Name       string
+	Owner      string
+	Encoding   string
+	Size       int64
+	TableCount int
 }
 
 type Table struct {
 	Name     string
-	Type     string // "TABLE" ou "VIEW"
-	Size     int64  // tamanho total em bytes (0 para views)
-	RowCount int64  // estimativa do Postgres (0 para views)
+	Type     string // "TABLE", "VIEW", "MATERIALIZED VIEW"
+	Size     int64
+	RowCount int64
 }
 
 type Column struct {
 	Name         string
-	Type         string
+	DataType     string
 	IsNullable   bool
 	IsPrimary    bool
 	DefaultValue *string
 }
 
-// Inspector é a nossa "Port" (Interface)
-type Inspector interface {
-	GetDatabases(ctx context.Context, conn Connection, password string) ([]Database, error)
-	GetTables(ctx context.Context, conn Connection, password string, dbName string) ([]Table, error)
-	GetColumns(ctx context.Context, conn Connection, password, dbName, tableName string) ([]Column, error)
-	Ping(ctx context.Context, conn Connection, password string) error
+type ServerHealth struct {
+	Version        string
+	Uptime         time.Duration
+	ActiveSessions int
+	MaxConnections int
+	Status         string
 }
 
-type InspectorFactory interface {
-	ForDriver(driver Driver) (Inspector, error)
+type DBUser struct {
+	Name        string
+	IsSuperUser bool
+	CanLogin    bool
+	ConnLimit   int
+}
+
+type Session struct {
+	PID       int
+	User      string
+	Database  string
+	State     string
+	Query     string
+	Duration  time.Duration
+	StartedAt time.Time
 }
