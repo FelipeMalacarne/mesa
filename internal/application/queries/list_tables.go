@@ -3,6 +3,7 @@ package queries
 import (
 	"context"
 
+	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 )
@@ -12,16 +13,16 @@ type ListTables struct {
 }
 
 type ListTablesHandler struct {
-	crypto     domain.Cryptographer
-	inspectors connection.InspectorFactory
+	crypto   domain.Cryptographer
+	gateways connection.GatewayFactory
 }
 
-func NewListTablesHandler(crypto domain.Cryptographer, inspectors connection.InspectorFactory) *ListTablesHandler {
-	return &ListTablesHandler{crypto: crypto, inspectors: inspectors}
+func NewListTablesHandler(crypto domain.Cryptographer, gateways connection.GatewayFactory) *ListTablesHandler {
+	return &ListTablesHandler{crypto: crypto, gateways: gateways}
 }
 
-func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables, conn connection.Connection) ([]connection.Table, error) {
-	inspector, err := h.inspectors.ForDriver(conn.Driver)
+func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables, conn connection.Connection) ([]*dtos.TableDTO, error) {
+	gateway, err := h.gateways.ForDriver(conn.Driver)
 	if err != nil {
 		return nil, err
 	}
@@ -31,10 +32,15 @@ func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables, conn c
 		return nil, err
 	}
 
-	tables, err := inspector.GetTables(ctx, conn, password, query.DatabaseName)
+	tables, err := gateway.GetTables(ctx, conn, password, query.DatabaseName)
 	if err != nil {
 		return nil, err
 	}
 
-	return tables, nil
+	result := make([]*dtos.TableDTO, 0, len(tables))
+	for _, table := range tables {
+		result = append(result, dtos.NewTableDTO(table))
+	}
+
+	return result, nil
 }

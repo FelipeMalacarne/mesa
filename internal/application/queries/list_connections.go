@@ -12,20 +12,20 @@ import (
 type ListConnections struct{}
 
 type ListConnectionsHandler struct {
-	repo       connection.Repository
-	crypto     domain.Cryptographer
-	inspectors connection.InspectorFactory
+	repo     connection.Repository
+	crypto   domain.Cryptographer
+	gateways connection.GatewayFactory
 }
 
 func NewListConnectionsHandler(
 	repo connection.Repository,
 	crypto domain.Cryptographer,
-	inspectors connection.InspectorFactory,
+	gateways connection.GatewayFactory,
 ) *ListConnectionsHandler {
 	return &ListConnectionsHandler{
-		repo:       repo,
-		crypto:     crypto,
-		inspectors: inspectors,
+		repo:     repo,
+		crypto:   crypto,
+		gateways: gateways,
 	}
 }
 
@@ -49,7 +49,7 @@ func (h *ListConnectionsHandler) Handle(ctx context.Context, query ListConnectio
 }
 
 func (h *ListConnectionsHandler) checkStatus(ctx context.Context, conn *connection.Connection) (string, string) {
-	inspector, err := h.inspectors.ForDriver(conn.Driver)
+	gateway, err := h.gateways.ForDriver(conn.Driver)
 	if err != nil {
 		return dtos.StatusError, err.Error()
 	}
@@ -62,7 +62,7 @@ func (h *ListConnectionsHandler) checkStatus(ctx context.Context, conn *connecti
 	pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	if err := inspector.Ping(pingCtx, *conn, password); err != nil {
+	if err := gateway.Ping(pingCtx, *conn, password); err != nil {
 		return dtos.StatusError, err.Error()
 	}
 

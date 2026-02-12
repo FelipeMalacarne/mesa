@@ -13,7 +13,7 @@ import (
 
 type Repositories struct {
 	Connection connection.Repository
-	Inspectors connection.InspectorFactory
+	Gateways   connection.GatewayFactory
 }
 
 type Queries struct {
@@ -21,10 +21,16 @@ type Queries struct {
 	ListConnections *queries.ListConnectionsHandler
 	ListDatabases   *queries.ListDatabasesHandler
 	ListTables      *queries.ListTablesHandler
+	GetOverview     *queries.GetOverviewHandler
+	ListSessions    *queries.ListSessionsHandler
+	ListUsers       *queries.ListUsersHandler
 }
 
 type Commands struct {
 	CreateConnection *commands.CreateConnectionHandler
+	KillSession      *commands.KillSessionHandler
+	CreateUser       *commands.CreateUserHandler
+	CreateDatabase   *commands.CreateDatabaseHandler
 }
 
 type App struct {
@@ -36,12 +42,18 @@ func NewApp(repos Repositories, crypto domain.Cryptographer) *App {
 	app := &App{
 		Queries: Queries{
 			FindConnection:  queries.NewFindConnectionHandler(repos.Connection),
-			ListConnections: queries.NewListConnectionsHandler(repos.Connection, crypto, repos.Inspectors),
-			ListDatabases:   queries.NewListDatabasesHandler(crypto, repos.Inspectors),
-			ListTables:      queries.NewListTablesHandler(crypto, repos.Inspectors),
+			ListConnections: queries.NewListConnectionsHandler(repos.Connection, crypto, repos.Gateways),
+			ListDatabases:   queries.NewListDatabasesHandler(crypto, repos.Gateways),
+			ListTables:      queries.NewListTablesHandler(crypto, repos.Gateways),
+			GetOverview:     queries.NewGetOverviewHandler(repos.Connection, crypto, repos.Gateways),
+			ListSessions:    queries.NewListSessionsHandler(repos.Connection, crypto, repos.Gateways),
+			ListUsers:       queries.NewListUsersHandler(repos.Connection, crypto, repos.Gateways),
 		},
 		Commands: Commands{
 			CreateConnection: commands.NewCreateConnectionHandler(repos.Connection, crypto),
+			KillSession:      commands.NewKillSessionHandler(repos.Connection, crypto, repos.Gateways),
+			CreateUser:       commands.NewCreateUserHandler(repos.Connection, crypto, repos.Gateways),
+			CreateDatabase:   commands.NewCreateDatabaseHandler(repos.Connection, crypto, repos.Gateways),
 		},
 	}
 
