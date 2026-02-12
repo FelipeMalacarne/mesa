@@ -2,9 +2,11 @@ package rest
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/felipemalacarne/mesa/internal/application/commands"
 	"github.com/felipemalacarne/mesa/internal/application/dtos"
@@ -74,7 +76,7 @@ func (s *Server) findConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, conn)
+	s.respondJSON(w, http.StatusOK, dtos.NewConnectionDTO(conn))
 }
 
 func (s *Server) createConnection(w http.ResponseWriter, r *http.Request) {
@@ -118,12 +120,7 @@ func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	databaseDTOs := make([]*dtos.DatabaseDTO, len(databases))
-	for i, database := range databases {
-		databaseDTOs[i] = dtos.NewDatabaseDTO(database)
-	}
-
-	s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesResponse(databaseDTOs))
+	s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesResponse(databases))
 }
 
 func (s *Server) listTables(w http.ResponseWriter, r *http.Request) {
@@ -162,10 +159,168 @@ func (s *Server) listTables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tableDTOs := make([]*dtos.TableDTO, len(tables))
-	for i, table := range tables {
-		tableDTOs[i] = dtos.NewTableDTO(table)
+	s.respondJSON(w, http.StatusOK, dtos.NewListTablesResponse(tables))
+}
+
+func (s *Server) getConnectionOverview(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
+	if err != nil {
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
 	}
 
-	s.respondJSON(w, http.StatusOK, dtos.NewListTablesResponse(tableDTOs))
+	dto, err := s.app.Queries.GetOverview.Handle(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, queries.ErrConnectionNotFound) {
+			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+			return
+		}
+		http.Error(w, ErrInternalServerError, http.StatusInternalServerError)
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, dto)
+}
+
+func (s *Server) listSessions(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
+	if err != nil {
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	sessions, err := s.app.Queries.ListSessions.Handle(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, queries.ErrConnectionNotFound) {
+			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+			return
+		}
+		log.Printf("WARN: listSessions connection %s: %v", id, err)
+		http.Error(w, "failed to reach remote database", http.StatusBadGateway)
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, sessions)
+}
+
+func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
+	if err != nil {
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	users, err := s.app.Queries.ListUsers.Handle(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, queries.ErrConnectionNotFound) {
+			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+			return
+		}
+		http.Error(w, ErrInternalServerError, http.StatusInternalServerError)
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, users)
+}
+
+func (s *Server) createDatabase(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
+	if err != nil {
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	var payload struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	cmd := commands.CreateDatabaseCmd{
+		ConnectionID: id,
+		Name:         payload.Name,
+	}
+
+	if err := s.app.Commands.CreateDatabase.Handle(r.Context(), cmd); err != nil {
+		if errors.Is(err, commands.ErrConnectionNotFound) {
+			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
+	if err != nil {
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	var payload struct {
+		Username    string `json:"username"`
+		Password    string `json:"password"`
+		IsSuperUser bool   `json:"is_superuser"`
+		CanLogin    *bool  `json:"can_login"`
+		ConnLimit   *int   `json:"conn_limit"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	cmd := commands.CreateUserCmd{
+		ConnectionID: id,
+		Username:     payload.Username,
+		Password:     payload.Password,
+		IsSuperUser:  payload.IsSuperUser,
+		CanLogin:     payload.CanLogin,
+		ConnLimit:    payload.ConnLimit,
+	}
+
+	if err := s.app.Commands.CreateUser.Handle(r.Context(), cmd); err != nil {
+		if errors.Is(err, commands.ErrConnectionNotFound) {
+			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *Server) killSession(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
+	if err != nil {
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	pid, err := strconv.Atoi(chi.URLParam(r, "pid"))
+	if err != nil {
+		http.Error(w, "invalid pid", http.StatusBadRequest)
+		return
+	}
+
+	cmd := commands.KillSessionCmd{
+		ConnectionID: id,
+		PID:          pid,
+	}
+
+	if err := s.app.Commands.KillSession.Handle(r.Context(), cmd); err != nil {
+		if errors.Is(err, commands.ErrConnectionNotFound) {
+			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

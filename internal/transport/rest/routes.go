@@ -15,7 +15,15 @@ func (s *Server) RegisterRoutes() {
 func (s *Server) connectionRoutes(r chi.Router) {
 	r.Get("/", s.listConnections)
 	r.Post("/", s.createConnection)
-	r.Get("/{connectionID}", s.findConnection)
-	r.Get("/{connectionID}/databases", s.listDatabases)
-	r.Get("/{connectionID}/databases/{databaseName}/tables", s.listTables)
+	r.Route("/{connectionID}", func(r chi.Router) {
+		r.Get("/", s.findConnection)
+		r.Get("/overview", s.getConnectionOverview)
+		r.Get("/databases", s.listDatabases)
+		r.Post("/databases", s.createDatabase)
+		r.Get("/databases/{databaseName}/tables", s.listTables)
+		r.Get("/users", s.listUsers)
+		r.Post("/users", s.createUser)
+		r.Get("/sessions", s.listSessions)
+		r.Delete("/sessions/{pid}", s.killSession)
+	})
 }
