@@ -12,20 +12,19 @@ O sistema seguirá a arquitetura **DDD + CQRS** já estabelecida no projeto Mesa
 
 ### Decisões Arquiteturais Chaves
 
-1. **Segregação de Interfaces (Domain):**
+1. **Interface Única (Domain):**
 
-- **`Inspector`**: Responsável apenas por **Leitura de Estrutura** (Databases, Tables, Columns).
-- **`Administrator`**: Responsável por **Runtime & Ações** (Health, Sessions, Users, Kill Process).
+- **`Administrator`**: Interface consolidada que cobre **Leitura de Estrutura** (Databases, Tables, Columns) e **Runtime & Ações** (Health, Sessions, Users, Kill Process).
 
 2. **Consolidação de Implementação (Infrastructure):**
 
-- Um único struct `PostgresHandler` implementará ambas as interfaces.
+- Um único struct `PostgresHandler` implementará `Administrator`.
 - Isso evita duplicação de lógica de conexão (`sql.Open`) e gerenciamento de drivers.
 
-3. **Pattern Gateway:**
+3. **Injeção Direta:**
 
-- A `Factory` retornará uma interface composta `DatabaseGateway` (que une `Inspector + Administrator`).
-- Os Casos de Uso (Application Layer) receberão apenas a interface específica que necessitam (`ISP`).
+- A `Factory` retornará diretamente a interface `Administrator`.
+- Casos de uso continuam aplicando o princípio de ISP recebendo apenas essa interface consolidada.
 
 ---
 
@@ -104,9 +103,9 @@ O frontend será responsável pela orquestração das chamadas, utilizando "Lazy
 
 1. **Fase 1: Core Domain & Infra (Backend)**
 
-- Definir interfaces `Inspector`, `Administrator` e `Gateway`.
+- Definir a interface única `Administrator`.
 - Implementar `PostgresHandler` com queries SQL reais (`pg_stat_activity`, etc).
-- Atualizar `Factory` para retornar o Gateway.
+- Atualizar `Factory` para retornar diretamente essa interface consolidada.
 
 2. **Fase 2: Application Services (Backend)**
 
