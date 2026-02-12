@@ -1,0 +1,386 @@
+package postgres
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/felipemalacarne/mesa/internal/domain/connection"
+	_ "github.com/jackc/pgx/v5/stdlib"
+)
+
+var identifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// Gateway implementa o contrato de runtime e inspeção para Postgres.
+type Gateway struct{}
+
+func NewGateway() connection.Gateway {
+	return &Gateway{}
+}
+
+func (h *Gateway) connect(conn connection.Connection, password, dbName string) (*sql.DB, error) {
+	dsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=disable&connect_timeout=5",
+		conn.Username,
+		password,
+		conn.Host,
+		conn.Port,
+		dbName,
+	)
+
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open connection: %w", err)
+	}
+
+	db.SetMaxOpenConns(2)
+	db.SetConnMaxLifetime(30 * time.Second)
+
+	return db, nil
+}
+
+func (h *Gateway) GetDatabases(ctx context.Context, conn connection.Connection, password string) ([]connection.Database, error) {
+	db, err := h.connect(conn, password, "postgres")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	query := `
+SELECT
+    d.datname,
+    pg_get_userbyid(d.datdba) as owner,
+    pg_encoding_to_char(d.encoding) as encoding,
+    pg_database_size(d.datname) as size_bytes
+FROM pg_database d
+WHERE d.datistemplate = false
+  AND d.datallowconn = true
+ORDER BY d.datname;
+`
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var databases []connection.Database
+	for rows.Next() {
+		var database connection.Database
+		if err := rows.Scan(&database.Name, &database.Owner, &database.Encoding, &database.Size); err != nil {
+			return nil, err
+		}
+		database.TableCount = 0
+		databases = append(databases, database)
+	}
+
+	return databases, rows.Err()
+}
+
+func (h *Gateway) GetTables(ctx context.Context, conn connection.Connection, password string, dbName string) ([]connection.Table, error) {
+	db, err := h.connect(conn, password, dbName)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	query := `
+SELECT
+    t.table_name,
+    t.table_type,
+    COALESCE(pg_total_relation_size(format('%I.%I', t.table_schema, t.table_name)), 0) as size_bytes,
+    COALESCE(st.n_live_tup, 0) as row_count
+FROM information_schema.tables t
+LEFT JOIN pg_stat_user_tables st
+  ON st.schemaname = t.table_schema AND st.relname = t.table_name
+WHERE t.table_schema = 'public'
+  AND t.table_type IN ('BASE TABLE', 'VIEW', 'MATERIALIZED VIEW')
+ORDER BY t.table_name;
+`
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tables []connection.Table
+	for rows.Next() {
+		var table connection.Table
+		if err := rows.Scan(&table.Name, &table.Type, &table.Size, &table.RowCount); err != nil {
+			return nil, err
+		}
+
+		table.Type = strings.ToUpper(strings.ReplaceAll(table.Type, "BASE ", ""))
+		tables = append(tables, table)
+	}
+
+	return tables, rows.Err()
+}
+
+func (h *Gateway) GetColumns(ctx context.Context, conn connection.Connection, password, dbName, tableName string) ([]connection.Column, error) {
+	db, err := h.connect(conn, password, dbName)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	query := `
+SELECT
+    c.column_name,
+    c.data_type,
+    c.is_nullable,
+    COALESCE(tc.constraint_type = 'PRIMARY KEY', false) as is_primary,
+    c.column_default
+FROM information_schema.columns c
+LEFT JOIN information_schema.key_column_usage kcu
+  ON c.table_schema = kcu.table_schema
+ AND c.table_name = kcu.table_name
+ AND c.column_name = kcu.column_name
+LEFT JOIN information_schema.table_constraints tc
+  ON tc.table_schema = kcu.table_schema
+ AND tc.table_name = kcu.table_name
+ AND tc.constraint_name = kcu.constraint_name
+ AND tc.constraint_type = 'PRIMARY KEY'
+WHERE c.table_schema = 'public'
+  AND c.table_name = $1
+ORDER BY c.ordinal_position;
+`
+
+	rows, err := db.QueryContext(ctx, query, tableName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var columns []connection.Column
+	for rows.Next() {
+		var col connection.Column
+		var isNullable string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&col.Name, &col.DataType, &isNullable, &col.IsPrimary, &defaultValue); err != nil {
+			return nil, err
+		}
+
+		col.IsNullable = isNullable == "YES"
+		if defaultValue.Valid {
+			col.DefaultValue = &defaultValue.String
+		}
+		columns = append(columns, col)
+	}
+
+	return columns, rows.Err()
+}
+
+func (h *Gateway) Ping(ctx context.Context, conn connection.Connection, password string) error {
+	db, err := h.connect(conn, password, "postgres")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.PingContext(ctx)
+}
+
+func (h *Gateway) GetServerHealth(ctx context.Context, conn connection.Connection, password string) (*connection.ServerHealth, error) {
+	db, err := h.connect(conn, password, "postgres")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	query := `
+SELECT
+    version(),
+    current_setting('max_connections')::int,
+    (SELECT count(*) FROM pg_stat_activity)::int,
+    EXTRACT(EPOCH FROM (now() - pg_postmaster_start_time()))::bigint;
+`
+
+	var health connection.ServerHealth
+	var uptimeSeconds int64
+	if err := db.QueryRowContext(ctx, query).Scan(&health.Version, &health.MaxConnections, &health.ActiveSessions, &uptimeSeconds); err != nil {
+		return nil, err
+	}
+
+	health.Uptime = time.Duration(uptimeSeconds) * time.Second
+	health.Status = "ONLINE"
+
+	return &health, nil
+}
+
+func (h *Gateway) ListSessions(ctx context.Context, conn connection.Connection, password string) ([]connection.Session, error) {
+	db, err := h.connect(conn, password, "postgres")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	query := `
+SELECT
+    pid,
+    usename,
+    datname,
+    state,
+    COALESCE(query, ''),
+    EXTRACT(EPOCH FROM (now() - query_start))::bigint as duration,
+    query_start
+FROM pg_stat_activity
+WHERE state != 'idle'
+  AND pid <> pg_backend_pid()
+ORDER BY query_start DESC
+LIMIT 50;
+`
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sessions := make([]connection.Session, 0)
+	for rows.Next() {
+		var session connection.Session
+		var durationSeconds int64
+		if err := rows.Scan(&session.PID, &session.User, &session.Database, &session.State, &session.Query, &durationSeconds, &session.StartedAt); err != nil {
+			return nil, err
+		}
+
+		session.Duration = time.Duration(durationSeconds) * time.Second
+		sessions = append(sessions, session)
+	}
+
+	return sessions, rows.Err()
+}
+
+func (h *Gateway) KillSession(ctx context.Context, conn connection.Connection, password string, pid int) error {
+	db, err := h.connect(conn, password, "postgres")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	var success bool
+	if err := db.QueryRowContext(ctx, "SELECT pg_terminate_backend($1)", pid).Scan(&success); err != nil {
+		return err
+	}
+
+	if !success {
+		return fmt.Errorf("failed to terminate pid %d: permission denied or not found", pid)
+	}
+
+	return nil
+}
+
+func (h *Gateway) ListUsers(ctx context.Context, conn connection.Connection, password string) ([]connection.DBUser, error) {
+	db, err := h.connect(conn, password, "postgres")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	query := `
+SELECT rolname, rolsuper, rolcanlogin, rolconnlimit
+FROM pg_roles
+WHERE rolname NOT LIKE 'pg_%'
+ORDER BY rolname;
+`
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []connection.DBUser
+	for rows.Next() {
+		var user connection.DBUser
+		if err := rows.Scan(&user.Name, &user.IsSuperUser, &user.CanLogin, &user.ConnLimit); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	return users, rows.Err()
+}
+
+func (h *Gateway) CreateUser(ctx context.Context, conn connection.Connection, password string, user connection.DBUser, newPass string) error {
+	if !isValidIdentifier(user.Name) {
+		return fmt.Errorf("invalid username: %s", user.Name)
+	}
+
+	db, err := h.connect(conn, password, "postgres")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	builder := strings.Builder{}
+	builder.WriteString("CREATE USER ")
+	builder.WriteString(quoteIdentifier(user.Name))
+	builder.WriteString(" WITH ")
+	builder.WriteString("PASSWORD $1 ")
+	if user.IsSuperUser {
+		builder.WriteString("SUPERUSER ")
+	} else {
+		builder.WriteString("NOSUPERUSER ")
+	}
+
+	if user.CanLogin {
+		builder.WriteString("LOGIN ")
+	} else {
+		builder.WriteString("NOLOGIN ")
+	}
+
+	if user.ConnLimit >= 0 {
+		builder.WriteString(fmt.Sprintf("CONNECTION LIMIT %d ", user.ConnLimit))
+	}
+
+	query := strings.TrimSpace(builder.String())
+
+	_, err = db.ExecContext(ctx, query, newPass)
+	return err
+}
+
+func (h *Gateway) DropUser(ctx context.Context, conn connection.Connection, password string, username string) error {
+	if !isValidIdentifier(username) {
+		return fmt.Errorf("invalid username: %s", username)
+	}
+
+	db, err := h.connect(conn, password, "postgres")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	query := fmt.Sprintf("DROP USER %s", quoteIdentifier(username))
+	_, err = db.ExecContext(ctx, query)
+	return err
+}
+
+func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection, password string, dbName string) error {
+	if !isValidIdentifier(dbName) {
+		return fmt.Errorf("invalid database name: %s", dbName)
+	}
+
+	db, err := h.connect(conn, password, "postgres")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	query := fmt.Sprintf("CREATE DATABASE %s", quoteIdentifier(dbName))
+	_, err = db.ExecContext(ctx, query)
+	return err
+}
+
+func isValidIdentifier(value string) bool {
+	return identifierRegex.MatchString(value)
+}
+
+func quoteIdentifier(value string) string {
+	return fmt.Sprintf("\"%s\"", value)
+}
