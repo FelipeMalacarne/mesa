@@ -3,17 +3,17 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute(
   "/connections/$connectionId/databases/$databaseName/tables/$tableName",
 )({
-  component: TableDetail,
+  component: DatabaseTable,
 });
 
-function TableDetail() {
-  const { connectionId, databaseName, tableName } = Route.useParams();
+function DatabaseTable() {
+  const { tableName } = Route.useParams();
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Table</h1>
-      <p className="text-muted-foreground">
-        {tableName} ({databaseName} / {connectionId})
+    <div className="space-y-2">
+      <h2 className="text-xl font-semibold">Table: {tableName}</h2>
+      <p className="text-muted-foreground text-sm">
+        Table inspector is not available yet.
       </p>
     </div>
   );

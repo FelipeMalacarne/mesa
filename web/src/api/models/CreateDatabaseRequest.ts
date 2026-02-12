@@ -2,10 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type Database = {
+export type CreateDatabaseRequest = {
     name: string;
-    owner: string;
-    encoding: string;
-    size_formatted: string;
 };
 

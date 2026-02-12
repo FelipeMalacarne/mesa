@@ -1,4 +1,3 @@
-import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -22,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ApiError, ConnectionsService, CreateConnectionRequest } from "@/api";
+import { ApiError, ConnectionsService } from "@/api";
+import { CreateConnectionRequest } from "@/api/models/CreateConnectionRequest";
 
 const formSchema = z.object({
   name: z
@@ -52,11 +52,10 @@ const formSchema = z.object({
 type ConnectionFormValues = z.infer<typeof formSchema>;
 
 export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
-  const [selectContainer, setSelectContainer] =
-    React.useState<HTMLElement | null>(null);
-  const queryClient = useQueryClient();
-  const form = useForm<ConnectionFormValues>({
-    resolver: zodResolver(formSchema),
+	const queryClient = useQueryClient();
+	const resolver = zodResolver(formSchema as unknown as never) as never;
+	const form = useForm<ConnectionFormValues>({
+		resolver,
     defaultValues: {
       name: "",
       driver: CreateConnectionRequest.driver.POSTGRES,
@@ -102,10 +101,9 @@ export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
   return (
     <Form {...form}>
       <form
-        id="connection-form"
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6"
-        ref={setSelectContainer}
+		id="connection-form"
+		onSubmit={form.handleSubmit(onSubmit)}
+		className="space-y-6"
       >
         <FormField
           control={form.control}
@@ -132,20 +130,20 @@ export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Driver</FormLabel>
-              <Select
-                name={field.name}
-                value={field.value}
-                onValueChange={field.onChange}
-                disabled={isSubmitting}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a driver" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent container={selectContainer ?? undefined}>
-                  <SelectItem value={CreateConnectionRequest.driver.POSTGRES}>
-                    Postgres
+				<Select
+					name={field.name}
+					value={field.value}
+					onValueChange={field.onChange}
+					disabled={isSubmitting}
+				>
+					<FormControl>
+						<SelectTrigger>
+							<SelectValue placeholder="Select a driver" />
+						</SelectTrigger>
+					</FormControl>
+					<SelectContent>
+						<SelectItem value={CreateConnectionRequest.driver.POSTGRES}>
+							Postgres
                   </SelectItem>
                   <SelectItem value={CreateConnectionRequest.driver.MYSQL}>
                     MySQL

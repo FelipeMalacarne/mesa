@@ -1,16 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/connections/$connectionId/")({
-  component: ConnectionDetail,
+  component: ConnectionRedirect,
 });
 
-function ConnectionDetail() {
+function ConnectionRedirect() {
   const { connectionId } = Route.useParams();
+  const navigate = Route.useNavigate();
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Connection</h1>
-      <p className="text-muted-foreground">{connectionId}</p>
-    </div>
-  );
+  useEffect(() => {
+    navigate({
+      to: "/connections/$connectionId/overview",
+      params: { connectionId },
+      replace: true,
+    });
+  }, [connectionId, navigate]);
+
+  return null;
 }

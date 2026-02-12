@@ -2,10 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type Database = {
+export type DBUser = {
     name: string;
-    owner: string;
-    encoding: string;
-    size_formatted: string;
+    is_superuser: boolean;
+    can_login: boolean;
+    conn_limit: number;
 };
 

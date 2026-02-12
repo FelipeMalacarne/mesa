@@ -72,6 +72,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListDatabasesResponse"
+    post:
+      operationId: CreateDatabase
+      summary: Create a new database
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDatabaseRequest"
+      responses:
+        "201":
+          description: Created
+  /connections/{connectionId}/overview:
+    get:
+      operationId: GetConnectionOverview
+      summary: Get Server Health & Overview
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+      responses:
+        "200":
+          description: Overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewResponse"
 
   /connections/{connectionId}/databases/{databaseName}/tables:
     get:
@@ -89,6 +120,72 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListTablesResponse"
+  /connections/{connectionId}/users:
+    get:
+      operationId: ListUsers
+      summary: List database users (roles)
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DBUser"
+    post:
+      operationId: CreateUser
+      summary: Create a new database user
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: Created
+  /connections/{connectionId}/sessions:
+    get:
+      operationId: ListSessions
+      summary: List active sessions
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+  /connections/{connectionId}/sessions/{pid}:
+    delete:
+      operationId: KillSession
+      summary: Kill a specific session
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+        - in: path
+          name: pid
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Terminated
 
 components:
   parameters:
@@ -147,9 +244,15 @@ components:
           type: string
     Database:
       type: object
-      required: [name]
+      required: [name, owner, encoding, size_formatted]
       properties:
         name:
+          type: string
+        owner:
+          type: string
+        encoding:
+          type: string
+        size_formatted:
           type: string
     Table:
       type: object
@@ -207,4 +310,70 @@ components:
         username:
           type: string
         password:
+          type: string
+    OverviewResponse:
+      type: object
+      required: [status, latency_ms]
+      properties:
+        status:
+          type: string
+          enum: [ONLINE, UNREACHABLE]
+        version:
+          type: string
+        uptime:
+          type: string
+        sessions:
+          type: string
+          example: "45/100"
+        latency_ms:
+          type: integer
+    Session:
+      type: object
+      required: [pid, user, database, state, query, duration, is_slow]
+      properties:
+        pid:
+          type: integer
+        user:
+          type: string
+        database:
+          type: string
+        state:
+          type: string
+        query:
+          type: string
+        duration:
+          type: string
+        is_slow:
+          type: boolean
+    DBUser:
+      type: object
+      required: [name, is_superuser, can_login, conn_limit]
+      properties:
+        name:
+          type: string
+        is_superuser:
+          type: boolean
+        can_login:
+          type: boolean
+        conn_limit:
+          type: integer
+    CreateUserRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        is_superuser:
+          type: boolean
+        can_login:
+          type: boolean
+        conn_limit:
+          type: integer
+    CreateDatabaseRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
           type: string

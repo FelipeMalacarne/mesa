@@ -3,14 +3,13 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ConnectionsService } from "@/api";
 import { Textarea } from "@/components/ui/textarea";
-import { ConnectionForm } from "@/components/connection-form";
 
 export const Route = createFileRoute("/")({
   component: App,
 });
 
 function App() {
-  const { data: connections, isLoading } = useQuery({
+	const { data: connections } = useQuery({
     queryKey: ["connections"],
     queryFn: async () => (await ConnectionsService.listConnections()) ?? [],
   });

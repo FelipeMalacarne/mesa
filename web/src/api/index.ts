@@ -15,5 +15,10 @@ export type { DatabaseName } from './models/DatabaseName';
 export { ListDatabasesResponse } from './models/ListDatabasesResponse';
 export { ListTablesResponse } from './models/ListTablesResponse';
 export type { Table } from './models/Table';
+export type { OverviewResponse } from './models/OverviewResponse';
+export type { Session } from './models/Session';
+export type { DBUser } from './models/DBUser';
+export type { CreateUserRequest } from './models/CreateUserRequest';
+export type { CreateDatabaseRequest } from './models/CreateDatabaseRequest';
 
 export { ConnectionsService } from './services/ConnectionsService';

@@ -1,14 +1,13 @@
 import { ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { useState } from "react";
 
 interface Connection {
   id: string;
@@ -16,8 +15,8 @@ interface Connection {
 }
 
 export function ConnectionsDropdown() {
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [currentConnection, setCurrentConnection] = useState<string | null>();
+  const connections: Connection[] = [];
+  const currentConnection: string | null = null;
 
   const selectedConnection = connections.find(
     (c) => c.id === currentConnection,
