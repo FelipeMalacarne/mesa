@@ -21,16 +21,26 @@ import { useNavConnectionsState } from "../state/context";
 export type DatabaseMenuItemProps = {
   connectionId: string;
   node: DatabaseTreeNode;
+  activeState: {
+    connectionId?: string;
+    databaseName?: string;
+    tableName?: string;
+  };
 };
 
 export const DatabaseMenuItem = ({
   connectionId,
   node,
+  activeState,
 }: DatabaseMenuItemProps) => {
   const { setDatabaseOpen } = useNavConnectionsState();
   const { database, isOpen, tableState, key } = node;
   const tableStatus = tableState?.status ?? "idle";
   const tables = tableState?.data?.tables ?? [];
+  const isDatabaseActive =
+    activeState.connectionId === connectionId &&
+    activeState.databaseName === database.name &&
+    !activeState.tableName;
 
   return (
     <Collapsible
@@ -42,6 +52,7 @@ export const DatabaseMenuItem = ({
       <SidebarMenuSubItem>
         <SidebarMenuSubButton
           asChild
+          isActive={isDatabaseActive}
           className="pr-8 [&>svg]:text-sidebar-foreground"
         >
           <Link
@@ -82,6 +93,7 @@ export const DatabaseMenuItem = ({
                     connectionId={connectionId}
                     databaseName={database.name}
                     table={table}
+                    activeState={activeState}
                   />
                 ))
               : null}

@@ -11,18 +11,29 @@ export type TableMenuItemProps = {
   connectionId: string;
   databaseName: string;
   table: TableEntry;
+  activeState: {
+    connectionId?: string;
+    databaseName?: string;
+    tableName?: string;
+  };
 };
 
 export const TableMenuItem = ({
   connectionId,
   databaseName,
   table,
+  activeState,
 }: TableMenuItemProps) => {
+  const isActive =
+    activeState.connectionId === connectionId &&
+    activeState.databaseName === databaseName &&
+    activeState.tableName === table.name;
   return (
     <SidebarMenuSubItem>
       <SidebarMenuSubButton
         asChild
         size="sm"
+        isActive={isActive}
         className="[&>svg]:text-sidebar-foreground"
       >
         <Link

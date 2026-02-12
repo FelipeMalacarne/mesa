@@ -15,13 +15,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useRouterState } from "@tanstack/react-router";
 
 export function NavMain({
   items,
@@ -33,6 +33,9 @@ export function NavMain({
   }[];
 }) {
   const { isMobile } = useSidebar();
+  const currentPath = useRouterState({
+    select: (state) => state.location.pathname,
+  });
 
   return (
     <SidebarGroup>
@@ -40,7 +43,10 @@ export function NavMain({
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton
+              asChild
+              isActive={currentPath === item.url || currentPath.startsWith(`${item.url}/`)}
+            >
               <a href={item.url}>
                 <item.icon />
                 <span>{item.name}</span>

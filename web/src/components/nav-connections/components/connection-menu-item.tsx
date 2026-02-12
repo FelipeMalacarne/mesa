@@ -20,14 +20,22 @@ import { useNavConnectionsState } from "../state/context";
 
 export type ConnectionMenuItemProps = {
   node: ConnectionTreeNode;
+  activeState: {
+    connectionId?: string;
+    databaseName?: string;
+    tableName?: string;
+  };
 };
 
 export const ConnectionMenuItem = ({
   node,
+  activeState,
 }: ConnectionMenuItemProps) => {
   const { setConnectionOpen } = useNavConnectionsState();
   const connection = node.connection;
   const connectionStatus = node.status;
+  const isConnectionActive =
+    activeState.connectionId === connection.id && !activeState.databaseName;
   const statusDot =
     connectionStatus === Connection.status.OK
       ? "bg-emerald-500"
@@ -43,7 +51,11 @@ export const ConnectionMenuItem = ({
       className="group/connection-collapsible"
     >
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={connection.name} isActive={node.isOpen}>
+        <SidebarMenuButton
+          asChild
+          tooltip={connection.name}
+          isActive={isConnectionActive}
+        >
           <Link
             to="/connections/$connectionId"
             params={{ connectionId: connection.id }}
@@ -75,6 +87,7 @@ export const ConnectionMenuItem = ({
                 databaseState={node.databaseState}
                 connectionId={connection.id}
                 databases={node.databases}
+                activeState={activeState}
               />
             ) : null}
           </SidebarMenuSub>

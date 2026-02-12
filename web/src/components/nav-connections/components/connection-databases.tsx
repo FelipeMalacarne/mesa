@@ -12,12 +12,18 @@ export type ConnectionDatabasesProps = {
   connectionId: string;
   databaseState?: FetchResult<ListDatabasesResponse>;
   databases: DatabaseTreeNode[];
+  activeState: {
+    connectionId?: string;
+    databaseName?: string;
+    tableName?: string;
+  };
 };
 
 export const ConnectionDatabases = ({
   connectionId,
   databaseState,
   databases,
+  activeState,
 }: ConnectionDatabasesProps) => {
   if (!databaseState) {
     return null;
@@ -57,6 +63,7 @@ export const ConnectionDatabases = ({
           key={database.key}
           connectionId={connectionId}
           node={database}
+          activeState={activeState}
         />
       ))}
     </>
