@@ -24,18 +24,38 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useConnectionSessions, useKillSession } from "@/hooks/use-connection";
 import {
-  useConnectionSessions,
-  useKillSession,
-} from "@/hooks/use-connection";
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { RefreshCcwIcon, TableIcon } from "lucide-react";
 
-export const Route = createFileRoute("/connections/$connectionId/_layout/monitor")({
+export const Route = createFileRoute(
+  "/connections/$connectionId/_layout/monitor",
+)({
   component: ConnectionMonitor,
 });
 
 function ConnectionMonitor() {
   const { connectionId } = Route.useParams();
-  const { data, isLoading } = useConnectionSessions(connectionId);
+  const {
+    data: sessions,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useConnectionSessions(connectionId);
+
+  const handleRefresh = async () => {
+    const result = await refetch();
+    if (result.status === "error") {
+      toast.error("Failed to refresh sessions");
+    }
+  };
 
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />;
@@ -63,7 +83,7 @@ function ConnectionMonitor() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data?.map((session) => (
+          {sessions?.map((session) => (
             <TableRow key={session.pid}>
               <TableCell>{session.pid}</TableCell>
               <TableCell>{session.user}</TableCell>
@@ -81,23 +101,53 @@ function ConnectionMonitor() {
                 </code>
               </TableCell>
               <TableCell className="text-right">
-                <KillSessionButton connectionId={connectionId} pid={session.pid} />
+                <KillSessionButton pid={session.pid} />
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      {sessions && sessions.length === 0 && (
+        <EmptySessions onRefresh={handleRefresh} isRefreshing={isFetching} />
+      )}
     </div>
   );
 }
 
-function KillSessionButton({
-  connectionId,
-  pid,
+function EmptySessions({
+  onRefresh,
+  isRefreshing,
 }: {
-  connectionId: string;
-  pid: number;
+  onRefresh: () => Promise<any>;
+  isRefreshing: boolean;
 }) {
+  return (
+    <Empty className="bg-muted/30 h-full">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <TableIcon />
+        </EmptyMedia>
+        <EmptyTitle>No Active Sessions</EmptyTitle>
+        <EmptyDescription className="max-w-xs text-pretty">
+          You&apos;re all caught up. New sessions will appear here.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button
+          variant="outline"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshCcwIcon className={isRefreshing ? "animate-spin" : ""} />
+          {isRefreshing ? "Refreshing" : "Refresh"}
+        </Button>
+      </EmptyContent>
+    </Empty>
+  );
+}
+
+function KillSessionButton({ pid }: { pid: number }) {
+  const { connectionId } = Route.useParams();
   const [open, setOpen] = useState(false);
   const mutation = useKillSession(connectionId);
 
@@ -129,7 +179,10 @@ function KillSessionButton({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirm} disabled={mutation.isPending}>
+          <AlertDialogAction
+            onClick={handleConfirm}
+            disabled={mutation.isPending}
+          >
             {mutation.isPending ? "Terminating..." : "Confirm"}
           </AlertDialogAction>
         </AlertDialogFooter>
