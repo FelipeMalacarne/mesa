@@ -1,20 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute(
   "/connections/$connectionId/databases/$databaseName",
 )({
-  component: SelectedDatabase,
+  component: DatabaseLayout,
 });
 
-function SelectedDatabase() {
-  const { databaseName } = Route.useParams();
-
+function DatabaseLayout() {
   return (
-    <div className="space-y-2">
-      <h2 className="text-xl font-semibold">Database: {databaseName}</h2>
-      <p className="text-muted-foreground text-sm">
-        Detailed table view coming soon.
-      </p>
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-auto p-6">
+        <Outlet />
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, useMatchRoute } from "@tanstack/react-router";
 import { Database } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +21,23 @@ export const Route = createFileRoute("/connections/$connectionId")({
 });
 
 function ConnectionLayout() {
+  const matchRoute = useMatchRoute();
+  const isDatabaseDetailRoute = Boolean(
+    matchRoute({
+      to: "/connections/$connectionId/databases/$databaseName",
+      fuzzy: true,
+    }),
+  );
   const { connectionId } = Route.useParams();
   const connectionQuery = useConnectionDetails(connectionId);
   const overviewQuery = useConnectionOverview(connectionId);
 
   const connection = connectionQuery.data;
   const overview = overviewQuery.data;
+
+  if (isDatabaseDetailRoute) {
+    return <Outlet />;
+  }
 
   return (
     <div className="flex h-full flex-col">

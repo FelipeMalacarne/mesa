@@ -10,7 +10,7 @@ function DatabaseDetail() {
   const { connectionId, databaseName } = Route.useParams();
 
   return (
-    <div className="p-6">
+    <div className="space-y-2">
       <h1 className="text-2xl font-semibold">Database</h1>
       <p className="text-muted-foreground">
         {databaseName} ({connectionId})
