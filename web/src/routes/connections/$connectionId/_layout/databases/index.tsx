@@ -28,7 +28,7 @@ import {
   useCreateDatabase,
 } from "@/hooks/use-connection";
 
-export const Route = createFileRoute("/connections/$connectionId/databases/")({
+export const Route = createFileRoute("/connections/$connectionId/_layout/databases/")({
   component: ConnectionDatabases,
 });
 

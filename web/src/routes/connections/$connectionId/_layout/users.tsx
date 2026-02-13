@@ -29,7 +29,7 @@ import {
   useCreateUser,
 } from "@/hooks/use-connection";
 
-export const Route = createFileRoute("/connections/$connectionId/users")({
+export const Route = createFileRoute("/connections/$connectionId/_layout/users")({
   component: ConnectionUsers,
 });
 

@@ -29,7 +29,7 @@ import {
   useKillSession,
 } from "@/hooks/use-connection";
 
-export const Route = createFileRoute("/connections/$connectionId/monitor")({
+export const Route = createFileRoute("/connections/$connectionId/_layout/monitor")({
   component: ConnectionMonitor,
 });
 

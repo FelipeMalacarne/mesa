@@ -12,13 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TesteIndexRouteImport } from './routes/teste/index'
 import { Route as ConnectionsConnectionIdRouteImport } from './routes/connections/$connectionId'
-import { Route as ConnectionsConnectionIdIndexRouteImport } from './routes/connections/$connectionId/index'
-import { Route as ConnectionsConnectionIdUsersRouteImport } from './routes/connections/$connectionId/users'
-import { Route as ConnectionsConnectionIdOverviewRouteImport } from './routes/connections/$connectionId/overview'
-import { Route as ConnectionsConnectionIdMonitorRouteImport } from './routes/connections/$connectionId/monitor'
-import { Route as ConnectionsConnectionIdDatabasesIndexRouteImport } from './routes/connections/$connectionId/databases/index'
+import { Route as ConnectionsConnectionIdLayoutRouteRouteImport } from './routes/connections/$connectionId/_layout/route'
+import { Route as ConnectionsConnectionIdLayoutIndexRouteImport } from './routes/connections/$connectionId/_layout/index'
 import { Route as ConnectionsConnectionIdDatabasesDatabaseNameRouteImport } from './routes/connections/$connectionId/databases/$databaseName'
+import { Route as ConnectionsConnectionIdLayoutUsersRouteImport } from './routes/connections/$connectionId/_layout/users'
+import { Route as ConnectionsConnectionIdLayoutOverviewRouteImport } from './routes/connections/$connectionId/_layout/overview'
+import { Route as ConnectionsConnectionIdLayoutMonitorRouteImport } from './routes/connections/$connectionId/_layout/monitor'
 import { Route as ConnectionsConnectionIdDatabasesDatabaseNameIndexRouteImport } from './routes/connections/$connectionId/databases/$databaseName/index'
+import { Route as ConnectionsConnectionIdLayoutDatabasesIndexRouteImport } from './routes/connections/$connectionId/_layout/databases/index'
 import { Route as ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRouteImport } from './routes/connections/$connectionId/databases/$databaseName/tables/$tableName'
 
 const IndexRoute = IndexRouteImport.update({
@@ -36,35 +37,16 @@ const ConnectionsConnectionIdRoute = ConnectionsConnectionIdRouteImport.update({
   path: '/connections/$connectionId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ConnectionsConnectionIdIndexRoute =
-  ConnectionsConnectionIdIndexRouteImport.update({
+const ConnectionsConnectionIdLayoutRouteRoute =
+  ConnectionsConnectionIdLayoutRouteRouteImport.update({
+    id: '/_layout',
+    getParentRoute: () => ConnectionsConnectionIdRoute,
+  } as any)
+const ConnectionsConnectionIdLayoutIndexRoute =
+  ConnectionsConnectionIdLayoutIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => ConnectionsConnectionIdRoute,
-  } as any)
-const ConnectionsConnectionIdUsersRoute =
-  ConnectionsConnectionIdUsersRouteImport.update({
-    id: '/users',
-    path: '/users',
-    getParentRoute: () => ConnectionsConnectionIdRoute,
-  } as any)
-const ConnectionsConnectionIdOverviewRoute =
-  ConnectionsConnectionIdOverviewRouteImport.update({
-    id: '/overview',
-    path: '/overview',
-    getParentRoute: () => ConnectionsConnectionIdRoute,
-  } as any)
-const ConnectionsConnectionIdMonitorRoute =
-  ConnectionsConnectionIdMonitorRouteImport.update({
-    id: '/monitor',
-    path: '/monitor',
-    getParentRoute: () => ConnectionsConnectionIdRoute,
-  } as any)
-const ConnectionsConnectionIdDatabasesIndexRoute =
-  ConnectionsConnectionIdDatabasesIndexRouteImport.update({
-    id: '/databases/',
-    path: '/databases/',
-    getParentRoute: () => ConnectionsConnectionIdRoute,
+    getParentRoute: () => ConnectionsConnectionIdLayoutRouteRoute,
   } as any)
 const ConnectionsConnectionIdDatabasesDatabaseNameRoute =
   ConnectionsConnectionIdDatabasesDatabaseNameRouteImport.update({
@@ -72,11 +54,35 @@ const ConnectionsConnectionIdDatabasesDatabaseNameRoute =
     path: '/databases/$databaseName',
     getParentRoute: () => ConnectionsConnectionIdRoute,
   } as any)
+const ConnectionsConnectionIdLayoutUsersRoute =
+  ConnectionsConnectionIdLayoutUsersRouteImport.update({
+    id: '/users',
+    path: '/users',
+    getParentRoute: () => ConnectionsConnectionIdLayoutRouteRoute,
+  } as any)
+const ConnectionsConnectionIdLayoutOverviewRoute =
+  ConnectionsConnectionIdLayoutOverviewRouteImport.update({
+    id: '/overview',
+    path: '/overview',
+    getParentRoute: () => ConnectionsConnectionIdLayoutRouteRoute,
+  } as any)
+const ConnectionsConnectionIdLayoutMonitorRoute =
+  ConnectionsConnectionIdLayoutMonitorRouteImport.update({
+    id: '/monitor',
+    path: '/monitor',
+    getParentRoute: () => ConnectionsConnectionIdLayoutRouteRoute,
+  } as any)
 const ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute =
   ConnectionsConnectionIdDatabasesDatabaseNameIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => ConnectionsConnectionIdDatabasesDatabaseNameRoute,
+  } as any)
+const ConnectionsConnectionIdLayoutDatabasesIndexRoute =
+  ConnectionsConnectionIdLayoutDatabasesIndexRouteImport.update({
+    id: '/databases/',
+    path: '/databases/',
+    getParentRoute: () => ConnectionsConnectionIdLayoutRouteRoute,
   } as any)
 const ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute =
   ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRouteImport.update(
@@ -89,25 +95,25 @@ const ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/connections/$connectionId': typeof ConnectionsConnectionIdRouteWithChildren
+  '/connections/$connectionId': typeof ConnectionsConnectionIdLayoutRouteRouteWithChildren
   '/teste/': typeof TesteIndexRoute
-  '/connections/$connectionId/monitor': typeof ConnectionsConnectionIdMonitorRoute
-  '/connections/$connectionId/overview': typeof ConnectionsConnectionIdOverviewRoute
-  '/connections/$connectionId/users': typeof ConnectionsConnectionIdUsersRoute
-  '/connections/$connectionId/': typeof ConnectionsConnectionIdIndexRoute
+  '/connections/$connectionId/monitor': typeof ConnectionsConnectionIdLayoutMonitorRoute
+  '/connections/$connectionId/overview': typeof ConnectionsConnectionIdLayoutOverviewRoute
+  '/connections/$connectionId/users': typeof ConnectionsConnectionIdLayoutUsersRoute
   '/connections/$connectionId/databases/$databaseName': typeof ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren
-  '/connections/$connectionId/databases/': typeof ConnectionsConnectionIdDatabasesIndexRoute
+  '/connections/$connectionId/': typeof ConnectionsConnectionIdLayoutIndexRoute
+  '/connections/$connectionId/databases/': typeof ConnectionsConnectionIdLayoutDatabasesIndexRoute
   '/connections/$connectionId/databases/$databaseName/': typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute
   '/connections/$connectionId/databases/$databaseName/tables/$tableName': typeof ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/connections/$connectionId': typeof ConnectionsConnectionIdLayoutIndexRoute
   '/teste': typeof TesteIndexRoute
-  '/connections/$connectionId/monitor': typeof ConnectionsConnectionIdMonitorRoute
-  '/connections/$connectionId/overview': typeof ConnectionsConnectionIdOverviewRoute
-  '/connections/$connectionId/users': typeof ConnectionsConnectionIdUsersRoute
-  '/connections/$connectionId': typeof ConnectionsConnectionIdIndexRoute
-  '/connections/$connectionId/databases': typeof ConnectionsConnectionIdDatabasesIndexRoute
+  '/connections/$connectionId/monitor': typeof ConnectionsConnectionIdLayoutMonitorRoute
+  '/connections/$connectionId/overview': typeof ConnectionsConnectionIdLayoutOverviewRoute
+  '/connections/$connectionId/users': typeof ConnectionsConnectionIdLayoutUsersRoute
+  '/connections/$connectionId/databases': typeof ConnectionsConnectionIdLayoutDatabasesIndexRoute
   '/connections/$connectionId/databases/$databaseName': typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute
   '/connections/$connectionId/databases/$databaseName/tables/$tableName': typeof ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute
 }
@@ -116,12 +122,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/connections/$connectionId': typeof ConnectionsConnectionIdRouteWithChildren
   '/teste/': typeof TesteIndexRoute
-  '/connections/$connectionId/monitor': typeof ConnectionsConnectionIdMonitorRoute
-  '/connections/$connectionId/overview': typeof ConnectionsConnectionIdOverviewRoute
-  '/connections/$connectionId/users': typeof ConnectionsConnectionIdUsersRoute
-  '/connections/$connectionId/': typeof ConnectionsConnectionIdIndexRoute
+  '/connections/$connectionId/_layout': typeof ConnectionsConnectionIdLayoutRouteRouteWithChildren
+  '/connections/$connectionId/_layout/monitor': typeof ConnectionsConnectionIdLayoutMonitorRoute
+  '/connections/$connectionId/_layout/overview': typeof ConnectionsConnectionIdLayoutOverviewRoute
+  '/connections/$connectionId/_layout/users': typeof ConnectionsConnectionIdLayoutUsersRoute
   '/connections/$connectionId/databases/$databaseName': typeof ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren
-  '/connections/$connectionId/databases/': typeof ConnectionsConnectionIdDatabasesIndexRoute
+  '/connections/$connectionId/_layout/': typeof ConnectionsConnectionIdLayoutIndexRoute
+  '/connections/$connectionId/_layout/databases/': typeof ConnectionsConnectionIdLayoutDatabasesIndexRoute
   '/connections/$connectionId/databases/$databaseName/': typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute
   '/connections/$connectionId/databases/$databaseName/tables/$tableName': typeof ConnectionsConnectionIdDatabasesDatabaseNameTablesTableNameRoute
 }
@@ -134,19 +141,19 @@ export interface FileRouteTypes {
     | '/connections/$connectionId/monitor'
     | '/connections/$connectionId/overview'
     | '/connections/$connectionId/users'
-    | '/connections/$connectionId/'
     | '/connections/$connectionId/databases/$databaseName'
+    | '/connections/$connectionId/'
     | '/connections/$connectionId/databases/'
     | '/connections/$connectionId/databases/$databaseName/'
     | '/connections/$connectionId/databases/$databaseName/tables/$tableName'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/connections/$connectionId'
     | '/teste'
     | '/connections/$connectionId/monitor'
     | '/connections/$connectionId/overview'
     | '/connections/$connectionId/users'
-    | '/connections/$connectionId'
     | '/connections/$connectionId/databases'
     | '/connections/$connectionId/databases/$databaseName'
     | '/connections/$connectionId/databases/$databaseName/tables/$tableName'
@@ -155,12 +162,13 @@ export interface FileRouteTypes {
     | '/'
     | '/connections/$connectionId'
     | '/teste/'
-    | '/connections/$connectionId/monitor'
-    | '/connections/$connectionId/overview'
-    | '/connections/$connectionId/users'
-    | '/connections/$connectionId/'
+    | '/connections/$connectionId/_layout'
+    | '/connections/$connectionId/_layout/monitor'
+    | '/connections/$connectionId/_layout/overview'
+    | '/connections/$connectionId/_layout/users'
     | '/connections/$connectionId/databases/$databaseName'
-    | '/connections/$connectionId/databases/'
+    | '/connections/$connectionId/_layout/'
+    | '/connections/$connectionId/_layout/databases/'
     | '/connections/$connectionId/databases/$databaseName/'
     | '/connections/$connectionId/databases/$databaseName/tables/$tableName'
   fileRoutesById: FileRoutesById
@@ -194,40 +202,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectionsConnectionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/connections/$connectionId/': {
-      id: '/connections/$connectionId/'
+    '/connections/$connectionId/_layout': {
+      id: '/connections/$connectionId/_layout'
+      path: ''
+      fullPath: '/connections/$connectionId'
+      preLoaderRoute: typeof ConnectionsConnectionIdLayoutRouteRouteImport
+      parentRoute: typeof ConnectionsConnectionIdRoute
+    }
+    '/connections/$connectionId/_layout/': {
+      id: '/connections/$connectionId/_layout/'
       path: '/'
       fullPath: '/connections/$connectionId/'
-      preLoaderRoute: typeof ConnectionsConnectionIdIndexRouteImport
-      parentRoute: typeof ConnectionsConnectionIdRoute
-    }
-    '/connections/$connectionId/users': {
-      id: '/connections/$connectionId/users'
-      path: '/users'
-      fullPath: '/connections/$connectionId/users'
-      preLoaderRoute: typeof ConnectionsConnectionIdUsersRouteImport
-      parentRoute: typeof ConnectionsConnectionIdRoute
-    }
-    '/connections/$connectionId/overview': {
-      id: '/connections/$connectionId/overview'
-      path: '/overview'
-      fullPath: '/connections/$connectionId/overview'
-      preLoaderRoute: typeof ConnectionsConnectionIdOverviewRouteImport
-      parentRoute: typeof ConnectionsConnectionIdRoute
-    }
-    '/connections/$connectionId/monitor': {
-      id: '/connections/$connectionId/monitor'
-      path: '/monitor'
-      fullPath: '/connections/$connectionId/monitor'
-      preLoaderRoute: typeof ConnectionsConnectionIdMonitorRouteImport
-      parentRoute: typeof ConnectionsConnectionIdRoute
-    }
-    '/connections/$connectionId/databases/': {
-      id: '/connections/$connectionId/databases/'
-      path: '/databases'
-      fullPath: '/connections/$connectionId/databases/'
-      preLoaderRoute: typeof ConnectionsConnectionIdDatabasesIndexRouteImport
-      parentRoute: typeof ConnectionsConnectionIdRoute
+      preLoaderRoute: typeof ConnectionsConnectionIdLayoutIndexRouteImport
+      parentRoute: typeof ConnectionsConnectionIdLayoutRouteRoute
     }
     '/connections/$connectionId/databases/$databaseName': {
       id: '/connections/$connectionId/databases/$databaseName'
@@ -236,12 +223,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameRouteImport
       parentRoute: typeof ConnectionsConnectionIdRoute
     }
+    '/connections/$connectionId/_layout/users': {
+      id: '/connections/$connectionId/_layout/users'
+      path: '/users'
+      fullPath: '/connections/$connectionId/users'
+      preLoaderRoute: typeof ConnectionsConnectionIdLayoutUsersRouteImport
+      parentRoute: typeof ConnectionsConnectionIdLayoutRouteRoute
+    }
+    '/connections/$connectionId/_layout/overview': {
+      id: '/connections/$connectionId/_layout/overview'
+      path: '/overview'
+      fullPath: '/connections/$connectionId/overview'
+      preLoaderRoute: typeof ConnectionsConnectionIdLayoutOverviewRouteImport
+      parentRoute: typeof ConnectionsConnectionIdLayoutRouteRoute
+    }
+    '/connections/$connectionId/_layout/monitor': {
+      id: '/connections/$connectionId/_layout/monitor'
+      path: '/monitor'
+      fullPath: '/connections/$connectionId/monitor'
+      preLoaderRoute: typeof ConnectionsConnectionIdLayoutMonitorRouteImport
+      parentRoute: typeof ConnectionsConnectionIdLayoutRouteRoute
+    }
     '/connections/$connectionId/databases/$databaseName/': {
       id: '/connections/$connectionId/databases/$databaseName/'
       path: '/'
       fullPath: '/connections/$connectionId/databases/$databaseName/'
       preLoaderRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRouteImport
       parentRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameRoute
+    }
+    '/connections/$connectionId/_layout/databases/': {
+      id: '/connections/$connectionId/_layout/databases/'
+      path: '/databases'
+      fullPath: '/connections/$connectionId/databases/'
+      preLoaderRoute: typeof ConnectionsConnectionIdLayoutDatabasesIndexRouteImport
+      parentRoute: typeof ConnectionsConnectionIdLayoutRouteRoute
     }
     '/connections/$connectionId/databases/$databaseName/tables/$tableName': {
       id: '/connections/$connectionId/databases/$databaseName/tables/$tableName'
@@ -252,6 +267,33 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ConnectionsConnectionIdLayoutRouteRouteChildren {
+  ConnectionsConnectionIdLayoutMonitorRoute: typeof ConnectionsConnectionIdLayoutMonitorRoute
+  ConnectionsConnectionIdLayoutOverviewRoute: typeof ConnectionsConnectionIdLayoutOverviewRoute
+  ConnectionsConnectionIdLayoutUsersRoute: typeof ConnectionsConnectionIdLayoutUsersRoute
+  ConnectionsConnectionIdLayoutIndexRoute: typeof ConnectionsConnectionIdLayoutIndexRoute
+  ConnectionsConnectionIdLayoutDatabasesIndexRoute: typeof ConnectionsConnectionIdLayoutDatabasesIndexRoute
+}
+
+const ConnectionsConnectionIdLayoutRouteRouteChildren: ConnectionsConnectionIdLayoutRouteRouteChildren =
+  {
+    ConnectionsConnectionIdLayoutMonitorRoute:
+      ConnectionsConnectionIdLayoutMonitorRoute,
+    ConnectionsConnectionIdLayoutOverviewRoute:
+      ConnectionsConnectionIdLayoutOverviewRoute,
+    ConnectionsConnectionIdLayoutUsersRoute:
+      ConnectionsConnectionIdLayoutUsersRoute,
+    ConnectionsConnectionIdLayoutIndexRoute:
+      ConnectionsConnectionIdLayoutIndexRoute,
+    ConnectionsConnectionIdLayoutDatabasesIndexRoute:
+      ConnectionsConnectionIdLayoutDatabasesIndexRoute,
+  }
+
+const ConnectionsConnectionIdLayoutRouteRouteWithChildren =
+  ConnectionsConnectionIdLayoutRouteRoute._addFileChildren(
+    ConnectionsConnectionIdLayoutRouteRouteChildren,
+  )
 
 interface ConnectionsConnectionIdDatabasesDatabaseNameRouteChildren {
   ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameIndexRoute
@@ -272,24 +314,16 @@ const ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren =
   )
 
 interface ConnectionsConnectionIdRouteChildren {
-  ConnectionsConnectionIdMonitorRoute: typeof ConnectionsConnectionIdMonitorRoute
-  ConnectionsConnectionIdOverviewRoute: typeof ConnectionsConnectionIdOverviewRoute
-  ConnectionsConnectionIdUsersRoute: typeof ConnectionsConnectionIdUsersRoute
-  ConnectionsConnectionIdIndexRoute: typeof ConnectionsConnectionIdIndexRoute
+  ConnectionsConnectionIdLayoutRouteRoute: typeof ConnectionsConnectionIdLayoutRouteRouteWithChildren
   ConnectionsConnectionIdDatabasesDatabaseNameRoute: typeof ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren
-  ConnectionsConnectionIdDatabasesIndexRoute: typeof ConnectionsConnectionIdDatabasesIndexRoute
 }
 
 const ConnectionsConnectionIdRouteChildren: ConnectionsConnectionIdRouteChildren =
   {
-    ConnectionsConnectionIdMonitorRoute: ConnectionsConnectionIdMonitorRoute,
-    ConnectionsConnectionIdOverviewRoute: ConnectionsConnectionIdOverviewRoute,
-    ConnectionsConnectionIdUsersRoute: ConnectionsConnectionIdUsersRoute,
-    ConnectionsConnectionIdIndexRoute: ConnectionsConnectionIdIndexRoute,
+    ConnectionsConnectionIdLayoutRouteRoute:
+      ConnectionsConnectionIdLayoutRouteRouteWithChildren,
     ConnectionsConnectionIdDatabasesDatabaseNameRoute:
       ConnectionsConnectionIdDatabasesDatabaseNameRouteWithChildren,
-    ConnectionsConnectionIdDatabasesIndexRoute:
-      ConnectionsConnectionIdDatabasesIndexRoute,
   }
 
 const ConnectionsConnectionIdRouteWithChildren =

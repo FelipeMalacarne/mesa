@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-export const Route = createFileRoute("/connections/$connectionId/")({
+export const Route = createFileRoute("/connections/$connectionId/_layout/")({
   component: ConnectionRedirect,
 });
 

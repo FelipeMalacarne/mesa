@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConnectionOverview } from "@/hooks/use-connection";
 
-export const Route = createFileRoute("/connections/$connectionId/overview")({
+export const Route = createFileRoute("/connections/$connectionId/_layout/overview")({
   component: ConnectionOverview,
 });
 
