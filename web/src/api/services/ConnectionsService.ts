@@ -68,24 +68,6 @@ export class ConnectionsService {
         });
     }
     /**
-     * Get Server Health & Overview
-     * @returns OverviewResponse Overview
-     * @throws ApiError
-     */
-    public static getConnectionOverview({
-        connectionId,
-    }: {
-        connectionId: string,
-    }): CancelablePromise<OverviewResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/connections/{connectionId}/overview',
-            path: {
-                'connectionId': connectionId,
-            },
-        });
-    }
-    /**
      * List databases from a connection
      * @returns ListDatabasesResponse Databases
      * @throws ApiError
@@ -93,6 +75,9 @@ export class ConnectionsService {
     public static listDatabases({
         connectionId,
     }: {
+        /**
+         * The unique identifier for the connection
+         */
         connectionId: string,
     }): CancelablePromise<ListDatabasesResponse> {
         return __request(OpenAPI, {
@@ -104,17 +89,20 @@ export class ConnectionsService {
         });
     }
     /**
-     * Create Database
-     * @returns void
+     * Create a new database
+     * @returns any Created
      * @throws ApiError
      */
     public static createDatabase({
         connectionId,
         requestBody,
     }: {
+        /**
+         * The unique identifier for the connection
+         */
         connectionId: string,
         requestBody: CreateDatabaseRequest,
-    }): CancelablePromise<void> {
+    }): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/connections/{connectionId}/databases',
@@ -126,6 +114,27 @@ export class ConnectionsService {
         });
     }
     /**
+     * Get Server Health & Overview
+     * @returns OverviewResponse Overview
+     * @throws ApiError
+     */
+    public static getConnectionOverview({
+        connectionId,
+    }: {
+        /**
+         * The unique identifier for the connection
+         */
+        connectionId: string,
+    }): CancelablePromise<OverviewResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/connections/{connectionId}/overview',
+            path: {
+                'connectionId': connectionId,
+            },
+        });
+    }
+    /**
      * List tables from a database
      * @returns ListTablesResponse Tables
      * @throws ApiError
@@ -134,7 +143,13 @@ export class ConnectionsService {
         connectionId,
         databaseName,
     }: {
+        /**
+         * The unique identifier for the connection
+         */
         connectionId: string,
+        /**
+         * Database name
+         */
         databaseName: string,
     }): CancelablePromise<ListTablesResponse> {
         return __request(OpenAPI, {
@@ -154,6 +169,9 @@ export class ConnectionsService {
     public static listUsers({
         connectionId,
     }: {
+        /**
+         * The unique identifier for the connection
+         */
         connectionId: string,
     }): CancelablePromise<Array<DBUser>> {
         return __request(OpenAPI, {
@@ -166,16 +184,19 @@ export class ConnectionsService {
     }
     /**
      * Create a new database user
-     * @returns void
+     * @returns any Created
      * @throws ApiError
      */
     public static createUser({
         connectionId,
         requestBody,
     }: {
+        /**
+         * The unique identifier for the connection
+         */
         connectionId: string,
         requestBody: CreateUserRequest,
-    }): CancelablePromise<void> {
+    }): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/connections/{connectionId}/users',
@@ -187,13 +208,16 @@ export class ConnectionsService {
         });
     }
     /**
-     * List active sessions (Live Monitor)
+     * List active sessions
      * @returns Session Sessions
      * @throws ApiError
      */
     public static listSessions({
         connectionId,
     }: {
+        /**
+         * The unique identifier for the connection
+         */
         connectionId: string,
     }): CancelablePromise<Array<Session>> {
         return __request(OpenAPI, {
@@ -213,6 +237,9 @@ export class ConnectionsService {
         connectionId,
         pid,
     }: {
+        /**
+         * The unique identifier for the connection
+         */
         connectionId: string,
         pid: number,
     }): CancelablePromise<void> {
