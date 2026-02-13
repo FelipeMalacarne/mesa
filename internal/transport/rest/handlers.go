@@ -231,7 +231,8 @@ func (s *Server) createDatabase(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		Name string `json:"name"`
+		Name  string `json:"name"`
+		Owner string `json:"owner"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -241,6 +242,7 @@ func (s *Server) createDatabase(w http.ResponseWriter, r *http.Request) {
 	cmd := commands.CreateDatabaseCmd{
 		ConnectionID: id,
 		Name:         payload.Name,
+		Owner:        payload.Owner,
 	}
 
 	if err := s.app.Commands.CreateDatabase.Handle(r.Context(), cmd); err != nil {

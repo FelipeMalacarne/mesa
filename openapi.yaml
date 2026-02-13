@@ -373,7 +373,9 @@ components:
           type: integer
     CreateDatabaseRequest:
       type: object
-      required: [name]
+      required: [name, owner]
       properties:
         name:
+          type: string
+        owner:
           type: string

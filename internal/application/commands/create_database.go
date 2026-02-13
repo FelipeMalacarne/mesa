@@ -15,6 +15,7 @@ import (
 type CreateDatabaseCmd struct {
 	ConnectionID uuid.UUID `json:"connection_id"`
 	Name         string    `json:"name"`
+	Owner        string    `json:"owner"`
 }
 
 type CreateDatabaseHandler struct {
@@ -28,8 +29,14 @@ func NewCreateDatabaseHandler(repo connection.Repository, crypto domain.Cryptogr
 }
 
 func (h *CreateDatabaseHandler) Handle(ctx context.Context, cmd CreateDatabaseCmd) error {
-	if strings.TrimSpace(cmd.Name) == "" {
+	cmd.Name = strings.TrimSpace(cmd.Name)
+	cmd.Owner = strings.TrimSpace(cmd.Owner)
+
+	if cmd.Name == "" {
 		return fmt.Errorf("database name is required")
+	}
+	if cmd.Owner == "" {
+		return fmt.Errorf("database owner is required")
 	}
 
 	conn, err := h.repo.FindByID(ctx, cmd.ConnectionID)
@@ -53,5 +60,5 @@ func (h *CreateDatabaseHandler) Handle(ctx context.Context, cmd CreateDatabaseCm
 	timedCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	return gateway.CreateDatabase(timedCtx, *conn, password, cmd.Name)
+	return gateway.CreateDatabase(timedCtx, *conn, password, cmd.Name, cmd.Owner)
 }

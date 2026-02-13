@@ -17,7 +17,7 @@ type Gateway interface {
 	ListUsers(ctx context.Context, conn Connection, password string) ([]DBUser, error)
 	CreateUser(ctx context.Context, conn Connection, password string, user DBUser, secret string) error
 	DropUser(ctx context.Context, conn Connection, password string, username string) error
-	CreateDatabase(ctx context.Context, conn Connection, password string, dbName string) error
+	CreateDatabase(ctx context.Context, conn Connection, password string, dbName string, owner string) error
 }
 
 // GatewayFactory devolve a implementação adequada para determinado driver.

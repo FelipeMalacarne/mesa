@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCaption,
@@ -25,6 +32,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useConnectionDatabases,
+  useConnectionUsers,
   useCreateDatabase,
 } from "@/hooks/use-connection";
 
@@ -90,20 +98,40 @@ function ConnectionDatabases() {
 function CreateDatabaseDialog({ connectionId }: { connectionId: string }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [owner, setOwner] = useState("");
   const mutation = useCreateDatabase(connectionId);
+  const { data: users, isLoading: isUsersLoading } = useConnectionUsers(connectionId);
+
+  useEffect(() => {
+    if (!owner && users && users.length > 0) {
+      setOwner(users[0].name);
+    }
+  }, [owner, users]);
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    const trimmedName = name.trim();
+    const trimmedOwner = owner.trim();
+    if (!trimmedName || !trimmedOwner) return;
     try {
-      await mutation.mutateAsync(name.trim());
+      await mutation.mutateAsync({ name: trimmedName, owner: trimmedOwner });
       toast.success("Database created");
       setName("");
+      setOwner("");
       setOpen(false);
     } catch (error) {
       console.error(error);
       toast.error("Failed to create database");
     }
   };
+
+  const hasOwnerOptions = Boolean(users?.length);
+  const isCreateDisabled =
+    mutation.isPending || !name.trim() || !owner.trim();
+  const ownerPlaceholder = isUsersLoading
+    ? "Loading owners..."
+    : hasOwnerOptions
+    ? "Select an owner"
+    : "No owners available";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -114,17 +142,43 @@ function CreateDatabaseDialog({ connectionId }: { connectionId: string }) {
         <DialogHeader>
           <DialogTitle>New database</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <Label htmlFor="db-name">Name</Label>
-          <Input
-            id="db-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="analytics"
-          />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="db-name">Name</Label>
+            <Input
+              id="db-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="analytics"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="db-owner">Owner</Label>
+            <Select
+              value={owner || undefined}
+              onValueChange={setOwner}
+              disabled={!hasOwnerOptions || isUsersLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={ownerPlaceholder} />
+              </SelectTrigger>
+              <SelectContent>
+                {users?.map((user) => (
+                  <SelectItem key={user.name} value={user.name}>
+                    {user.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!isUsersLoading && !hasOwnerOptions && (
+              <p className="text-sm text-muted-foreground">
+                Create a user first to assign as the owner.
+              </p>
+            )}
+          </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleCreate} disabled={mutation.isPending}>
+          <Button onClick={handleCreate} disabled={isCreateDisabled}>
             {mutation.isPending ? "Creating..." : "Create"}
           </Button>
         </DialogFooter>

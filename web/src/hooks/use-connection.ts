@@ -1,5 +1,6 @@
 import {
 	ConnectionsService,
+	type CreateDatabaseRequest,
 	type CreateUserRequest,
 	type DBUser,
 	type ListDatabasesResponse,
@@ -62,11 +63,11 @@ export function useConnectionSessions(connectionId: ConnectionID) {
 export function useCreateDatabase(connectionId: ConnectionID) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) =>
-      ConnectionsService.createDatabase({
-        connectionId,
-        requestBody: { name },
-      }),
+	mutationFn: (payload: CreateDatabaseRequest) =>
+	  ConnectionsService.createDatabase({
+		connectionId,
+		requestBody: payload,
+	  }),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: queryKey(connectionId, "databases") });
     },

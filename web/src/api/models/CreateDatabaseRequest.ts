@@ -4,5 +4,6 @@
 /* eslint-disable */
 export type CreateDatabaseRequest = {
     name: string;
+    owner: string;
 };
 

@@ -322,7 +322,9 @@ func (h *Gateway) CreateUser(ctx context.Context, conn connection.Connection, pa
 	builder.WriteString("CREATE USER ")
 	builder.WriteString(quoteIdentifier(user.Name))
 	builder.WriteString(" WITH ")
-	builder.WriteString("PASSWORD $1 ")
+	builder.WriteString("PASSWORD ")
+	builder.WriteString(quoteLiteral(newPass))
+	builder.WriteString(" ")
 	if user.IsSuperUser {
 		builder.WriteString("SUPERUSER ")
 	} else {
@@ -341,7 +343,7 @@ func (h *Gateway) CreateUser(ctx context.Context, conn connection.Connection, pa
 
 	query := strings.TrimSpace(builder.String())
 
-	_, err = db.ExecContext(ctx, query, newPass)
+	_, err = db.ExecContext(ctx, query)
 	return err
 }
 
@@ -361,9 +363,12 @@ func (h *Gateway) DropUser(ctx context.Context, conn connection.Connection, pass
 	return err
 }
 
-func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection, password string, dbName string) error {
+func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection, password string, dbName string, owner string) error {
 	if !isValidIdentifier(dbName) {
 		return fmt.Errorf("invalid database name: %s", dbName)
+	}
+	if !isValidIdentifier(owner) {
+		return fmt.Errorf("invalid database owner: %s", owner)
 	}
 
 	db, err := h.connect(conn, password, "postgres")
@@ -372,7 +377,11 @@ func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection
 	}
 	defer db.Close()
 
-	query := fmt.Sprintf("CREATE DATABASE %s", quoteIdentifier(dbName))
+	query := fmt.Sprintf(
+		"CREATE DATABASE %s OWNER %s",
+		quoteIdentifier(dbName),
+		quoteIdentifier(owner),
+	)
 	_, err = db.ExecContext(ctx, query)
 	return err
 }
@@ -383,4 +392,9 @@ func isValidIdentifier(value string) bool {
 
 func quoteIdentifier(value string) string {
 	return fmt.Sprintf("\"%s\"", value)
+}
+
+func quoteLiteral(value string) string {
+	escaped := strings.ReplaceAll(value, "'", "''")
+	return fmt.Sprintf("'%s'", escaped)
 }
