@@ -13,10 +13,84 @@ Mesa is a web-based SQL client designed for developers and SREs who need a "clou
 
 ## 🛠 Tech Stack
 
-- **Backend:** Go (fiber/echo) - fast, concurrent, and memory-efficient.
+- **Backend:** Go - fast, concurrent, and memory-efficient.
 - **Frontend:** React (Vite) + Shadcn/UI + Tailwind CSS.
 - **Metadata DB:** PostgreSQL (with JSONB for flexible settings).
 - **Deployment:** Docker-native, optimized for Kubernetes & ArgoCD.
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/)
+- [Go](https://go.dev/) (for local development)
+- [Node.js](https://nodejs.org/) & [pnpm](https://pnpm.io/) (for local frontend development)
+
+### Quick Start (Docker)
+
+The easiest way to run Mesa is using Docker Compose.
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/mesa.git
+    cd mesa
+    ```
+
+2.  **Start the services:**
+    ```bash
+    docker-compose up -d --build
+    ```
+
+    This will start:
+    -   **PostgreSQL**: Database for Mesa metadata.
+    -   **API**: Go backend running on port `8080`.
+    -   **Frontend**: React app running on port `3000`.
+
+3.  **Access the application:**
+    -   Frontend: [http://localhost:3000](http://localhost:3000)
+    -   API: [http://localhost:8080](http://localhost:8080)
+
+### Local Development
+
+If you prefer to run services locally without Docker for development:
+
+#### Backend
+
+1.  Ensure you have a PostgreSQL instance running and configured.
+2.  Run migrations:
+    ```bash
+    make migrate-up
+    ```
+3.  Start the server:
+    ```bash
+    go run cmd/server/main.go
+    ```
+
+#### Frontend
+
+1.  Navigate to the web directory:
+    ```bash
+    cd web
+    ```
+2.  Install dependencies:
+    ```bash
+    pnpm install
+    ```
+3.  Start the development server:
+    ```bash
+    pnpm dev
+    ```
+
+## 📜 Makefile Commands
+
+We provide a `Makefile` to simplify common tasks:
+
+-   `make migrate-up`: Run database migrations.
+-   `make migrate-down`: Revert database migrations.
+-   `make migration name=<name>`: Create a new migration file.
+-   `make sqlc-generate`: Generate Go code from SQL queries using `sqlc`.
+-   `make codegen-client`: Generate the TypeScript API client from `openapi.yaml`.
+-   `make seed`: Seed the database with initial data.
 
 ## 🔒 Security
 
