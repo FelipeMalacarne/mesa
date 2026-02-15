@@ -34,7 +34,7 @@ type ServerHealth struct {
 }
 
 type DBUser struct {
-	Name        string
+	Name        Identifier
 	IsSuperUser bool
 	CanLogin    bool
 	ConnLimit   int
@@ -49,3 +49,26 @@ type Session struct {
 	Duration  time.Duration
 	StartedAt time.Time
 }
+
+// type TableColumnDefinition struct {
+// 	Name         string
+// 	Type         ColumnType
+// 	Length       *int
+// 	Precision    *int
+// 	Scale        *int
+// 	Nullable     bool
+// 	PrimaryKey   bool
+// 	DefaultValue *string
+// }
+//
+// type TableIndexDefinition struct {
+// 	Name    string
+// 	Columns []string
+// 	Method  string
+// 	Unique  bool
+// }
+//
+// type TableDefinition struct {
+// 	Name    string
+// 	Columns []TableColumnDefinition
+// }

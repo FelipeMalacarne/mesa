@@ -4,15 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
-
-var identifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 // Gateway implementa o contrato de runtime e inspeção para Postgres.
 type Gateway struct{}
@@ -21,14 +18,14 @@ func NewGateway() connection.Gateway {
 	return &Gateway{}
 }
 
-func (h *Gateway) connect(conn connection.Connection, password, dbName string) (*sql.DB, error) {
+func (h *Gateway) connect(conn connection.Connection, password string, dbName connection.Identifier) (*sql.DB, error) {
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable&connect_timeout=5",
 		conn.Username,
 		password,
 		conn.Host,
 		conn.Port,
-		dbName,
+		dbName.String(),
 	)
 
 	db, err := sql.Open("pgx", dsn)
@@ -43,7 +40,7 @@ func (h *Gateway) connect(conn connection.Connection, password, dbName string) (
 }
 
 func (h *Gateway) GetDatabases(ctx context.Context, conn connection.Connection, password string) ([]connection.Database, error) {
-	db, err := h.connect(conn, password, "postgres")
+	db, err := h.connect(conn, password, postgresDBName())
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +77,7 @@ ORDER BY d.datname;
 	return databases, rows.Err()
 }
 
-func (h *Gateway) GetTables(ctx context.Context, conn connection.Connection, password string, dbName string) ([]connection.Table, error) {
+func (h *Gateway) GetTables(ctx context.Context, conn connection.Connection, password string, dbName connection.Identifier) ([]connection.Table, error) {
 	db, err := h.connect(conn, password, dbName)
 	if err != nil {
 		return nil, err
@@ -121,7 +118,7 @@ ORDER BY t.table_name;
 	return tables, rows.Err()
 }
 
-func (h *Gateway) GetColumns(ctx context.Context, conn connection.Connection, password, dbName, tableName string) ([]connection.Column, error) {
+func (h *Gateway) GetColumns(ctx context.Context, conn connection.Connection, password string, dbName, tableName connection.Identifier) ([]connection.Column, error) {
 	db, err := h.connect(conn, password, dbName)
 	if err != nil {
 		return nil, err
@@ -176,7 +173,7 @@ ORDER BY c.ordinal_position;
 }
 
 func (h *Gateway) Ping(ctx context.Context, conn connection.Connection, password string) error {
-	db, err := h.connect(conn, password, "postgres")
+	db, err := h.connect(conn, password, postgresDBName())
 	if err != nil {
 		return err
 	}
@@ -186,7 +183,7 @@ func (h *Gateway) Ping(ctx context.Context, conn connection.Connection, password
 }
 
 func (h *Gateway) GetServerHealth(ctx context.Context, conn connection.Connection, password string) (*connection.ServerHealth, error) {
-	db, err := h.connect(conn, password, "postgres")
+	db, err := h.connect(conn, password, postgresDBName())
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +210,7 @@ SELECT
 }
 
 func (h *Gateway) ListSessions(ctx context.Context, conn connection.Connection, password string) ([]connection.Session, error) {
-	db, err := h.connect(conn, password, "postgres")
+	db, err := h.connect(conn, password, postgresDBName())
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +254,7 @@ LIMIT 50;
 }
 
 func (h *Gateway) KillSession(ctx context.Context, conn connection.Connection, password string, pid int) error {
-	db, err := h.connect(conn, password, "postgres")
+	db, err := h.connect(conn, password, postgresDBName())
 	if err != nil {
 		return err
 	}
@@ -276,7 +273,7 @@ func (h *Gateway) KillSession(ctx context.Context, conn connection.Connection, p
 }
 
 func (h *Gateway) ListUsers(ctx context.Context, conn connection.Connection, password string) ([]connection.DBUser, error) {
-	db, err := h.connect(conn, password, "postgres")
+	db, err := h.connect(conn, password, postgresDBName())
 	if err != nil {
 		return nil, err
 	}
@@ -308,11 +305,7 @@ ORDER BY rolname;
 }
 
 func (h *Gateway) CreateUser(ctx context.Context, conn connection.Connection, password string, user connection.DBUser, newPass string) error {
-	if !isValidIdentifier(user.Name) {
-		return fmt.Errorf("invalid username: %s", user.Name)
-	}
-
-	db, err := h.connect(conn, password, "postgres")
+	db, err := h.connect(conn, password, postgresDBName())
 	if err != nil {
 		return err
 	}
@@ -320,7 +313,7 @@ func (h *Gateway) CreateUser(ctx context.Context, conn connection.Connection, pa
 
 	builder := strings.Builder{}
 	builder.WriteString("CREATE USER ")
-	builder.WriteString(quoteIdentifier(user.Name))
+	builder.WriteString(user.Name.Quoted())
 	builder.WriteString(" WITH ")
 	builder.WriteString("PASSWORD ")
 	builder.WriteString(quoteLiteral(newPass))
@@ -347,31 +340,20 @@ func (h *Gateway) CreateUser(ctx context.Context, conn connection.Connection, pa
 	return err
 }
 
-func (h *Gateway) DropUser(ctx context.Context, conn connection.Connection, password string, username string) error {
-	if !isValidIdentifier(username) {
-		return fmt.Errorf("invalid username: %s", username)
-	}
-
-	db, err := h.connect(conn, password, "postgres")
+func (h *Gateway) DropUser(ctx context.Context, conn connection.Connection, password string, username connection.Identifier) error {
+	db, err := h.connect(conn, password, postgresDBName())
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	query := fmt.Sprintf("DROP USER %s", quoteIdentifier(username))
+	query := fmt.Sprintf("DROP USER %s", username.Quoted())
 	_, err = db.ExecContext(ctx, query)
 	return err
 }
 
-func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection, password string, dbName string, owner string) error {
-	if !isValidIdentifier(dbName) {
-		return fmt.Errorf("invalid database name: %s", dbName)
-	}
-	if !isValidIdentifier(owner) {
-		return fmt.Errorf("invalid database owner: %s", owner)
-	}
-
-	db, err := h.connect(conn, password, "postgres")
+func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection, password string, dbName, owner connection.Identifier) error {
+	db, err := h.connect(conn, password, postgresDBName())
 	if err != nil {
 		return err
 	}
@@ -379,22 +361,121 @@ func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection
 
 	query := fmt.Sprintf(
 		"CREATE DATABASE %s OWNER %s",
-		quoteIdentifier(dbName),
-		quoteIdentifier(owner),
+		dbName.Quoted(),
+		owner.Quoted(),
 	)
 	_, err = db.ExecContext(ctx, query)
 	return err
 }
 
-func isValidIdentifier(value string) bool {
-	return identifierRegex.MatchString(value)
+func (h *Gateway) CreateTable(ctx context.Context, conn connection.Connection, password string, dbName connection.Identifier, table connection.TableDefinition) error {
+	db, err := h.connect(conn, password, dbName)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	columnDefs := make([]string, 0, len(table.Columns)+1)
+	var pkColumns []string
+
+	for _, column := range table.Columns {
+		builder := strings.Builder{}
+		builder.WriteString(column.Name.Quoted())
+		builder.WriteString(" ")
+		builder.WriteString(column.DataType.Format())
+
+		if !column.IsNullable {
+			builder.WriteString(" NOT NULL")
+		}
+
+		if column.DefaultValue != nil {
+			defaultValue := column.DefaultValue
+			if !defaultValue.IsEmpty() {
+				builder.WriteString(" DEFAULT ")
+				builder.WriteString(defaultValue.String())
+			}
+		}
+
+		columnDefs = append(columnDefs, builder.String())
+
+		if column.IsPrimaryKey {
+			pkColumns = append(pkColumns, column.Name.Quoted())
+		}
+	}
+
+	if len(pkColumns) > 0 {
+		columnDefs = append(columnDefs, fmt.Sprintf("PRIMARY KEY (%s)", strings.Join(pkColumns, ", ")))
+	}
+
+	createTableQuery := fmt.Sprintf(
+		"CREATE TABLE %s.%s (%s)",
+		table.Schema.Quoted(),
+		table.Name.Quoted(),
+		strings.Join(columnDefs, ", "),
+	)
+
+	_, err = db.ExecContext(ctx, createTableQuery)
+	return err
 }
 
-func quoteIdentifier(value string) string {
-	return fmt.Sprintf("\"%s\"", value)
+func (h *Gateway) CreateIndex(ctx context.Context, conn connection.Connection, password string, dbName, schema, tableName connection.Identifier, index connection.IndexDefinition) error {
+	if len(index.Columns) == 0 {
+		return fmt.Errorf("index %s must reference at least one column", index.Name)
+	}
+
+	indexColumns := make([]string, 0, len(index.Columns))
+	for _, columnName := range index.Columns {
+		indexColumns = append(indexColumns, columnName.Quoted())
+	}
+
+	uniqueKeyword := ""
+	if index.Unique {
+		uniqueKeyword = "UNIQUE "
+	}
+
+	query := fmt.Sprintf(
+		"CREATE %sINDEX %s ON %s.%s USING %s (%s)",
+		uniqueKeyword,
+		index.Name.Quoted(),
+		schema.Quoted(),
+		tableName.Quoted(),
+		index.Method,
+		strings.Join(indexColumns, ", "),
+	)
+
+	db, err := h.connect(conn, password, dbName)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.ExecContext(ctx, query)
+	return err
+}
+
+func (h *Gateway) DropIndex(ctx context.Context, conn connection.Connection, password string, dbName, indexName connection.Identifier) error {
+	query := fmt.Sprintf(
+		"DROP INDEX %s.%s",
+		dbName.Quoted(),
+		indexName.Quoted(),
+	)
+
+	db, err := h.connect(conn, password, dbName)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.ExecContext(ctx, query)
+	return err
+
 }
 
 func quoteLiteral(value string) string {
 	escaped := strings.ReplaceAll(value, "'", "''")
 	return fmt.Sprintf("'%s'", escaped)
+}
+
+func postgresDBName() connection.Identifier {
+	return connection.MustNewIdentifier("postgres")
 }
