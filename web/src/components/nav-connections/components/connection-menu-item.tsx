@@ -1,4 +1,4 @@
-import { ChevronRight, HardDrive } from "lucide-react";
+import { ChevronRight, HardDrive, Loader2 } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -11,8 +11,9 @@ import {
   SidebarMenuSub,
 } from "@/components/ui/sidebar";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 
-import { Connection } from "@/api";
+import { ConnectionsService } from "@/api";
 import type { ConnectionTreeNode } from "../state/types";
 import { ConnectionDatabases } from "./connection-databases";
 import { DisabledSubButton } from "./disabled-sub-button";
@@ -33,15 +34,22 @@ export const ConnectionMenuItem = ({
 }: ConnectionMenuItemProps) => {
   const { setConnectionOpen } = useNavConnectionsState();
   const connection = node.connection;
-  const connectionStatus = node.status;
   const isConnectionActive =
     activeState.connectionId === connection.id && !activeState.databaseName;
-  const statusDot =
-    connectionStatus === Connection.status.OK
-      ? "bg-emerald-500"
-      : connectionStatus === Connection.status.ERROR
-        ? "bg-rose-500"
-        : "bg-muted-foreground/40";
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["connections", connection.id, "ping"],
+    queryFn: () =>
+      ConnectionsService.pingConnection({ connectionId: connection.id }),
+  });
+
+  const isPingError = data?.status === "error" || isError;
+  const isOk = data?.status === "ok";
+
+  let statusDot = "bg-muted-foreground/40";
+  if (isLoading) statusDot = "bg-yellow-500 animate-pulse";
+  else if (isOk) statusDot = "bg-emerald-500";
+  else if (isPingError) statusDot = "bg-rose-500";
 
   return (
     <Collapsible
@@ -63,26 +71,34 @@ export const ConnectionMenuItem = ({
             <HardDrive />
             <span>{connection.name}</span>
             <span className="ml-auto flex items-center">
-              <span className={`h-2 w-2 rounded-full ${statusDot}`} />
+              {isLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+              ) : (
+                <span className={`h-2 w-2 rounded-full ${statusDot}`} />
+              )}
             </span>
           </Link>
         </SidebarMenuButton>
         <CollapsibleTrigger asChild>
-          <SidebarMenuAction type="button" aria-label={`Toggle ${connection.name}`}>
+          <SidebarMenuAction
+            type="button"
+            aria-label={`Toggle ${connection.name}`}
+            disabled={!isOk}
+          >
             <ChevronRight className="transition-transform duration-200 group-data-[state=open]/connection-collapsible:rotate-90" />
           </SidebarMenuAction>
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub>
-            {connectionStatus === Connection.status.ERROR ? (
+            {isPingError ? (
               <DisabledSubButton>
-                {connection.status_error ?? "Unable to connect to this database"}
+                {data?.error ?? "Unable to connect to this database"}
               </DisabledSubButton>
             ) : null}
-            {connectionStatus === "unknown" ? (
-              <DisabledSubButton>Status unavailable</DisabledSubButton>
+            {isLoading ? (
+              <DisabledSubButton>Connecting...</DisabledSubButton>
             ) : null}
-            {connectionStatus === Connection.status.OK ? (
+            {isOk ? (
               <ConnectionDatabases
                 databaseState={node.databaseState}
                 connectionId={connection.id}

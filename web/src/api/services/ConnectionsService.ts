@@ -11,6 +11,7 @@ import type { DBUser } from '../models/DBUser';
 import type { ListDatabasesResponse } from '../models/ListDatabasesResponse';
 import type { ListTablesResponse } from '../models/ListTablesResponse';
 import type { OverviewResponse } from '../models/OverviewResponse';
+import type { PingConnectionResponse } from '../models/PingConnectionResponse';
 import type { Session } from '../models/Session';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -284,4 +285,27 @@ export class ConnectionsService {
             },
         });
     }
+
+    /**
+     * Ping connection to check status
+     * @returns PingConnectionResponse Ping result
+     * @throws ApiError
+     */
+    public static pingConnection({
+        connectionId,
+    }: {
+        /**
+         * The unique identifier for the connection
+         */
+        connectionId: string,
+    }): CancelablePromise<PingConnectionResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/connections/{connectionId}/ping',
+            path: {
+                'connectionId': connectionId,
+            },
+        });
+    }
 }
+

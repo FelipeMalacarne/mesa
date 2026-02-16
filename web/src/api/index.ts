@@ -22,6 +22,7 @@ export type { DBUser } from './models/DBUser';
 export { ListDatabasesResponse } from './models/ListDatabasesResponse';
 export { ListTablesResponse } from './models/ListTablesResponse';
 export { OverviewResponse } from './models/OverviewResponse';
+export type { PingConnectionResponse } from './models/PingConnectionResponse';
 export type { Session } from './models/Session';
 export type { Table } from './models/Table';
 
