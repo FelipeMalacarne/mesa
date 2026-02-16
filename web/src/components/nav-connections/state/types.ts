@@ -5,7 +5,7 @@ import type {
 } from "@/api";
 
 export type FetchStatus = "idle" | "loading" | "ok" | "error";
-export type ConnectionStatus = Connection.status | "unknown";
+export type ConnectionStatus = Connection.status | "ok" | "error" | "unknown";
 export type FetchResult<T> = {
   status: FetchStatus;
   data?: T;

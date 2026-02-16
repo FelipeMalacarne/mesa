@@ -1,8 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
+import { useShallow } from "zustand/react/shallow";
 
 import {
-  ApiError,
   Connection,
   ConnectionsService,
   ListDatabasesResponse,
@@ -10,66 +10,25 @@ import {
 } from "@/api";
 
 import type {
-  ConnectionStatus,
   ConnectionTreeNode,
   DatabaseTreeNode,
   FetchResult,
-  QueryState,
-  TablesByDatabaseKey,
 } from "./types";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useNavConnectionsState } from "./context";
 import { databaseKey, parseDatabaseKey } from "./utils";
 
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof ApiError) {
-    return (
-      error.body?.message ??
-      error.statusText ??
-      `Request failed (${error.status})`
-    );
-  }
-
-  return "Unable to reach the database.";
-};
-
-const mapQueryToFetchResult = <T extends { status?: string; error?: string }>(
-  query: QueryState<T> | undefined,
-  errorStatusValue: string,
-): FetchResult<T> => {
-  if (!query) {
-    return { status: "idle" };
-  }
-
-  if (query.isLoading) {
-    return { status: "loading" };
-  }
-
-  if (query.isError) {
-    return { status: "error", errorMessage: getErrorMessage(query.error) };
-  }
-
-  if (query.data?.status === errorStatusValue) {
-    return {
-      status: "error",
-      data: query.data,
-      errorMessage: query.data.error,
-    };
-  }
-
-  if (query.data) {
-    return { status: "ok", data: query.data };
-  }
-
-  return { status: "idle" };
-};
-
 export const useExpandedConnections = (
   connections: Connection[],
-  openConnections: Record<string, boolean>,
+  openConnections: Record<string, boolean>
 ) => {
+  const connectionStatuses = useConnectionStore(
+    (state) => state.connectionStatuses
+  );
+
   const connectionsByID = useMemo(
     () => new Map(connections.map((connection) => [connection.id, connection])),
-    [connections],
+    [connections]
   );
 
   const expandedConnectionIds = useMemo(
@@ -77,16 +36,15 @@ export const useExpandedConnections = (
       Object.entries(openConnections)
         .filter(([, isOpen]) => isOpen)
         .map(([id]) => id),
-    [openConnections],
+    [openConnections]
   );
 
   const activeConnectionIds = useMemo(
     () =>
       expandedConnectionIds.filter((id) => {
-        const connection = connectionsByID.get(id);
-        return connection?.status === Connection.status.OK;
+        return connectionsByID.has(id) && connectionStatuses[id] === "ok";
       }),
-    [connectionsByID, expandedConnectionIds],
+    [connectionsByID, expandedConnectionIds, connectionStatuses]
   );
 
   return { connectionsByID, activeConnectionIds };
@@ -95,27 +53,35 @@ export const useExpandedConnections = (
 export const useExpandedDatabaseKeys = (
   openDatabases: Record<string, boolean>,
   connectionsByID: Map<string, Connection>,
-  openConnections: Record<string, boolean>,
-) =>
-  useMemo(
+  openConnections: Record<string, boolean>
+) => {
+  const connectionStatuses = useConnectionStore(
+    (state) => state.connectionStatuses
+  );
+  return useMemo(
     () =>
       Object.entries(openDatabases)
         .filter(([, isOpen]) => isOpen)
         .map(([key]) => {
           const [connectionId] = parseDatabaseKey(key);
-          const connection = connectionsByID.get(connectionId);
-          return openConnections[connectionId] &&
-            connection?.status === Connection.status.OK
-            ? key
-            : null;
+          return (
+            openConnections[connectionId] &&
+            connectionStatuses[connectionId] === "ok"
+              ? key
+              : null
+          );
         })
         .filter((key): key is string => key !== null),
-    [connectionsByID, openDatabases, openConnections],
+    [connectionsByID, openDatabases, openConnections, connectionStatuses]
+  );
+};
+
+export const useSyncDatabases = (activeConnectionIds: string[]) => {
+  const setDatabases = useConnectionStore((state) => state.setDatabases);
+  const setDatabaseFetchStatus = useConnectionStore(
+    (state) => state.setDatabaseFetchStatus
   );
 
-export const useDatabasesByConnection = (
-  activeConnectionIds: string[],
-): Map<string, FetchResult<ListDatabasesResponse>> => {
   const databaseQueries = useQueries({
     queries: activeConnectionIds.map((connectionId) => ({
       queryKey: ["connection-databases", connectionId],
@@ -125,26 +91,63 @@ export const useDatabasesByConnection = (
     })),
   });
 
-  return useMemo(() => {
-    const map = new Map<string, FetchResult<ListDatabasesResponse>>();
-
+  useEffect(() => {
     activeConnectionIds.forEach((connectionId, index) => {
-      map.set(
-        connectionId,
-        mapQueryToFetchResult(
-          databaseQueries[index],
-          ListDatabasesResponse.status.ERROR,
-        ),
-      );
-    });
+      const query = databaseQueries[index];
+      if (!query) return;
 
-    return map;
-  }, [activeConnectionIds, databaseQueries]);
+      const currentStatus =
+        useConnectionStore.getState().databaseFetchStatuses[connectionId];
+      // We check reference equality of databases array.
+      const currentData = useConnectionStore.getState().databases[connectionId];
+
+      if (query.isLoading) {
+        if (currentStatus !== "loading") {
+          setDatabaseFetchStatus(connectionId, "loading");
+        }
+      } else if (query.isError) {
+        if (currentStatus !== "error") {
+          setDatabaseFetchStatus(connectionId, "error");
+        }
+      } else if (query.data) {
+        if (query.data.status === ListDatabasesResponse.status.ERROR) {
+          if (currentStatus !== "error") {
+            setDatabaseFetchStatus(connectionId, "error");
+          }
+        } else {
+          // Only update if status changed or data reference changed
+          // We also check if the data content is actually different to avoid loops with new references
+          const newData = query.data.databases || [];
+          if (
+            currentStatus !== "ok" ||
+            (currentData !== newData &&
+              JSON.stringify(currentData) !== JSON.stringify(newData))
+          ) {
+            setDatabases(connectionId, newData, "ok");
+          }
+        }
+      }
+    });
+  }, [
+    // We intentionally omit databaseQueries to prevent loop if it's unstable.
+    // However, we need the effect to run when queries update.
+    // The issue is that useQueries returns a new array every render.
+    // We can depend on specific properties that change, or use JSON.stringify on the states.
+    // But for now, let's just rely on the deep equality check inside the effect to prevent
+    // dispatching if nothing changed.
+    databaseQueries,
+    activeConnectionIds,
+    setDatabases,
+    setDatabaseFetchStatus,
+  ]);
 };
 
-export const useTablesByDatabase = (
-  expandedDatabaseKeys: string[],
-): TablesByDatabaseKey => {
+export const useSyncTables = (expandedDatabaseKeys: string[]) => {
+  const setTables = useConnectionStore((state) => state.setTables);
+  const setTableFetchStatus = useConnectionStore(
+    (state) => state.setTableFetchStatus
+  );
+
   const tableQueries = useQueries({
     queries: expandedDatabaseKeys.map((key) => {
       const [connectionId, databaseName] = parseDatabaseKey(key);
@@ -160,53 +163,130 @@ export const useTablesByDatabase = (
     }),
   });
 
-  return useMemo(() => {
-    const map = new Map<string, FetchResult<ListTablesResponse>>();
-
+  useEffect(() => {
     expandedDatabaseKeys.forEach((key, index) => {
-      map.set(
-        key,
-        mapQueryToFetchResult(
-          tableQueries[index],
-          ListTablesResponse.status.ERROR,
-        ),
-      );
-    });
+      const query = tableQueries[index];
+      if (!query) return;
 
-    return map;
-  }, [expandedDatabaseKeys, tableQueries]);
+      const currentStatus =
+        useConnectionStore.getState().tableFetchStatuses[key];
+      const currentData = useConnectionStore.getState().tables[key];
+
+      if (query.isLoading) {
+        if (currentStatus !== "loading") {
+          setTableFetchStatus(key, "loading");
+        }
+      } else if (query.isError) {
+        if (currentStatus !== "error") {
+          setTableFetchStatus(key, "error");
+        }
+      } else if (query.data) {
+        if (query.data.status === ListTablesResponse.status.ERROR) {
+          if (currentStatus !== "error") {
+            setTableFetchStatus(key, "error");
+          }
+        } else {
+          const newData = query.data.tables || [];
+          if (
+            currentStatus !== "ok" ||
+            (currentData !== newData &&
+              JSON.stringify(currentData) !== JSON.stringify(newData))
+          ) {
+            setTables(key, newData, "ok");
+          }
+        }
+      }
+    });
+  }, [expandedDatabaseKeys, tableQueries, setTables, setTableFetchStatus]);
 };
 
 export const useConnectionTreeData = (connections: Connection[]) => {
   const { openConnections, openDatabases } = useNavConnectionsState();
+  const setConnections = useConnectionStore((state) => state.setConnections);
+
+  // Sync connections to store
+  useEffect(() => {
+    setConnections(connections);
+  }, [connections, setConnections]);
+
+  const {
+    connectionStatuses,
+    databases,
+    databaseFetchStatuses,
+    tables,
+    tableFetchStatuses,
+  } = useConnectionStore(
+    useShallow((state) => ({
+      connectionStatuses: state.connectionStatuses,
+      databases: state.databases,
+      databaseFetchStatuses: state.databaseFetchStatuses,
+      tables: state.tables,
+      tableFetchStatuses: state.tableFetchStatuses,
+    }))
+  );
 
   const { connectionsByID, activeConnectionIds } = useExpandedConnections(
     connections,
-    openConnections,
+    openConnections
   );
   const expandedDatabaseKeys = useExpandedDatabaseKeys(
     openDatabases,
     connectionsByID,
-    openConnections,
+    openConnections
   );
-  const databasesByConnection = useDatabasesByConnection(activeConnectionIds);
-  const tablesByDatabaseKey = useTablesByDatabase(expandedDatabaseKeys);
+
+  // Sync data
+  useSyncDatabases(activeConnectionIds);
+  useSyncTables(expandedDatabaseKeys);
 
   const connectionNodes = useMemo(() => {
     return connections.map<ConnectionTreeNode>((connection) => {
-      const databaseState = databasesByConnection.get(connection.id);
-      const connectionStatus: ConnectionStatus = connection.status ?? "unknown";
+      const connectionStatus = connectionStatuses[connection.id] ?? "unknown";
 
-      const databases: DatabaseTreeNode[] =
-        connectionStatus === Connection.status.OK && databaseState?.status === "ok"
-          ? (databaseState.data?.databases ?? []).map((database) => {
+      const dbStatus = databaseFetchStatuses[connection.id];
+      const dbList = databases[connection.id];
+
+      let databaseState: FetchResult<ListDatabasesResponse> = {
+        status: "idle",
+      };
+      if (dbStatus) {
+        databaseState = {
+          status: dbStatus,
+          data: dbList
+            ? { status: ListDatabasesResponse.status.OK, databases: dbList }
+            : undefined,
+        };
+      }
+
+      const dbs: DatabaseTreeNode[] =
+        connectionStatus === "ok" && dbStatus === "ok"
+          ? (dbList ?? []).map((database) => {
               const key = databaseKey(connection.id, database.name);
+
+              const tblStatus = tableFetchStatuses[key];
+              const tblList = tables[key];
+
+              let tableState: FetchResult<ListTablesResponse> = {
+                status: "idle",
+              };
+              if (tblStatus) {
+                tableState = {
+                  status: tblStatus,
+                  data: tblList
+                    ? {
+                        status: ListTablesResponse.status.OK,
+                        tables: tblList,
+                      }
+                    : undefined,
+                };
+              }
+
               return {
                 key,
                 connectionId: connection.id,
                 database,
                 isOpen: openDatabases[key] ?? false,
-                tableState: tablesByDatabaseKey.get(key),
+                tableState,
               };
             })
           : [];
@@ -216,15 +296,18 @@ export const useConnectionTreeData = (connections: Connection[]) => {
         isOpen: openConnections[connection.id] ?? false,
         status: connectionStatus,
         databaseState,
-        databases,
+        databases: dbs,
       };
     });
   }, [
     connections,
-    databasesByConnection,
+    connectionStatuses,
+    databases,
+    databaseFetchStatuses,
+    tables,
+    tableFetchStatuses,
     openConnections,
     openDatabases,
-    tablesByDatabaseKey,
   ]);
 
   return { connectionNodes };

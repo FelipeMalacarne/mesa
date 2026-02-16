@@ -18,6 +18,8 @@ import type { ConnectionTreeNode } from "../state/types";
 import { ConnectionDatabases } from "./connection-databases";
 import { DisabledSubButton } from "./disabled-sub-button";
 import { useNavConnectionsState } from "../state/context";
+import { useConnectionStore } from "@/stores/connection-store";
+import { useEffect } from "react";
 
 export type ConnectionMenuItemProps = {
   node: ConnectionTreeNode;
@@ -33,6 +35,9 @@ export const ConnectionMenuItem = ({
   activeState,
 }: ConnectionMenuItemProps) => {
   const { setConnectionOpen } = useNavConnectionsState();
+  const setConnectionStatus = useConnectionStore(
+    (state) => state.setConnectionStatus,
+  );
   const connection = node.connection;
   const isConnectionActive =
     activeState.connectionId === connection.id && !activeState.databaseName;
@@ -42,6 +47,14 @@ export const ConnectionMenuItem = ({
     queryFn: () =>
       ConnectionsService.pingConnection({ connectionId: connection.id }),
   });
+
+  useEffect(() => {
+    if (data?.status) {
+      setConnectionStatus(connection.id, data.status);
+    } else if (isError) {
+      setConnectionStatus(connection.id, "error");
+    }
+  }, [connection.id, data, isError, setConnectionStatus]);
 
   const isPingError = data?.status === "error" || isError;
   const isOk = data?.status === "ok";
