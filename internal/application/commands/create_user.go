@@ -63,8 +63,13 @@ func (h *CreateUserHandler) Handle(ctx context.Context, cmd CreateUserCmd) error
 		connLimit = *cmd.ConnLimit
 	}
 
+	username, err := connection.NewIdentifier(cmd.Username)
+	if err != nil {
+		return err
+	}
+
 	newUser := connection.DBUser{
-		Name:        cmd.Username,
+		Name:        username,
 		IsSuperUser: cmd.IsSuperUser,
 		CanLogin:    canLogin,
 		ConnLimit:   connLimit,

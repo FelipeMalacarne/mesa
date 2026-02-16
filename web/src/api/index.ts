@@ -7,10 +7,14 @@ export { CancelablePromise, CancelError } from './core/CancelablePromise';
 export { OpenAPI } from './core/OpenAPI';
 export type { OpenAPIConfig } from './core/OpenAPI';
 
+export { ColumnDataType } from './models/ColumnDataType';
 export { Connection } from './models/Connection';
 export type { ConnectionId } from './models/ConnectionId';
 export { CreateConnectionRequest } from './models/CreateConnectionRequest';
 export type { CreateDatabaseRequest } from './models/CreateDatabaseRequest';
+export type { CreateTableColumn } from './models/CreateTableColumn';
+export { CreateTableIndex } from './models/CreateTableIndex';
+export type { CreateTableRequest } from './models/CreateTableRequest';
 export type { CreateUserRequest } from './models/CreateUserRequest';
 export type { Database } from './models/Database';
 export type { DatabaseName } from './models/DatabaseName';

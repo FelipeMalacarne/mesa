@@ -216,6 +216,8 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
 			return
 		}
+
+		log.Printf("WARN: listUsers connection %s: %v", id, err)
 		http.Error(w, ErrInternalServerError, http.StatusInternalServerError)
 		return
 	}
@@ -251,6 +253,49 @@ func (s *Server) createDatabase(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *Server) createTable(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
+	if err != nil {
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	databaseName := chi.URLParam(r, "databaseName")
+	if databaseName == "" {
+		http.Error(w, "database name is required", http.StatusBadRequest)
+		return
+	}
+
+	var payload struct {
+		Name    string                 `json:"name"`
+		Columns []commands.TableColumn `json:"columns"`
+		Indexes []commands.TableIndex  `json:"indexes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	cmd := commands.CreateTableCmd{
+		ConnectionID: id,
+		DatabaseName: databaseName,
+		Name:         payload.Name,
+		Columns:      payload.Columns,
+		Indexes:      payload.Indexes,
+	}
+
+	if err := s.app.Commands.CreateTable.Handle(r.Context(), cmd); err != nil {
+		if errors.Is(err, commands.ErrConnectionNotFound) {
+			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+			return
+		}
+		s.respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

@@ -5,6 +5,7 @@
 import type { Connection } from '../models/Connection';
 import type { CreateConnectionRequest } from '../models/CreateConnectionRequest';
 import type { CreateDatabaseRequest } from '../models/CreateDatabaseRequest';
+import type { CreateTableRequest } from '../models/CreateTableRequest';
 import type { CreateUserRequest } from '../models/CreateUserRequest';
 import type { DBUser } from '../models/DBUser';
 import type { ListDatabasesResponse } from '../models/ListDatabasesResponse';
@@ -159,6 +160,37 @@ export class ConnectionsService {
                 'connectionId': connectionId,
                 'databaseName': databaseName,
             },
+        });
+    }
+    /**
+     * Create a table in a database
+     * @returns any Created
+     * @throws ApiError
+     */
+    public static createTable({
+        connectionId,
+        databaseName,
+        requestBody,
+    }: {
+        /**
+         * The unique identifier for the connection
+         */
+        connectionId: string,
+        /**
+         * Database name
+         */
+        databaseName: string,
+        requestBody: CreateTableRequest,
+    }): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/connections/{connectionId}/databases/{databaseName}/tables',
+            path: {
+                'connectionId': connectionId,
+                'databaseName': databaseName,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
         });
     }
     /**

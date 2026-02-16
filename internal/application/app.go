@@ -31,6 +31,7 @@ type Commands struct {
 	KillSession      *commands.KillSessionHandler
 	CreateUser       *commands.CreateUserHandler
 	CreateDatabase   *commands.CreateDatabaseHandler
+	CreateTable      *commands.CreateTableHandler
 }
 
 type App struct {
@@ -54,6 +55,7 @@ func NewApp(repos Repositories, crypto domain.Cryptographer) *App {
 			KillSession:      commands.NewKillSessionHandler(repos.Connection, crypto, repos.Gateways),
 			CreateUser:       commands.NewCreateUserHandler(repos.Connection, crypto, repos.Gateways),
 			CreateDatabase:   commands.NewCreateDatabaseHandler(repos.Connection, crypto, repos.Gateways),
+			CreateTable:      commands.NewCreateTableHandler(repos.Connection, crypto, repos.Gateways),
 		},
 	}
 

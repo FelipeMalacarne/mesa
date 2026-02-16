@@ -1,6 +1,7 @@
 import {
 	ConnectionsService,
 	type CreateDatabaseRequest,
+	type CreateTableRequest,
 	type CreateUserRequest,
 	type DBUser,
 	type ListDatabasesResponse,
@@ -84,6 +85,23 @@ export function useCreateUser(connectionId: ConnectionID) {
 			}),
 		onSuccess: () => {
 			client.invalidateQueries({ queryKey: queryKey(connectionId, "users") });
+		},
+	});
+}
+
+export function useCreateTable(connectionId: ConnectionID, databaseName: string) {
+	const client = useQueryClient();
+	return useMutation({
+		mutationFn: (payload: CreateTableRequest) =>
+			ConnectionsService.createTable({
+				connectionId,
+				databaseName,
+				requestBody: payload,
+			}),
+		onSuccess: () => {
+			client.invalidateQueries({
+				queryKey: ["connection-tables", connectionId, databaseName],
+			});
 		},
 	});
 }

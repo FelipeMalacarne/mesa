@@ -21,6 +21,7 @@ func (s *Server) connectionRoutes(r chi.Router) {
 		r.Get("/databases", s.listDatabases)
 		r.Post("/databases", s.createDatabase)
 		r.Get("/databases/{databaseName}/tables", s.listTables)
+		r.Post("/databases/{databaseName}/tables", s.createTable)
 		r.Get("/users", s.listUsers)
 		r.Post("/users", s.createUser)
 		r.Get("/sessions", s.listSessions)

@@ -120,6 +120,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListTablesResponse"
+    post:
+      operationId: CreateTable
+      summary: Create a table in a database
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+        - $ref: "#/components/parameters/DatabaseName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTableRequest"
+      responses:
+        "201":
+          description: Created
   /connections/{connectionId}/users:
     get:
       operationId: ListUsers
@@ -379,3 +396,81 @@ components:
           type: string
         owner:
           type: string
+    CreateTableRequest:
+      type: object
+      required: [name, columns]
+      properties:
+        name:
+          type: string
+        columns:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CreateTableColumn"
+        indexes:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateTableIndex"
+    CreateTableColumn:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/ColumnDataType"
+        length:
+          type: integer
+          minimum: 1
+        precision:
+          type: integer
+          minimum: 1
+        scale:
+          type: integer
+          minimum: 0
+        nullable:
+          type: boolean
+        primary_key:
+          type: boolean
+        default_value:
+          type: string
+    CreateTableIndex:
+      type: object
+      required: [name, columns]
+      properties:
+        name:
+          type: string
+        columns:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        unique:
+          type: boolean
+        method:
+          type: string
+          enum: [btree, hash, gin, gist, brin, spgist]
+    ColumnDataType:
+      type: string
+      enum:
+        - smallint
+        - integer
+        - bigint
+        - serial
+        - bigserial
+        - numeric
+        - decimal
+        - real
+        - double_precision
+        - boolean
+        - text
+        - varchar
+        - char
+        - uuid
+        - date
+        - time
+        - timestamp
+        - timestamptz
+        - json
+        - jsonb
+        - bytea

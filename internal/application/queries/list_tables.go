@@ -32,7 +32,12 @@ func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables, conn c
 		return nil, err
 	}
 
-	tables, err := gateway.GetTables(ctx, conn, password, query.DatabaseName)
+	dbName, err := connection.NewIdentifier(query.DatabaseName)
+	if err != nil {
+		return nil, err
+	}
+
+	tables, err := gateway.GetTables(ctx, conn, password, dbName)
 	if err != nil {
 		return nil, err
 	}

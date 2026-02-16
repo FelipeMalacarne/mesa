@@ -2,8 +2,6 @@ package commands
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/felipemalacarne/mesa/internal/domain"
@@ -24,19 +22,24 @@ type CreateDatabaseHandler struct {
 	gateways connection.GatewayFactory
 }
 
-func NewCreateDatabaseHandler(repo connection.Repository, crypto domain.Cryptographer, gateways connection.GatewayFactory) *CreateDatabaseHandler {
+func NewCreateDatabaseHandler(
+	repo connection.Repository,
+	crypto domain.Cryptographer,
+	gateways connection.GatewayFactory,
+) *CreateDatabaseHandler {
 	return &CreateDatabaseHandler{repo: repo, crypto: crypto, gateways: gateways}
 }
 
 func (h *CreateDatabaseHandler) Handle(ctx context.Context, cmd CreateDatabaseCmd) error {
-	cmd.Name = strings.TrimSpace(cmd.Name)
-	cmd.Owner = strings.TrimSpace(cmd.Owner)
 
-	if cmd.Name == "" {
-		return fmt.Errorf("database name is required")
+	name, err := connection.NewIdentifier(cmd.Name)
+	if err != nil {
+		return err
 	}
-	if cmd.Owner == "" {
-		return fmt.Errorf("database owner is required")
+
+	owner, err := connection.NewIdentifier(cmd.Owner)
+	if err != nil {
+		return err
 	}
 
 	conn, err := h.repo.FindByID(ctx, cmd.ConnectionID)
@@ -60,5 +63,5 @@ func (h *CreateDatabaseHandler) Handle(ctx context.Context, cmd CreateDatabaseCm
 	timedCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	return gateway.CreateDatabase(timedCtx, *conn, password, cmd.Name, cmd.Owner)
+	return gateway.CreateDatabase(timedCtx, *conn, password, name, owner)
 }

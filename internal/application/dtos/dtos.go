@@ -141,7 +141,7 @@ func NewSessionDTO(session connection.Session) *SessionDTO {
 
 func NewDBUserDTO(user connection.DBUser) *DBUserDTO {
 	return &DBUserDTO{
-		Name:        user.Name,
+		Name:        user.Name.String(),
 		IsSuperUser: user.IsSuperUser,
 		CanLogin:    user.CanLogin,
 		ConnLimit:   user.ConnLimit,
