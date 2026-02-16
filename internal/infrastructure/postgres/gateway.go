@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -295,9 +296,19 @@ ORDER BY rolname;
 	var users []connection.DBUser
 	for rows.Next() {
 		var user connection.DBUser
-		if err := rows.Scan(&user.Name, &user.IsSuperUser, &user.CanLogin, &user.ConnLimit); err != nil {
+		var name string
+		if err := rows.Scan(&name, &user.IsSuperUser, &user.CanLogin, &user.ConnLimit); err != nil {
 			return nil, err
 		}
+
+		identifier, err := connection.NewIdentifier(name)
+		if err != nil {
+			// Skip users with invalid identifiers to avoid breaking the entire list
+			// In a real scenario, we might want to log this
+			log.Printf("[ERROR]skipping user with invalid name '%s': %v", name, err)
+			continue
+		}
+		user.Name = identifier
 		users = append(users, user)
 	}
 
@@ -331,7 +342,7 @@ func (h *Gateway) CreateUser(ctx context.Context, conn connection.Connection, pa
 	}
 
 	if user.ConnLimit >= 0 {
-		builder.WriteString(fmt.Sprintf("CONNECTION LIMIT %d ", user.ConnLimit))
+		fmt.Fprintf(&builder, "CONNECTION LIMIT %d ", user.ConnLimit)
 	}
 
 	query := strings.TrimSpace(builder.String())
