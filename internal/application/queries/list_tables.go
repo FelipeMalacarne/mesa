@@ -6,22 +6,34 @@ import (
 	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
+	"github.com/google/uuid"
 )
 
 type ListTables struct {
+	ConnectionID uuid.UUID
 	DatabaseName string
 }
 
 type ListTablesHandler struct {
+	repo     connection.Repository
 	crypto   domain.Cryptographer
 	gateways connection.GatewayFactory
 }
 
-func NewListTablesHandler(crypto domain.Cryptographer, gateways connection.GatewayFactory) *ListTablesHandler {
-	return &ListTablesHandler{crypto: crypto, gateways: gateways}
+func NewListTablesHandler(repo connection.Repository, crypto domain.Cryptographer, gateways connection.GatewayFactory) *ListTablesHandler {
+	return &ListTablesHandler{repo: repo, crypto: crypto, gateways: gateways}
 }
 
-func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables, conn connection.Connection) ([]*dtos.TableDTO, error) {
+func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables) ([]*dtos.TableDTO, error) {
+	conn, err := h.repo.FindByID(ctx, query.ConnectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	if conn == nil {
+		return nil, ErrConnectionNotFound
+	}
+
 	gateway, err := h.gateways.ForDriver(conn.Driver)
 	if err != nil {
 		return nil, err
@@ -37,7 +49,7 @@ func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables, conn c
 		return nil, err
 	}
 
-	tables, err := gateway.GetTables(ctx, conn, password, dbName)
+	tables, err := gateway.GetTables(ctx, *conn, password, dbName)
 	if err != nil {
 		return nil, err
 	}

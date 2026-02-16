@@ -2,30 +2,20 @@ package queries
 
 import (
 	"context"
-	"time"
 
 	"github.com/felipemalacarne/mesa/internal/application/dtos"
-	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 )
 
 type ListConnections struct{}
 
 type ListConnectionsHandler struct {
-	repo     connection.Repository
-	crypto   domain.Cryptographer
-	gateways connection.GatewayFactory
+	repo connection.Repository
 }
 
-func NewListConnectionsHandler(
-	repo connection.Repository,
-	crypto domain.Cryptographer,
-	gateways connection.GatewayFactory,
-) *ListConnectionsHandler {
+func NewListConnectionsHandler(repo connection.Repository) *ListConnectionsHandler {
 	return &ListConnectionsHandler{
-		repo:     repo,
-		crypto:   crypto,
-		gateways: gateways,
+		repo: repo,
 	}
 }
 
@@ -38,33 +28,10 @@ func (h *ListConnectionsHandler) Handle(ctx context.Context, query ListConnectio
 	connDTOs := make([]*dtos.ConnectionDTO, len(conns))
 
 	for i, conn := range conns {
-		status, statusErr := h.checkStatus(ctx, conn)
 		dto := dtos.NewConnectionDTO(conn)
-		dto.Status = status
-		dto.StatusErr = statusErr
+		dto.Status = "unknown"
 		connDTOs[i] = dto
 	}
 
 	return connDTOs, nil
-}
-
-func (h *ListConnectionsHandler) checkStatus(ctx context.Context, conn *connection.Connection) (string, string) {
-	gateway, err := h.gateways.ForDriver(conn.Driver)
-	if err != nil {
-		return dtos.StatusError, err.Error()
-	}
-
-	password, err := h.crypto.Decrypt(conn.Password)
-	if err != nil {
-		return dtos.StatusError, err.Error()
-	}
-
-	pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-
-	if err := gateway.Ping(pingCtx, *conn, password); err != nil {
-		return dtos.StatusError, err.Error()
-	}
-
-	return dtos.StatusOK, ""
 }

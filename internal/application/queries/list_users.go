@@ -10,6 +10,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type ListUsers struct {
+	ConnectionID uuid.UUID
+}
+
 // ListUsersHandler retorna roles do banco remoto para a UI de segurança.
 type ListUsersHandler struct {
 	repo     connection.Repository
@@ -21,8 +25,8 @@ func NewListUsersHandler(repo connection.Repository, crypto domain.Cryptographer
 	return &ListUsersHandler{repo: repo, crypto: crypto, gateways: gateways}
 }
 
-func (h *ListUsersHandler) Handle(ctx context.Context, connectionID uuid.UUID) ([]*dtos.DBUserDTO, error) {
-	conn, err := h.repo.FindByID(ctx, connectionID)
+func (h *ListUsersHandler) Handle(ctx context.Context, query ListUsers) ([]*dtos.DBUserDTO, error) {
+	conn, err := h.repo.FindByID(ctx, query.ConnectionID)
 	if err != nil {
 		return nil, err
 	}

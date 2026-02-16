@@ -106,15 +106,14 @@ func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := s.app.Queries.FindConnection.Handle(r.Context(), queries.FindConnection{ConnectionID: id})
+	databases, err := s.app.Queries.ListDatabases.Handle(r.Context(), queries.ListDatabases{ConnectionID: id})
 	if err != nil {
-		log.Printf("ERROR: listDatabases find connection %q: %v", connectionID, err)
-		http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
-		return
-	}
+		if errors.Is(err, queries.ErrConnectionNotFound) {
+			log.Printf("ERROR: listDatabases connection not found %q", connectionID)
+			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+			return
+		}
 
-	databases, err := s.app.Queries.ListDatabases.Handle(r.Context(), queries.ListDatabases{}, *conn)
-	if err != nil {
 		log.Printf("WARN: listDatabases get databases %q: %v", connectionID, err)
 		s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesErrorResponse(err))
 		return
@@ -141,19 +140,19 @@ func (s *Server) listTables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := s.app.Queries.FindConnection.Handle(r.Context(), queries.FindConnection{ConnectionID: id})
-	if err != nil {
-		log.Printf("ERROR: listTables find connection %q: %v", connectionID, err)
-		http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
-		return
-	}
-
 	tables, err := s.app.Queries.ListTables.Handle(
 		r.Context(),
-		queries.ListTables{DatabaseName: databaseName},
-		*conn,
+		queries.ListTables{
+			ConnectionID: id,
+			DatabaseName: databaseName,
+		},
 	)
 	if err != nil {
+		if errors.Is(err, queries.ErrConnectionNotFound) {
+			log.Printf("ERROR: listTables connection not found %q", connectionID)
+			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
+			return
+		}
 		log.Printf("WARN: listTables get tables %q/%q: %v", connectionID, databaseName, err)
 		s.respondJSON(w, http.StatusOK, dtos.NewListTablesErrorResponse(err))
 		return
@@ -210,7 +209,7 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := s.app.Queries.ListUsers.Handle(r.Context(), id)
+	users, err := s.app.Queries.ListUsers.Handle(r.Context(), queries.ListUsers{ConnectionID: id})
 	if err != nil {
 		if errors.Is(err, queries.ErrConnectionNotFound) {
 			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
