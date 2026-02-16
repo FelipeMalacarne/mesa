@@ -39,7 +39,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Connection"
 
-  /connections/{connectionId}:
+  /connections/{connectionID}:
     get:
       operationId: FindConnection
       summary: Retrieves a connection by ID
@@ -57,7 +57,7 @@ paths:
         "404":
           description: Not Found
 
-  /connections/{connectionId}/ping:
+  /connections/{connectionID}/ping:
     get:
       operationId: PingConnection
       summary: Checks the connection status
@@ -73,7 +73,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PingConnectionResponse"
 
-  /connections/{connectionId}/databases:
+  /connections/{connectionID}/databases:
     get:
       operationId: ListDatabases
       summary: List databases from a connection
@@ -104,7 +104,7 @@ paths:
       responses:
         "201":
           description: Created
-  /connections/{connectionId}/overview:
+  /connections/{connectionID}/overview:
     get:
       operationId: GetConnectionOverview
       summary: Get Server Health & Overview
@@ -120,7 +120,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/OverviewResponse"
 
-  /connections/{connectionId}/databases/{databaseName}/tables:
+  /connections/{connectionID}/databases/{databaseName}/tables:
     get:
       operationId: ListTables
       summary: List tables from a database
@@ -153,7 +153,7 @@ paths:
       responses:
         "201":
           description: Created
-  /connections/{connectionId}/users:
+  /connections/{connectionID}/users:
     get:
       operationId: ListUsers
       summary: List database users (roles)
@@ -186,7 +186,7 @@ paths:
       responses:
         "201":
           description: Created
-  /connections/{connectionId}/sessions:
+  /connections/{connectionID}/sessions:
     get:
       operationId: ListSessions
       summary: List active sessions
@@ -203,7 +203,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Session"
-  /connections/{connectionId}/sessions/{pid}:
+  /connections/{connectionID}/sessions/{pid}:
     delete:
       operationId: KillSession
       summary: Kill a specific session
@@ -224,7 +224,7 @@ components:
   parameters:
     ConnectionId:
       in: path
-      name: connectionId
+      name: connectionID
       required: true
       schema:
         type: string

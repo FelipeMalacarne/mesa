@@ -275,38 +275,38 @@ type ServerInterface interface {
 	// (POST /connections)
 	CreateConnection(w http.ResponseWriter, r *http.Request)
 	// Retrieves a connection by ID
-	// (GET /connections/{connectionId})
-	FindConnection(w http.ResponseWriter, r *http.Request, connectionId ConnectionId)
+	// (GET /connections/{connectionID})
+	FindConnection(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
 	// List databases from a connection
-	// (GET /connections/{connectionId}/databases)
-	ListDatabases(w http.ResponseWriter, r *http.Request, connectionId ConnectionId)
+	// (GET /connections/{connectionID}/databases)
+	ListDatabases(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
 	// Create a new database
-	// (POST /connections/{connectionId}/databases)
-	CreateDatabase(w http.ResponseWriter, r *http.Request, connectionId ConnectionId)
+	// (POST /connections/{connectionID}/databases)
+	CreateDatabase(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
 	// List tables from a database
-	// (GET /connections/{connectionId}/databases/{databaseName}/tables)
-	ListTables(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName)
+	// (GET /connections/{connectionID}/databases/{databaseName}/tables)
+	ListTables(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName)
 	// Create a table in a database
-	// (POST /connections/{connectionId}/databases/{databaseName}/tables)
-	CreateTable(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName)
+	// (POST /connections/{connectionID}/databases/{databaseName}/tables)
+	CreateTable(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName)
 	// Get Server Health & Overview
-	// (GET /connections/{connectionId}/overview)
-	GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionId ConnectionId)
+	// (GET /connections/{connectionID}/overview)
+	GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
 	// Checks the connection status
-	// (GET /connections/{connectionId}/ping)
-	PingConnection(w http.ResponseWriter, r *http.Request, connectionId ConnectionId)
+	// (GET /connections/{connectionID}/ping)
+	PingConnection(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
 	// List active sessions
-	// (GET /connections/{connectionId}/sessions)
-	ListSessions(w http.ResponseWriter, r *http.Request, connectionId ConnectionId)
+	// (GET /connections/{connectionID}/sessions)
+	ListSessions(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
 	// Kill a specific session
-	// (DELETE /connections/{connectionId}/sessions/{pid})
-	KillSession(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, pid int)
+	// (DELETE /connections/{connectionID}/sessions/{pid})
+	KillSession(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, pid int)
 	// List database users (roles)
-	// (GET /connections/{connectionId}/users)
-	ListUsers(w http.ResponseWriter, r *http.Request, connectionId ConnectionId)
+	// (GET /connections/{connectionID}/users)
+	ListUsers(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
 	// Create a new database user
-	// (POST /connections/{connectionId}/users)
-	CreateUser(w http.ResponseWriter, r *http.Request, connectionId ConnectionId)
+	// (POST /connections/{connectionID}/users)
+	CreateUser(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -326,68 +326,68 @@ func (_ Unimplemented) CreateConnection(w http.ResponseWriter, r *http.Request) 
 }
 
 // Retrieves a connection by ID
-// (GET /connections/{connectionId})
-func (_ Unimplemented) FindConnection(w http.ResponseWriter, r *http.Request, connectionId ConnectionId) {
+// (GET /connections/{connectionID})
+func (_ Unimplemented) FindConnection(w http.ResponseWriter, r *http.Request, connectionID ConnectionId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // List databases from a connection
-// (GET /connections/{connectionId}/databases)
-func (_ Unimplemented) ListDatabases(w http.ResponseWriter, r *http.Request, connectionId ConnectionId) {
+// (GET /connections/{connectionID}/databases)
+func (_ Unimplemented) ListDatabases(w http.ResponseWriter, r *http.Request, connectionID ConnectionId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Create a new database
-// (POST /connections/{connectionId}/databases)
-func (_ Unimplemented) CreateDatabase(w http.ResponseWriter, r *http.Request, connectionId ConnectionId) {
+// (POST /connections/{connectionID}/databases)
+func (_ Unimplemented) CreateDatabase(w http.ResponseWriter, r *http.Request, connectionID ConnectionId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // List tables from a database
-// (GET /connections/{connectionId}/databases/{databaseName}/tables)
-func (_ Unimplemented) ListTables(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName) {
+// (GET /connections/{connectionID}/databases/{databaseName}/tables)
+func (_ Unimplemented) ListTables(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Create a table in a database
-// (POST /connections/{connectionId}/databases/{databaseName}/tables)
-func (_ Unimplemented) CreateTable(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName) {
+// (POST /connections/{connectionID}/databases/{databaseName}/tables)
+func (_ Unimplemented) CreateTable(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Get Server Health & Overview
-// (GET /connections/{connectionId}/overview)
-func (_ Unimplemented) GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionId ConnectionId) {
+// (GET /connections/{connectionID}/overview)
+func (_ Unimplemented) GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionID ConnectionId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Checks the connection status
-// (GET /connections/{connectionId}/ping)
-func (_ Unimplemented) PingConnection(w http.ResponseWriter, r *http.Request, connectionId ConnectionId) {
+// (GET /connections/{connectionID}/ping)
+func (_ Unimplemented) PingConnection(w http.ResponseWriter, r *http.Request, connectionID ConnectionId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // List active sessions
-// (GET /connections/{connectionId}/sessions)
-func (_ Unimplemented) ListSessions(w http.ResponseWriter, r *http.Request, connectionId ConnectionId) {
+// (GET /connections/{connectionID}/sessions)
+func (_ Unimplemented) ListSessions(w http.ResponseWriter, r *http.Request, connectionID ConnectionId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Kill a specific session
-// (DELETE /connections/{connectionId}/sessions/{pid})
-func (_ Unimplemented) KillSession(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, pid int) {
+// (DELETE /connections/{connectionID}/sessions/{pid})
+func (_ Unimplemented) KillSession(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, pid int) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // List database users (roles)
-// (GET /connections/{connectionId}/users)
-func (_ Unimplemented) ListUsers(w http.ResponseWriter, r *http.Request, connectionId ConnectionId) {
+// (GET /connections/{connectionID}/users)
+func (_ Unimplemented) ListUsers(w http.ResponseWriter, r *http.Request, connectionID ConnectionId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Create a new database user
-// (POST /connections/{connectionId}/users)
-func (_ Unimplemented) CreateUser(w http.ResponseWriter, r *http.Request, connectionId ConnectionId) {
+// (POST /connections/{connectionID}/users)
+func (_ Unimplemented) CreateUser(w http.ResponseWriter, r *http.Request, connectionID ConnectionId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -433,17 +433,17 @@ func (siw *ServerInterfaceWrapper) FindConnection(w http.ResponseWriter, r *http
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.FindConnection(w, r, connectionId)
+		siw.Handler.FindConnection(w, r, connectionID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -458,17 +458,17 @@ func (siw *ServerInterfaceWrapper) ListDatabases(w http.ResponseWriter, r *http.
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListDatabases(w, r, connectionId)
+		siw.Handler.ListDatabases(w, r, connectionID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -483,17 +483,17 @@ func (siw *ServerInterfaceWrapper) CreateDatabase(w http.ResponseWriter, r *http
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateDatabase(w, r, connectionId)
+		siw.Handler.CreateDatabase(w, r, connectionID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -508,12 +508,12 @@ func (siw *ServerInterfaceWrapper) ListTables(w http.ResponseWriter, r *http.Req
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
@@ -527,7 +527,7 @@ func (siw *ServerInterfaceWrapper) ListTables(w http.ResponseWriter, r *http.Req
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListTables(w, r, connectionId, databaseName)
+		siw.Handler.ListTables(w, r, connectionID, databaseName)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -542,12 +542,12 @@ func (siw *ServerInterfaceWrapper) CreateTable(w http.ResponseWriter, r *http.Re
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
@@ -561,7 +561,7 @@ func (siw *ServerInterfaceWrapper) CreateTable(w http.ResponseWriter, r *http.Re
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateTable(w, r, connectionId, databaseName)
+		siw.Handler.CreateTable(w, r, connectionID, databaseName)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -576,17 +576,17 @@ func (siw *ServerInterfaceWrapper) GetConnectionOverview(w http.ResponseWriter, 
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetConnectionOverview(w, r, connectionId)
+		siw.Handler.GetConnectionOverview(w, r, connectionID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -601,17 +601,17 @@ func (siw *ServerInterfaceWrapper) PingConnection(w http.ResponseWriter, r *http
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PingConnection(w, r, connectionId)
+		siw.Handler.PingConnection(w, r, connectionID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -626,17 +626,17 @@ func (siw *ServerInterfaceWrapper) ListSessions(w http.ResponseWriter, r *http.R
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListSessions(w, r, connectionId)
+		siw.Handler.ListSessions(w, r, connectionID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -651,12 +651,12 @@ func (siw *ServerInterfaceWrapper) KillSession(w http.ResponseWriter, r *http.Re
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
@@ -670,7 +670,7 @@ func (siw *ServerInterfaceWrapper) KillSession(w http.ResponseWriter, r *http.Re
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.KillSession(w, r, connectionId, pid)
+		siw.Handler.KillSession(w, r, connectionID, pid)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -685,17 +685,17 @@ func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Requ
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListUsers(w, r, connectionId)
+		siw.Handler.ListUsers(w, r, connectionID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -710,17 +710,17 @@ func (siw *ServerInterfaceWrapper) CreateUser(w http.ResponseWriter, r *http.Req
 
 	var err error
 
-	// ------------- Path parameter "connectionId" -------------
-	var connectionId ConnectionId
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateUser(w, r, connectionId)
+		siw.Handler.CreateUser(w, r, connectionID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -850,37 +850,37 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/connections", wrapper.CreateConnection)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/connections/{connectionId}", wrapper.FindConnection)
+		r.Get(options.BaseURL+"/connections/{connectionID}", wrapper.FindConnection)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/connections/{connectionId}/databases", wrapper.ListDatabases)
+		r.Get(options.BaseURL+"/connections/{connectionID}/databases", wrapper.ListDatabases)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/connections/{connectionId}/databases", wrapper.CreateDatabase)
+		r.Post(options.BaseURL+"/connections/{connectionID}/databases", wrapper.CreateDatabase)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/connections/{connectionId}/databases/{databaseName}/tables", wrapper.ListTables)
+		r.Get(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables", wrapper.ListTables)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/connections/{connectionId}/databases/{databaseName}/tables", wrapper.CreateTable)
+		r.Post(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables", wrapper.CreateTable)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/connections/{connectionId}/overview", wrapper.GetConnectionOverview)
+		r.Get(options.BaseURL+"/connections/{connectionID}/overview", wrapper.GetConnectionOverview)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/connections/{connectionId}/ping", wrapper.PingConnection)
+		r.Get(options.BaseURL+"/connections/{connectionID}/ping", wrapper.PingConnection)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/connections/{connectionId}/sessions", wrapper.ListSessions)
+		r.Get(options.BaseURL+"/connections/{connectionID}/sessions", wrapper.ListSessions)
 	})
 	r.Group(func(r chi.Router) {
-		r.Delete(options.BaseURL+"/connections/{connectionId}/sessions/{pid}", wrapper.KillSession)
+		r.Delete(options.BaseURL+"/connections/{connectionID}/sessions/{pid}", wrapper.KillSession)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/connections/{connectionId}/users", wrapper.ListUsers)
+		r.Get(options.BaseURL+"/connections/{connectionID}/users", wrapper.ListUsers)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/connections/{connectionId}/users", wrapper.CreateUser)
+		r.Post(options.BaseURL+"/connections/{connectionID}/users", wrapper.CreateUser)
 	})
 
 	return r

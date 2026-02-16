@@ -58,12 +58,12 @@ func (s *Server) ListConnections(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusOK, conns)
 }
 
-func (s *Server) FindConnection(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
-	id := uuid.UUID(connectionId)
+func (s *Server) FindConnection(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
+	id := uuid.UUID(connectionID)
 
 	conn, err := s.app.Queries.FindConnection.Handle(r.Context(), queries.FindConnection{ConnectionID: id})
 	if err != nil {
-		log.Printf("ERROR: getConnection find connection %q: %v", connectionId, err)
+		log.Printf("ERROR: getConnection find connection %q: %v", connectionID, err)
 		http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
 		return
 	}
@@ -97,18 +97,18 @@ func (s *Server) CreateConnection(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusCreated, conn)
 }
 
-func (s *Server) ListDatabases(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
-	id := uuid.UUID(connectionId)
+func (s *Server) ListDatabases(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
+	id := uuid.UUID(connectionID)
 
 	databases, err := s.app.Queries.ListDatabases.Handle(r.Context(), queries.ListDatabases{ConnectionID: id})
 	if err != nil {
 		if errors.Is(err, queries.ErrConnectionNotFound) {
-			log.Printf("ERROR: listDatabases connection not found %q", connectionId)
+			log.Printf("ERROR: listDatabases connection not found %q", connectionID)
 			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
 			return
 		}
 
-		log.Printf("WARN: listDatabases get databases %q: %v", connectionId, err)
+		log.Printf("WARN: listDatabases get databases %q: %v", connectionID, err)
 		s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesErrorResponse(err))
 		return
 	}
@@ -116,7 +116,7 @@ func (s *Server) ListDatabases(w http.ResponseWriter, r *http.Request, connectio
 	s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesResponse(databases))
 }
 
-func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId, databaseName contract.DatabaseName) {
+func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId, databaseName contract.DatabaseName) {
 	dbName, err := url.PathUnescape(string(databaseName))
 	if err != nil || dbName == "" {
 		log.Printf("ERROR: listTables invalid database name %q: %v", databaseName, err)
@@ -124,7 +124,7 @@ func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionId
 		return
 	}
 
-	id := uuid.UUID(connectionId)
+	id := uuid.UUID(connectionID)
 
 	tables, err := s.app.Queries.ListTables.Handle(
 		r.Context(),
@@ -135,11 +135,11 @@ func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionId
 	)
 	if err != nil {
 		if errors.Is(err, queries.ErrConnectionNotFound) {
-			log.Printf("ERROR: listTables connection not found %q", connectionId)
+			log.Printf("ERROR: listTables connection not found %q", connectionID)
 			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
 			return
 		}
-		log.Printf("WARN: listTables get tables %q/%q: %v", connectionId, dbName, err)
+		log.Printf("WARN: listTables get tables %q/%q: %v", connectionID, dbName, err)
 		s.respondJSON(w, http.StatusOK, dtos.NewListTablesErrorResponse(err))
 		return
 	}
@@ -147,8 +147,8 @@ func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionId
 	s.respondJSON(w, http.StatusOK, dtos.NewListTablesResponse(tables))
 }
 
-func (s *Server) GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
-	id := uuid.UUID(connectionId)
+func (s *Server) GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
+	id := uuid.UUID(connectionID)
 
 	dto, err := s.app.Queries.GetOverview.Handle(r.Context(), id)
 	if err != nil {
@@ -163,8 +163,8 @@ func (s *Server) GetConnectionOverview(w http.ResponseWriter, r *http.Request, c
 	s.respondJSON(w, http.StatusOK, dto)
 }
 
-func (s *Server) ListSessions(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
-	id := uuid.UUID(connectionId)
+func (s *Server) ListSessions(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
+	id := uuid.UUID(connectionID)
 
 	sessions, err := s.app.Queries.ListSessions.Handle(r.Context(), id)
 	if err != nil {
@@ -180,8 +180,8 @@ func (s *Server) ListSessions(w http.ResponseWriter, r *http.Request, connection
 	s.respondJSON(w, http.StatusOK, sessions)
 }
 
-func (s *Server) ListUsers(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
-	id := uuid.UUID(connectionId)
+func (s *Server) ListUsers(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
+	id := uuid.UUID(connectionID)
 
 	users, err := s.app.Queries.ListUsers.Handle(r.Context(), queries.ListUsers{ConnectionID: id})
 	if err != nil {
@@ -198,8 +198,8 @@ func (s *Server) ListUsers(w http.ResponseWriter, r *http.Request, connectionId 
 	s.respondJSON(w, http.StatusOK, users)
 }
 
-func (s *Server) CreateDatabase(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
-	id := uuid.UUID(connectionId)
+func (s *Server) CreateDatabase(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
+	id := uuid.UUID(connectionID)
 
 	var body contract.CreateDatabaseRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -225,8 +225,8 @@ func (s *Server) CreateDatabase(w http.ResponseWriter, r *http.Request, connecti
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *Server) CreateTable(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId, databaseName contract.DatabaseName) {
-	id := uuid.UUID(connectionId)
+func (s *Server) CreateTable(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId, databaseName contract.DatabaseName) {
+	id := uuid.UUID(connectionID)
 
 	var body contract.CreateTableRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -254,8 +254,8 @@ func (s *Server) CreateTable(w http.ResponseWriter, r *http.Request, connectionI
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *Server) CreateUser(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
-	id := uuid.UUID(connectionId)
+func (s *Server) CreateUser(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
+	id := uuid.UUID(connectionID)
 
 	var body contract.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -289,8 +289,8 @@ func (s *Server) CreateUser(w http.ResponseWriter, r *http.Request, connectionId
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *Server) KillSession(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId, pid int) {
-	id := uuid.UUID(connectionId)
+func (s *Server) KillSession(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId, pid int) {
+	id := uuid.UUID(connectionID)
 
 	cmd := commands.KillSessionCmd{
 		ConnectionID: id,
@@ -309,8 +309,8 @@ func (s *Server) KillSession(w http.ResponseWriter, r *http.Request, connectionI
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) PingConnection(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
-	id := uuid.UUID(connectionId)
+func (s *Server) PingConnection(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
+	id := uuid.UUID(connectionID)
 
 	response, err := s.app.Queries.PingConnection.Handle(r.Context(), queries.PingConnection{ConnectionID: id})
 	if err != nil {
