@@ -31,14 +31,21 @@ func (h *Gateway) connect(conn connection.Connection, password string, dbName co
 
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open connection: %w", err)
+		return nil, fmt.Errorf("%w: %v", connection.ErrConnectionFailed, err)
 	}
+
+	// Just opening the pool doesn't verify the connection.
+	// We might want to Ping here if we want immediate feedback,
+	// but usually we let the first query fail.
+	// For now, let's keep the existing behavior but wrapped.
 
 	db.SetMaxOpenConns(2)
 	db.SetConnMaxLifetime(30 * time.Second)
 
 	return db, nil
 }
+
+// --- Inspector Implementation ---
 
 func (h *Gateway) GetDatabases(ctx context.Context, conn connection.Connection, password string) ([]connection.Database, error) {
 	db, err := h.connect(conn, password, postgresDBName())
@@ -61,7 +68,7 @@ ORDER BY d.datname;
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", connection.ErrQueryFailed, err)
 	}
 	defer rows.Close()
 
@@ -69,13 +76,17 @@ ORDER BY d.datname;
 	for rows.Next() {
 		var database connection.Database
 		if err := rows.Scan(&database.Name, &database.Owner, &database.Encoding, &database.Size); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: scanning database: %v", connection.ErrQueryFailed, err)
 		}
 		database.TableCount = 0
 		databases = append(databases, database)
 	}
 
-	return databases, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%w: iterating databases: %v", connection.ErrQueryFailed, err)
+	}
+
+	return databases, nil
 }
 
 func (h *Gateway) GetTables(ctx context.Context, conn connection.Connection, password string, dbName connection.Identifier) ([]connection.Table, error) {
@@ -101,7 +112,7 @@ ORDER BY t.table_name;
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", connection.ErrQueryFailed, err)
 	}
 	defer rows.Close()
 
@@ -109,14 +120,18 @@ ORDER BY t.table_name;
 	for rows.Next() {
 		var table connection.Table
 		if err := rows.Scan(&table.Name, &table.Type, &table.Size, &table.RowCount); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: scanning table: %v", connection.ErrQueryFailed, err)
 		}
 
 		table.Type = strings.ToUpper(strings.ReplaceAll(table.Type, "BASE ", ""))
 		tables = append(tables, table)
 	}
 
-	return tables, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%w: iterating tables: %v", connection.ErrQueryFailed, err)
+	}
+
+	return tables, nil
 }
 
 func (h *Gateway) GetColumns(ctx context.Context, conn connection.Connection, password string, dbName, tableName connection.Identifier) ([]connection.Column, error) {
@@ -150,7 +165,7 @@ ORDER BY c.ordinal_position;
 
 	rows, err := db.QueryContext(ctx, query, tableName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", connection.ErrQueryFailed, err)
 	}
 	defer rows.Close()
 
@@ -160,7 +175,7 @@ ORDER BY c.ordinal_position;
 		var isNullable string
 		var defaultValue sql.NullString
 		if err := rows.Scan(&col.Name, &col.DataType, &isNullable, &col.IsPrimary, &defaultValue); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: scanning column: %v", connection.ErrQueryFailed, err)
 		}
 
 		col.IsNullable = isNullable == "YES"
@@ -170,8 +185,14 @@ ORDER BY c.ordinal_position;
 		columns = append(columns, col)
 	}
 
-	return columns, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%w: iterating columns: %v", connection.ErrQueryFailed, err)
+	}
+
+	return columns, nil
 }
+
+// --- Monitor Implementation ---
 
 func (h *Gateway) Ping(ctx context.Context, conn connection.Connection, password string) error {
 	db, err := h.connect(conn, password, postgresDBName())
@@ -180,7 +201,11 @@ func (h *Gateway) Ping(ctx context.Context, conn connection.Connection, password
 	}
 	defer db.Close()
 
-	return db.PingContext(ctx)
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("%w: %v", connection.ErrHostUnreachable, err)
+	}
+
+	return nil
 }
 
 func (h *Gateway) GetServerHealth(ctx context.Context, conn connection.Connection, password string) (*connection.ServerHealth, error) {
@@ -201,7 +226,7 @@ SELECT
 	var health connection.ServerHealth
 	var uptimeSeconds int64
 	if err := db.QueryRowContext(ctx, query).Scan(&health.Version, &health.MaxConnections, &health.ActiveSessions, &uptimeSeconds); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: scanning health stats: %v", connection.ErrQueryFailed, err)
 	}
 
 	health.Uptime = time.Duration(uptimeSeconds) * time.Second
@@ -235,7 +260,7 @@ LIMIT 50;
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", connection.ErrQueryFailed, err)
 	}
 	defer rows.Close()
 
@@ -244,15 +269,21 @@ LIMIT 50;
 		var session connection.Session
 		var durationSeconds int64
 		if err := rows.Scan(&session.PID, &session.User, &session.Database, &session.State, &session.Query, &durationSeconds, &session.StartedAt); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: scanning session: %v", connection.ErrQueryFailed, err)
 		}
 
 		session.Duration = time.Duration(durationSeconds) * time.Second
 		sessions = append(sessions, session)
 	}
 
-	return sessions, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%w: iterating sessions: %v", connection.ErrQueryFailed, err)
+	}
+
+	return sessions, nil
 }
+
+// --- Administrator Implementation ---
 
 func (h *Gateway) KillSession(ctx context.Context, conn connection.Connection, password string, pid int) error {
 	db, err := h.connect(conn, password, postgresDBName())
@@ -263,11 +294,11 @@ func (h *Gateway) KillSession(ctx context.Context, conn connection.Connection, p
 
 	var success bool
 	if err := db.QueryRowContext(ctx, "SELECT pg_terminate_backend($1)", pid).Scan(&success); err != nil {
-		return err
+		return fmt.Errorf("%w: terminating backend: %v", connection.ErrQueryFailed, err)
 	}
 
 	if !success {
-		return fmt.Errorf("failed to terminate pid %d: permission denied or not found", pid)
+		return fmt.Errorf("%w: failed to terminate pid %d: permission denied or not found", connection.ErrResourceNotFound, pid)
 	}
 
 	return nil
@@ -289,7 +320,7 @@ ORDER BY rolname;
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", connection.ErrQueryFailed, err)
 	}
 	defer rows.Close()
 
@@ -298,7 +329,7 @@ ORDER BY rolname;
 		var user connection.DBUser
 		var name string
 		if err := rows.Scan(&name, &user.IsSuperUser, &user.CanLogin, &user.ConnLimit); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: scanning user: %v", connection.ErrQueryFailed, err)
 		}
 
 		identifier, err := connection.NewIdentifier(name)
@@ -312,7 +343,11 @@ ORDER BY rolname;
 		users = append(users, user)
 	}
 
-	return users, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%w: iterating users: %v", connection.ErrQueryFailed, err)
+	}
+
+	return users, nil
 }
 
 func (h *Gateway) CreateUser(ctx context.Context, conn connection.Connection, password string, user connection.DBUser, newPass string) error {
@@ -347,8 +382,10 @@ func (h *Gateway) CreateUser(ctx context.Context, conn connection.Connection, pa
 
 	query := strings.TrimSpace(builder.String())
 
-	_, err = db.ExecContext(ctx, query)
-	return err
+	if _, err = db.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("%w: creating user: %v", connection.ErrQueryFailed, err)
+	}
+	return nil
 }
 
 func (h *Gateway) DropUser(ctx context.Context, conn connection.Connection, password string, username connection.Identifier) error {
@@ -359,8 +396,10 @@ func (h *Gateway) DropUser(ctx context.Context, conn connection.Connection, pass
 	defer db.Close()
 
 	query := fmt.Sprintf("DROP USER %s", username.Quoted())
-	_, err = db.ExecContext(ctx, query)
-	return err
+	if _, err = db.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("%w: dropping user: %v", connection.ErrQueryFailed, err)
+	}
+	return nil
 }
 
 func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection, password string, dbName, owner connection.Identifier) error {
@@ -375,9 +414,13 @@ func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection
 		dbName.Quoted(),
 		owner.Quoted(),
 	)
-	_, err = db.ExecContext(ctx, query)
-	return err
+	if _, err = db.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("%w: creating database: %v", connection.ErrQueryFailed, err)
+	}
+	return nil
 }
+
+// --- SchemaManager Implementation ---
 
 func (h *Gateway) CreateTable(ctx context.Context, conn connection.Connection, password string, dbName connection.Identifier, table connection.TableDefinition) error {
 	db, err := h.connect(conn, password, dbName)
@@ -425,13 +468,15 @@ func (h *Gateway) CreateTable(ctx context.Context, conn connection.Connection, p
 		strings.Join(columnDefs, ", "),
 	)
 
-	_, err = db.ExecContext(ctx, createTableQuery)
-	return err
+	if _, err = db.ExecContext(ctx, createTableQuery); err != nil {
+		return fmt.Errorf("%w: creating table: %v", connection.ErrQueryFailed, err)
+	}
+	return nil
 }
 
 func (h *Gateway) CreateIndex(ctx context.Context, conn connection.Connection, password string, dbName, schema, tableName connection.Identifier, index connection.IndexDefinition) error {
 	if len(index.Columns) == 0 {
-		return fmt.Errorf("index %s must reference at least one column", index.Name)
+		return fmt.Errorf("%w: index %s must reference at least one column", connection.ErrInvalidConfiguration, index.Name)
 	}
 
 	indexColumns := make([]string, 0, len(index.Columns))
@@ -460,8 +505,10 @@ func (h *Gateway) CreateIndex(ctx context.Context, conn connection.Connection, p
 	}
 	defer db.Close()
 
-	_, err = db.ExecContext(ctx, query)
-	return err
+	if _, err = db.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("%w: creating index: %v", connection.ErrQueryFailed, err)
+	}
+	return nil
 }
 
 func (h *Gateway) DropIndex(ctx context.Context, conn connection.Connection, password string, dbName, indexName connection.Identifier) error {
@@ -477,8 +524,10 @@ func (h *Gateway) DropIndex(ctx context.Context, conn connection.Connection, pas
 	}
 	defer db.Close()
 
-	_, err = db.ExecContext(ctx, query)
-	return err
+	if _, err = db.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("%w: dropping index: %v", connection.ErrQueryFailed, err)
+	}
+	return nil
 
 }
 
