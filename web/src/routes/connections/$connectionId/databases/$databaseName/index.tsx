@@ -54,6 +54,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreateTable } from "@/hooks/use-connection";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
+import { Breadcrumbs } from "@/components/breadcrumbs";
+
 export const Route = createFileRoute(
   "/connections/$connectionId/databases/$databaseName/",
 )({
@@ -80,10 +82,34 @@ function DatabaseDetail() {
   ];
 
   const tables = [
-    { name: "orders", rows: "1.2M", size: "840 MB", type: "base", updated: "5m ago" },
-    { name: "customers", rows: "410K", size: "320 MB", type: "base", updated: "12m ago" },
-    { name: "subscriptions", rows: "120K", size: "180 MB", type: "base", updated: "30m ago" },
-    { name: "event_log", rows: "24M", size: "1.1 GB", type: "partitioned", updated: "2m ago" },
+    {
+      name: "orders",
+      rows: "1.2M",
+      size: "840 MB",
+      type: "base",
+      updated: "5m ago",
+    },
+    {
+      name: "customers",
+      rows: "410K",
+      size: "320 MB",
+      type: "base",
+      updated: "12m ago",
+    },
+    {
+      name: "subscriptions",
+      rows: "120K",
+      size: "180 MB",
+      type: "base",
+      updated: "30m ago",
+    },
+    {
+      name: "event_log",
+      rows: "24M",
+      size: "1.1 GB",
+      type: "partitioned",
+      updated: "2m ago",
+    },
   ];
 
   const schemas = [
@@ -97,17 +123,7 @@ function DatabaseDetail() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link
-              to="/connections/$connectionId/overview"
-              params={{ connectionId }}
-              className="hover:text-foreground"
-            >
-              Connection
-            </Link>
-            <span>/</span>
-            <span className="text-foreground">{databaseName}</span>
-          </div>
+          <Breadcrumbs />
           <h1 className="text-2xl font-semibold">{databaseName}</h1>
           <p className="text-muted-foreground text-sm">
             Owner {summary.owner} • {summary.encoding} • {summary.collation}
@@ -125,7 +141,9 @@ function DatabaseDetail() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Size</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Size
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold">{summary.size}</p>
@@ -134,16 +152,22 @@ function DatabaseDetail() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Tables</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Tables
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold">{summary.tables}</p>
-            <p className="text-xs text-muted-foreground">{summary.schemas} schemas</p>
+            <p className="text-xs text-muted-foreground">
+              {summary.schemas} schemas
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Connections</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Connections
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold">{summary.connections}</p>
@@ -152,7 +176,9 @@ function DatabaseDetail() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Maintenance</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Maintenance
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold">{summary.lastVacuum}</p>
@@ -204,7 +230,9 @@ function DatabaseDetail() {
                         </TableCell>
                         <TableCell>{table.rows}</TableCell>
                         <TableCell>{table.size}</TableCell>
-                        <TableCell className="capitalize">{table.type}</TableCell>
+                        <TableCell className="capitalize">
+                          {table.type}
+                        </TableCell>
                         <TableCell>{table.updated}</TableCell>
                       </TableRow>
                     ))}
@@ -224,7 +252,9 @@ function DatabaseDetail() {
                   <TableBody>
                     {schemas.map((schema) => (
                       <TableRow key={schema.name}>
-                        <TableCell className="font-medium">{schema.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {schema.name}
+                        </TableCell>
                         <TableCell>{schema.tables}</TableCell>
                         <TableCell>{schema.size}</TableCell>
                         <TableCell>{schema.owner}</TableCell>
@@ -373,7 +403,10 @@ const tableFormSchema = z
             message: "Length is required for this type",
             path: ["columns", index, "length"],
           });
-        } else if (Number(column.length) <= 0 || Number.isNaN(Number(column.length))) {
+        } else if (
+          Number(column.length) <= 0 ||
+          Number.isNaN(Number(column.length))
+        ) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Length must be a positive number",
@@ -389,7 +422,10 @@ const tableFormSchema = z
             message: "Precision is required for this type",
             path: ["columns", index, "precision"],
           });
-        } else if (Number(column.precision) <= 0 || Number.isNaN(Number(column.precision))) {
+        } else if (
+          Number(column.precision) <= 0 ||
+          Number.isNaN(Number(column.precision))
+        ) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Precision must be a positive number",
@@ -509,8 +545,14 @@ function CreateTableForm({
     },
   });
 
-  const columnsArray = useFieldArray({ control: form.control, name: "columns" });
-  const indexesArray = useFieldArray({ control: form.control, name: "indexes" });
+  const columnsArray = useFieldArray({
+    control: form.control,
+    name: "columns",
+  });
+  const indexesArray = useFieldArray({
+    control: form.control,
+    name: "indexes",
+  });
   const mutation = useCreateTable(connectionId, databaseName);
 
   const columns = form.watch("columns");
@@ -528,8 +570,12 @@ function CreateTableForm({
 
     const currentIndexes = form.getValues("indexes");
     currentIndexes.forEach((indexValue, idx) => {
-      const nextColumns = (indexValue.columns ?? []).filter((columnId) => columnId !== removedId);
-      form.setValue(`indexes.${idx}.columns` as const, nextColumns, { shouldDirty: true });
+      const nextColumns = (indexValue.columns ?? []).filter(
+        (columnId) => columnId !== removedId,
+      );
+      form.setValue(`indexes.${idx}.columns` as const, nextColumns, {
+        shouldDirty: true,
+      });
     });
   };
 
@@ -544,9 +590,12 @@ function CreateTableForm({
     const payloadColumns = values.columns.map((column) => {
       const requiresLen = LENGTH_TYPES.has(column.type);
       const requiresPrec = PRECISION_TYPES.has(column.type);
-      const lengthValue = requiresLen && column.length ? Number(column.length) : undefined;
-      const precisionValue = requiresPrec && column.precision ? Number(column.precision) : undefined;
-      const scaleValue = requiresPrec && column.scale ? Number(column.scale) : undefined;
+      const lengthValue =
+        requiresLen && column.length ? Number(column.length) : undefined;
+      const precisionValue =
+        requiresPrec && column.precision ? Number(column.precision) : undefined;
+      const scaleValue =
+        requiresPrec && column.scale ? Number(column.scale) : undefined;
 
       return {
         name: column.name.trim(),
@@ -579,7 +628,10 @@ function CreateTableForm({
       await mutation.mutateAsync({
         name: values.name.trim(),
         columns: payloadColumns,
-        indexes: payloadIndexes && payloadIndexes.length > 0 ? payloadIndexes : undefined,
+        indexes:
+          payloadIndexes && payloadIndexes.length > 0
+            ? payloadIndexes
+            : undefined,
       });
       toast.success("Table created");
       form.reset({ name: "", columns: [createColumnField()], indexes: [] });
@@ -635,7 +687,11 @@ function CreateTableForm({
             type="button"
             variant="outline"
             onClick={() => {
-              form.reset({ name: "", columns: [createColumnField()], indexes: [] });
+              form.reset({
+                name: "",
+                columns: [createColumnField()],
+                indexes: [],
+              });
               onCancel?.();
             }}
             disabled={mutation.isPending}
@@ -727,11 +783,20 @@ function ColumnsFieldArray({
                           field.onChange(value as ColumnDataType);
                           const nextType = value as ColumnDataType;
                           if (!LENGTH_TYPES.has(nextType)) {
-                            form.setValue(`columns.${index}.length` as const, "");
+                            form.setValue(
+                              `columns.${index}.length` as const,
+                              "",
+                            );
                           }
                           if (!PRECISION_TYPES.has(nextType)) {
-                            form.setValue(`columns.${index}.precision` as const, "");
-                            form.setValue(`columns.${index}.scale` as const, "");
+                            form.setValue(
+                              `columns.${index}.precision` as const,
+                              "",
+                            );
+                            form.setValue(
+                              `columns.${index}.scale` as const,
+                              "",
+                            );
                           }
                         }}
                       >
@@ -765,7 +830,9 @@ function ColumnsFieldArray({
                           type="number"
                           min={1}
                           {...field}
-                          onChange={(event) => field.onChange(event.target.value)}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
                           placeholder="255"
                         />
                       </FormControl>
@@ -787,7 +854,9 @@ function ColumnsFieldArray({
                             type="number"
                             min={1}
                             {...field}
-                            onChange={(event) => field.onChange(event.target.value)}
+                            onChange={(event) =>
+                              field.onChange(event.target.value)
+                            }
                             placeholder="10"
                           />
                         </FormControl>
@@ -806,7 +875,9 @@ function ColumnsFieldArray({
                             type="number"
                             min={0}
                             {...field}
-                            onChange={(event) => field.onChange(event.target.value)}
+                            onChange={(event) =>
+                              field.onChange(event.target.value)
+                            }
                             placeholder="2"
                           />
                         </FormControl>
@@ -888,9 +959,14 @@ function IndexesFieldArray({
             <div key={field.id} className="space-y-4 rounded-lg border p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium">
-                  {form.watch(`indexes.${index}.name` as const)?.trim() || `Index ${index + 1}`}
+                  {form.watch(`indexes.${index}.name` as const)?.trim() ||
+                    `Index ${index + 1}`}
                 </p>
-                <Button size="icon" variant="ghost" onClick={() => onRemove(index)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => onRemove(index)}
+                >
                   <Trash2Icon className="size-4" />
                   <span className="sr-only">Remove index</span>
                 </Button>
@@ -920,7 +996,10 @@ function IndexesFieldArray({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Method</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
@@ -963,13 +1042,23 @@ function IndexesFieldArray({
                             className="flex items-center gap-2 text-sm"
                           >
                             <Checkbox
-                              checked={field.value?.includes(option.id) ?? false}
+                              checked={
+                                field.value?.includes(option.id) ?? false
+                              }
                               onCheckedChange={(checked) => {
                                 const current = field.value ?? [];
                                 if (checked) {
-                                  field.onChange(Array.from(new Set([...current, option.id])));
+                                  field.onChange(
+                                    Array.from(
+                                      new Set([...current, option.id]),
+                                    ),
+                                  );
                                 } else {
-                                  field.onChange(current.filter((value) => value !== option.id));
+                                  field.onChange(
+                                    current.filter(
+                                      (value) => value !== option.id,
+                                    ),
+                                  );
                                 }
                               }}
                               disabled={!option.label.trim()}

@@ -4,6 +4,11 @@ export const Route = createFileRoute(
   "/connections/$connectionId/databases/$databaseName",
 )({
   component: DatabaseLayout,
+  beforeLoad: ({ params }) => {
+    return {
+      breadcrumb: params.databaseName,
+    };
+  },
 });
 
 function DatabaseLayout() {

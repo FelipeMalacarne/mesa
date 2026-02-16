@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,10 +18,15 @@ export const Route = createFileRoute(
   "/connections/$connectionId/databases/$databaseName/tables/$tableName",
 )({
   component: DatabaseTable,
+  beforeLoad: ({ params }) => {
+    return {
+      breadcrumb: params.tableName,
+    };
+  },
 });
 
 function DatabaseTable() {
-  const { connectionId, databaseName, tableName } = Route.useParams();
+  const { tableName } = Route.useParams();
   const summary = {
     rows: "1.2M",
     size: "840 MB",
@@ -71,17 +77,7 @@ function DatabaseTable() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link
-              to="/connections/$connectionId/databases/$databaseName"
-              params={{ connectionId, databaseName }}
-              className="hover:text-foreground"
-            >
-              {databaseName}
-            </Link>
-            <span>/</span>
-            <span className="text-foreground">{tableName}</span>
-          </div>
+          <Breadcrumbs />
           <h2 className="text-2xl font-semibold">{tableName}</h2>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="secondary">Primary table</Badge>
