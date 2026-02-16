@@ -1,4 +1,6 @@
 import { Plus } from "lucide-react";
+import { useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
 
 import {
   SidebarGroup,
@@ -8,16 +10,14 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { ResponsiveDialog } from "./responsive-dialog";
-import { useState } from "react";
 import { ConnectionForm } from "./connection-form";
 import { Button } from "./ui/button";
 import type { Connection } from "@/api";
-import { useRouterState } from "@tanstack/react-router";
 
 import {
   NavConnectionsProvider,
-  useConnectionTreeData,
   ConnectionMenuItem,
+  useNavConnectionsState,
 } from "./nav-connections/index";
 
 export function NavConnections({
@@ -42,7 +42,7 @@ function NavConnectionsContent({
   isLoading?: boolean;
 }) {
   const [createConnectionOpen, setCreateConnectionOpen] = useState(false);
-  const { connectionNodes } = useConnectionTreeData(connections);
+  const { openConnections } = useNavConnectionsState();
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -83,10 +83,11 @@ function NavConnectionsContent({
               </SidebarMenuButton>
             </SidebarMenuItem>
           ) : null}
-          {connectionNodes.map((node) => (
+          {connections.map((connection) => (
             <ConnectionMenuItem
-              key={node.connection.id}
-              node={node}
+              key={connection.id}
+              connection={connection}
+              isOpen={openConnections[connection.id] ?? false}
               activeState={{
                 connectionId: activeConnectionId,
                 databaseName: activeDatabaseName,

@@ -5,12 +5,12 @@ import {
 } from "@/components/ui/sidebar";
 import { Link } from "@tanstack/react-router";
 
-import type { TableEntry } from "../state/types";
+import type { Table } from "@/api";
 
 export type TableMenuItemProps = {
   connectionId: string;
   databaseName: string;
-  table: TableEntry;
+  table: Table;
   activeState: {
     connectionId?: string;
     databaseName?: string;

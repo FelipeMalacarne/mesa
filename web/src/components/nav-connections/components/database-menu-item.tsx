@@ -1,4 +1,4 @@
-import { ChevronRight, Database } from "lucide-react";
+import { ChevronRight, Database as DatabaseIcon } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -12,15 +12,15 @@ import {
 } from "@/components/ui/sidebar";
 import { Link } from "@tanstack/react-router";
 
-import type { DatabaseTreeNode } from "../state/types";
-import { DisabledSubButton } from "./disabled-sub-button";
-import { TableMenuItem } from "./table-menu-item";
-import { Spinner } from "../../ui/spinner";
+import type { Database } from "@/api";
 import { useNavConnectionsState } from "../state/context";
+import { DatabaseTables } from "./database-tables";
+import { databaseKey } from "../state/utils";
 
 export type DatabaseMenuItemProps = {
   connectionId: string;
-  node: DatabaseTreeNode;
+  database: Database;
+  isOpen: boolean;
   activeState: {
     connectionId?: string;
     databaseName?: string;
@@ -30,13 +30,12 @@ export type DatabaseMenuItemProps = {
 
 export const DatabaseMenuItem = ({
   connectionId,
-  node,
+  database,
+  isOpen,
   activeState,
 }: DatabaseMenuItemProps) => {
   const { setDatabaseOpen } = useNavConnectionsState();
-  const { database, isOpen, tableState, key } = node;
-  const tableStatus = tableState?.status ?? "idle";
-  const tables = tableState?.data?.tables ?? [];
+  const key = databaseKey(connectionId, database.name);
   const isDatabaseActive =
     activeState.connectionId === connectionId &&
     activeState.databaseName === database.name &&
@@ -59,7 +58,7 @@ export const DatabaseMenuItem = ({
             to="/connections/$connectionId/databases/$databaseName"
             params={{ connectionId, databaseName: database.name }}
           >
-            <Database className="text-sidebar-foreground" />
+            <DatabaseIcon className="text-sidebar-foreground" />
             <span>{database.name}</span>
           </Link>
         </SidebarMenuSubButton>
@@ -73,30 +72,13 @@ export const DatabaseMenuItem = ({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub className="ml-4">
-            {tableStatus === "loading" ? (
-              <DisabledSubButton>
-                <Spinner />
-              </DisabledSubButton>
-            ) : null}
-            {tableStatus === "error" ? (
-              <DisabledSubButton size="sm">
-                {tableState?.errorMessage ?? "Unable to load tables"}
-              </DisabledSubButton>
-            ) : null}
-            {tableStatus === "ok" && tables.length === 0 ? (
-              <DisabledSubButton size="sm">No tables found</DisabledSubButton>
-            ) : null}
-            {tableStatus === "ok"
-              ? tables.map((table) => (
-                  <TableMenuItem
-                    key={table.name}
-                    connectionId={connectionId}
-                    databaseName={database.name}
-                    table={table}
-                    activeState={activeState}
-                  />
-                ))
-              : null}
+            {isOpen && (
+              <DatabaseTables
+                connectionId={connectionId}
+                databaseName={database.name}
+                activeState={activeState}
+              />
+            )}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuSubItem>
