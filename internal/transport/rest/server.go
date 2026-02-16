@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/felipemalacarne/mesa/internal/application"
+	"github.com/felipemalacarne/mesa/internal/transport/rest/contract"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -17,6 +18,9 @@ type Server struct {
 	router chi.Router
 	server *http.Server
 }
+
+// Ensure strict implementation of the interface
+var _ contract.ServerInterface = (*Server)(nil)
 
 func NewServer(app application.App) *Server {
 	return &Server{

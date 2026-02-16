@@ -6,13 +6,12 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
 
 	"github.com/felipemalacarne/mesa/internal/application/commands"
 	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/application/queries"
+	"github.com/felipemalacarne/mesa/internal/transport/rest/contract"
 	"github.com/felipemalacarne/mesa/web"
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -43,7 +42,7 @@ func (s *Server) webHandler(w http.ResponseWriter, r *http.Request) {
 	fileServer.ServeHTTP(w, r)
 }
 
-func (s *Server) listConnections(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ListConnections(w http.ResponseWriter, r *http.Request) {
 	var query queries.ListConnections
 	// if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
 	// 	http.Error(w, err.Error(), http.StatusBadRequest)
@@ -59,19 +58,12 @@ func (s *Server) listConnections(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusOK, conns)
 }
 
-func (s *Server) findConnection(w http.ResponseWriter, r *http.Request) {
-	connectionID := chi.URLParam(r, "connectionID")
-
-	id, err := uuid.Parse(connectionID)
-	if err != nil {
-		log.Printf("ERROR: getConnection parse uuid %q: %v", connectionID, err)
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+func (s *Server) FindConnection(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
+	id := uuid.UUID(connectionId)
 
 	conn, err := s.app.Queries.FindConnection.Handle(r.Context(), queries.FindConnection{ConnectionID: id})
 	if err != nil {
-		log.Printf("ERROR: getConnection find connection %q: %v", connectionID, err)
+		log.Printf("ERROR: getConnection find connection %q: %v", connectionId, err)
 		http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
 		return
 	}
@@ -79,12 +71,21 @@ func (s *Server) findConnection(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusOK, dtos.NewConnectionDTO(conn))
 }
 
-func (s *Server) createConnection(w http.ResponseWriter, r *http.Request) {
-	var cmd commands.CreateConnection
+func (s *Server) CreateConnection(w http.ResponseWriter, r *http.Request) {
+	var body contract.CreateConnectionRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	cmd := commands.CreateConnection{
+		Name:     body.Name,
+		Driver:   string(body.Driver),
+		Host:     body.Host,
+		Port:     body.Port,
+		Username: body.Username,
+		Password: body.Password,
 	}
 
 	conn, err := s.app.Commands.CreateConnection.Handle(r.Context(), cmd)
@@ -96,25 +97,18 @@ func (s *Server) createConnection(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusCreated, conn)
 }
 
-func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
-	connectionID := chi.URLParam(r, "connectionID")
-
-	id, err := uuid.Parse(connectionID)
-	if err != nil {
-		log.Printf("ERROR: listDatabases parse uuid %q: %v", connectionID, err)
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+func (s *Server) ListDatabases(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
+	id := uuid.UUID(connectionId)
 
 	databases, err := s.app.Queries.ListDatabases.Handle(r.Context(), queries.ListDatabases{ConnectionID: id})
 	if err != nil {
 		if errors.Is(err, queries.ErrConnectionNotFound) {
-			log.Printf("ERROR: listDatabases connection not found %q", connectionID)
+			log.Printf("ERROR: listDatabases connection not found %q", connectionId)
 			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
 			return
 		}
 
-		log.Printf("WARN: listDatabases get databases %q: %v", connectionID, err)
+		log.Printf("WARN: listDatabases get databases %q: %v", connectionId, err)
 		s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesErrorResponse(err))
 		return
 	}
@@ -122,38 +116,30 @@ func (s *Server) listDatabases(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesResponse(databases))
 }
 
-func (s *Server) listTables(w http.ResponseWriter, r *http.Request) {
-	connectionID := chi.URLParam(r, "connectionID")
-	databaseNameParam := chi.URLParam(r, "databaseName")
-
-	databaseName, err := url.PathUnescape(databaseNameParam)
-	if err != nil || databaseName == "" {
-		log.Printf("ERROR: listTables invalid database name %q: %v", databaseNameParam, err)
+func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId, databaseName contract.DatabaseName) {
+	dbName, err := url.PathUnescape(string(databaseName))
+	if err != nil || dbName == "" {
+		log.Printf("ERROR: listTables invalid database name %q: %v", databaseName, err)
 		http.Error(w, "invalid database name", http.StatusBadRequest)
 		return
 	}
 
-	id, err := uuid.Parse(connectionID)
-	if err != nil {
-		log.Printf("ERROR: listTables parse uuid %q: %v", connectionID, err)
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+	id := uuid.UUID(connectionId)
 
 	tables, err := s.app.Queries.ListTables.Handle(
 		r.Context(),
 		queries.ListTables{
 			ConnectionID: id,
-			DatabaseName: databaseName,
+			DatabaseName: dbName,
 		},
 	)
 	if err != nil {
 		if errors.Is(err, queries.ErrConnectionNotFound) {
-			log.Printf("ERROR: listTables connection not found %q", connectionID)
+			log.Printf("ERROR: listTables connection not found %q", connectionId)
 			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
 			return
 		}
-		log.Printf("WARN: listTables get tables %q/%q: %v", connectionID, databaseName, err)
+		log.Printf("WARN: listTables get tables %q/%q: %v", connectionId, dbName, err)
 		s.respondJSON(w, http.StatusOK, dtos.NewListTablesErrorResponse(err))
 		return
 	}
@@ -161,12 +147,8 @@ func (s *Server) listTables(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusOK, dtos.NewListTablesResponse(tables))
 }
 
-func (s *Server) getConnectionOverview(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
-	if err != nil {
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+func (s *Server) GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
+	id := uuid.UUID(connectionId)
 
 	dto, err := s.app.Queries.GetOverview.Handle(r.Context(), id)
 	if err != nil {
@@ -181,12 +163,8 @@ func (s *Server) getConnectionOverview(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusOK, dto)
 }
 
-func (s *Server) listSessions(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
-	if err != nil {
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+func (s *Server) ListSessions(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
+	id := uuid.UUID(connectionId)
 
 	sessions, err := s.app.Queries.ListSessions.Handle(r.Context(), id)
 	if err != nil {
@@ -202,12 +180,8 @@ func (s *Server) listSessions(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusOK, sessions)
 }
 
-func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
-	if err != nil {
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+func (s *Server) ListUsers(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
+	id := uuid.UUID(connectionId)
 
 	users, err := s.app.Queries.ListUsers.Handle(r.Context(), queries.ListUsers{ConnectionID: id})
 	if err != nil {
@@ -224,26 +198,19 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusOK, users)
 }
 
-func (s *Server) createDatabase(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
-	if err != nil {
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+func (s *Server) CreateDatabase(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
+	id := uuid.UUID(connectionId)
 
-	var payload struct {
-		Name  string `json:"name"`
-		Owner string `json:"owner"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	var body contract.CreateDatabaseRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	cmd := commands.CreateDatabaseCmd{
 		ConnectionID: id,
-		Name:         payload.Name,
-		Owner:        payload.Owner,
+		Name:         body.Name,
+		Owner:        body.Owner,
 	}
 
 	if err := s.app.Commands.CreateDatabase.Handle(r.Context(), cmd); err != nil {
@@ -258,25 +225,11 @@ func (s *Server) createDatabase(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *Server) createTable(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
-	if err != nil {
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+func (s *Server) CreateTable(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId, databaseName contract.DatabaseName) {
+	id := uuid.UUID(connectionId)
 
-	databaseName := chi.URLParam(r, "databaseName")
-	if databaseName == "" {
-		http.Error(w, "database name is required", http.StatusBadRequest)
-		return
-	}
-
-	var payload struct {
-		Name    string                 `json:"name"`
-		Columns []commands.TableColumn `json:"columns"`
-		Indexes []commands.TableIndex  `json:"indexes"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	var body contract.CreateTableRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -284,9 +237,9 @@ func (s *Server) createTable(w http.ResponseWriter, r *http.Request) {
 	cmd := commands.CreateTableCmd{
 		ConnectionID: id,
 		DatabaseName: databaseName,
-		Name:         payload.Name,
-		Columns:      payload.Columns,
-		Indexes:      payload.Indexes,
+		Name:         body.Name,
+		Columns:      mapTableColumns(body.Columns),
+		Indexes:      mapTableIndexes(body.Indexes),
 	}
 
 	if err := s.app.Commands.CreateTable.Handle(r.Context(), cmd); err != nil {
@@ -301,32 +254,27 @@ func (s *Server) createTable(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
-	if err != nil {
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+func (s *Server) CreateUser(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
+	id := uuid.UUID(connectionId)
 
-	var payload struct {
-		Username    string `json:"username"`
-		Password    string `json:"password"`
-		IsSuperUser bool   `json:"is_superuser"`
-		CanLogin    *bool  `json:"can_login"`
-		ConnLimit   *int   `json:"conn_limit"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	var body contract.CreateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	var isSuperUser bool
+	if body.IsSuperuser != nil {
+		isSuperUser = *body.IsSuperuser
+	}
+
 	cmd := commands.CreateUserCmd{
 		ConnectionID: id,
-		Username:     payload.Username,
-		Password:     payload.Password,
-		IsSuperUser:  payload.IsSuperUser,
-		CanLogin:     payload.CanLogin,
-		ConnLimit:    payload.ConnLimit,
+		Username:     body.Username,
+		Password:     body.Password,
+		IsSuperUser:  isSuperUser,
+		CanLogin:     body.CanLogin,
+		ConnLimit:    body.ConnLimit,
 	}
 
 	if err := s.app.Commands.CreateUser.Handle(r.Context(), cmd); err != nil {
@@ -341,18 +289,8 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (s *Server) killSession(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
-	if err != nil {
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
-
-	pid, err := strconv.Atoi(chi.URLParam(r, "pid"))
-	if err != nil {
-		http.Error(w, "invalid pid", http.StatusBadRequest)
-		return
-	}
+func (s *Server) KillSession(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId, pid int) {
+	id := uuid.UUID(connectionId)
 
 	cmd := commands.KillSessionCmd{
 		ConnectionID: id,
@@ -371,12 +309,8 @@ func (s *Server) killSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) pingConnection(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
-	if err != nil {
-		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
-		return
-	}
+func (s *Server) PingConnection(w http.ResponseWriter, r *http.Request, connectionId contract.ConnectionId) {
+	id := uuid.UUID(connectionId)
 
 	response, err := s.app.Queries.PingConnection.Handle(r.Context(), queries.PingConnection{ConnectionID: id})
 	if err != nil {

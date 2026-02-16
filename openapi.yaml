@@ -450,9 +450,6 @@ components:
         precision:
           type: integer
           minimum: 1
-        scale:
-          type: integer
-          minimum: 0
         nullable:
           type: boolean
         primary_key:

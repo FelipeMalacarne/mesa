@@ -33,8 +33,8 @@ generate-app-key:
 	@openssl rand -hex 32
 
 .PHONY: codegen-api
-# codegen-api:
-# 	@oapi-codegen -generate chi,strict-server,types -package rest -o internal/transport/rest/oapi_gen.go openapi.yaml
+codegen-api:
+	@oapi-codegen -generate chi,types -package contract -o internal/transport/rest/contract/api.gen.go openapi.yaml
 
 .PHONY: codegen-client
 codegen-client:
