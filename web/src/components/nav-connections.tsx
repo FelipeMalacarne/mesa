@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { useRouterState } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 
 import {
   SidebarGroup,
@@ -43,23 +43,10 @@ function NavConnectionsContent({
 }) {
   const [createConnectionOpen, setCreateConnectionOpen] = useState(false);
   const { openConnections } = useNavConnectionsState();
-  const currentPath = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const pathSegments = currentPath.split("/").filter(Boolean);
-  let activeConnectionId: string | undefined;
-  let activeDatabaseName: string | undefined;
-  let activeTableName: string | undefined;
-
-  if (pathSegments[0] === "connections" && pathSegments[1]) {
-    activeConnectionId = decodeURIComponent(pathSegments[1]);
-    if (pathSegments[2] === "databases" && pathSegments[3]) {
-      activeDatabaseName = decodeURIComponent(pathSegments[3]);
-      if (pathSegments[4] === "tables" && pathSegments[5]) {
-        activeTableName = decodeURIComponent(pathSegments[5]);
-      }
-    }
-  }
+  const params = useParams({ strict: false });
+  const activeConnectionId = params.connectionId;
+  const activeDatabaseName = params.databaseName;
+  const activeTableName = params.tableName;
 
   return (
     <>
