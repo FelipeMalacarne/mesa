@@ -3,6 +3,7 @@ package connection
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 type IndexMethod string
@@ -95,4 +96,67 @@ func validatePrimaryKey(columns []ColumnDefinition) error {
 	}
 
 	return nil
+}
+
+// --- Factory Methods for Domain Objects ---
+
+// NewColumnDefinition creates a valid ColumnDefinition from raw types.
+func NewColumnDefinition(name string, typeName string, length, precision *int, isNullable, isPK bool, defaultValue *string) (ColumnDefinition, error) {
+	nameIdent, err := NewIdentifier(name)
+	if err != nil {
+		return ColumnDefinition{}, fmt.Errorf("invalid column name: %w", err)
+	}
+
+	dataType, err := NewDataType(typeName, length, precision)
+	if err != nil {
+		return ColumnDefinition{}, fmt.Errorf("invalid data type for column %s: %w", name, err)
+	}
+
+	var defVal *DefaultValue
+	if defaultValue != nil {
+		// NewDefaultValue takes a string directly
+		d := NewDefaultValue(*defaultValue)
+		defVal = &d
+	}
+
+	return ColumnDefinition{
+		Name:         nameIdent,
+		DataType:     dataType,
+		IsNullable:   isNullable,
+		IsPrimaryKey: isPK,
+		DefaultValue: defVal,
+	}, nil
+}
+
+// NewIndexDefinition creates a valid IndexDefinition from raw types.
+func NewIndexDefinition(name string, columns []string, methodStr string, unique bool) (IndexDefinition, error) {
+	nameIdent, err := NewIdentifier(name)
+	if err != nil {
+		return IndexDefinition{}, fmt.Errorf("invalid index name: %w", err)
+	}
+
+	if len(columns) == 0 {
+		return IndexDefinition{}, fmt.Errorf("index %s must reference at least one column", name)
+	}
+
+	colIdents := make([]Identifier, 0, len(columns))
+	for _, col := range columns {
+		colIdent, err := NewIdentifier(col)
+		if err != nil {
+			return IndexDefinition{}, fmt.Errorf("index %s: invalid column name '%s': %w", name, col, err)
+		}
+		colIdents = append(colIdents, colIdent)
+	}
+
+	method := IndexMethodBTree
+	if methodStr != "" {
+		method = IndexMethod(methodStr)
+	}
+
+	return IndexDefinition{
+		Name:    nameIdent,
+		Columns: colIdents,
+		Method:  method,
+		Unique:  unique,
+	}, nil
 }
