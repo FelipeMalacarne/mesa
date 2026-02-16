@@ -17,6 +17,7 @@ func (s *Server) connectionRoutes(r chi.Router) {
 	r.Post("/", s.createConnection)
 	r.Route("/{connectionID}", func(r chi.Router) {
 		r.Get("/", s.findConnection)
+		r.Get("/ping", s.pingConnection)
 		r.Get("/overview", s.getConnectionOverview)
 		r.Get("/databases", s.listDatabases)
 		r.Post("/databases", s.createDatabase)

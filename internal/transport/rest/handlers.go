@@ -370,3 +370,20 @@ func (s *Server) killSession(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (s *Server) pingConnection(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "connectionID"))
+	if err != nil {
+		http.Error(w, ErrInvalidUUID, http.StatusBadRequest)
+		return
+	}
+
+	response, err := s.app.Queries.PingConnection.Handle(r.Context(), queries.PingConnection{ConnectionID: id})
+	if err != nil {
+		log.Printf("ERROR: pingConnection %s: %v", id, err)
+		http.Error(w, ErrInternalServerError, http.StatusInternalServerError)
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, response)
+}

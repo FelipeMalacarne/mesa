@@ -57,6 +57,22 @@ paths:
         "404":
           description: Not Found
 
+  /connections/{connectionId}/ping:
+    get:
+      operationId: PingConnection
+      summary: Checks the connection status
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingConnectionResponse"
+
   /connections/{connectionId}/databases:
     get:
       operationId: ListDatabases
@@ -298,6 +314,15 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Database"
+    PingConnectionResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        error:
+          type: string
     ListTablesResponse:
       type: object
       required: [status, tables]
