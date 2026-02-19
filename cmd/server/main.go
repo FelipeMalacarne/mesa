@@ -14,7 +14,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/config"
 	"github.com/felipemalacarne/mesa/internal/infrastructure/crypto"
 	"github.com/felipemalacarne/mesa/internal/infrastructure/gateway"
-	"github.com/felipemalacarne/mesa/internal/infrastructure/postgres"
+	"github.com/felipemalacarne/mesa/internal/infrastructure/persistence"
 	"github.com/felipemalacarne/mesa/internal/transport/rest"
 )
 
@@ -22,15 +22,14 @@ func main() {
 	cfg := config.Load()
 	ctx := context.Background()
 
-	db, err := postgres.NewPool(ctx, cfg.DatabaseURL)
+	store, err := persistence.New(ctx, cfg)
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to connect to database: %w", err))
+		log.Fatalf("Failed to initialize persistence: %v", err)
 	}
-	defer db.Close()
-	log.Println("Connected to the database successfully.")
+	defer store.Close()
 
 	repos := application.Repositories{
-		Connection: postgres.NewConnectionRepository(db),
+		Connection: store.ConnectionRepo,
 		Gateways:   gateway.NewFactory(),
 	}
 	log.Println("Repositories initialized.")

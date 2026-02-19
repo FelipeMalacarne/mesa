@@ -6,13 +6,15 @@ import "os"
 type Config struct {
 	AppKey      string
 	DatabaseURL string
+	DBDriver    string
 	Port        string
 }
 
 func Load() Config {
 	return Config{
 		AppKey:      getEnv("APP_KEY", "default_app_key_please_change_me"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://mesa:mesa@localhost:5432/mesa?sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", "./mesa.db"),
+		DBDriver:    getEnv("DB_DRIVER", "sqlite"),
 		Port:        getEnv("PORT", "8080"),
 	}
 }

@@ -11,3 +11,20 @@ sql:
         out: "internal/infrastructure/postgres/sqlc"
         sql_package: "pgx/v5"
         emit_empty_slices: true
+
+  - engine: "sqlite"
+    schema:
+      - "internal/infrastructure/sqlite/migrations/*.up.sql"
+    queries:
+      - "internal/infrastructure/sqlite/queries"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/infrastructure/sqlite/sqlc"
+        sql_package: "database/sql"
+        overrides:
+          - db_type: "UUID"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "DATETIME"
+            go_type: "time.Time"
+        emit_empty_slices: true
