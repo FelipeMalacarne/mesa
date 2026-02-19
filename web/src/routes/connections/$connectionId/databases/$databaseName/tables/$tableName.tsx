@@ -13,6 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/data-table";
 
 export const Route = createFileRoute(
   "/connections/$connectionId/databases/$databaseName/tables/$tableName",
@@ -25,6 +27,41 @@ export const Route = createFileRoute(
   },
 });
 
+export type Payment = {
+  id: string;
+  amount: number;
+  status: "pending" | "processing" | "success" | "failed";
+  email: string;
+};
+
+export const columns: ColumnDef<Payment>[] = [
+  {
+    accessorKey: "status",
+    header: "Status",
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+  },
+];
+
+function getData(): Payment[] {
+  // Fetch data from your API here.
+  return [
+    {
+      id: "728ed52f",
+      amount: 100,
+      status: "pending",
+      email: "m@example.com",
+    },
+    // ...
+  ];
+}
+
 function DatabaseTable() {
   const { tableName } = Route.useParams();
   const summary = {
@@ -36,17 +73,65 @@ function DatabaseTable() {
   };
 
   const columns = [
-    { name: "id", type: "uuid", nullable: false, defaultValue: "gen_random_uuid()", tags: ["PK"] },
-    { name: "customer_id", type: "uuid", nullable: false, defaultValue: null, tags: ["FK"] },
-    { name: "status", type: "text", nullable: false, defaultValue: "pending", tags: [] },
-    { name: "total_cents", type: "int4", nullable: false, defaultValue: "0", tags: [] },
-    { name: "created_at", type: "timestamptz", nullable: false, defaultValue: "now()", tags: [] },
+    {
+      name: "id",
+      type: "uuid",
+      nullable: false,
+      defaultValue: "gen_random_uuid()",
+      tags: ["PK"],
+    },
+    {
+      name: "customer_id",
+      type: "uuid",
+      nullable: false,
+      defaultValue: null,
+      tags: ["FK"],
+    },
+    {
+      name: "status",
+      type: "text",
+      nullable: false,
+      defaultValue: "pending",
+      tags: [],
+    },
+    {
+      name: "total_cents",
+      type: "int4",
+      nullable: false,
+      defaultValue: "0",
+      tags: [],
+    },
+    {
+      name: "created_at",
+      type: "timestamptz",
+      nullable: false,
+      defaultValue: "now()",
+      tags: [],
+    },
   ];
 
   const indexes = [
-    { name: "orders_pkey", type: "btree", columns: "id", size: "64 MB", unique: true },
-    { name: "orders_customer_id_idx", type: "btree", columns: "customer_id", size: "48 MB", unique: false },
-    { name: "orders_status_created_idx", type: "btree", columns: "status, created_at", size: "32 MB", unique: false },
+    {
+      name: "orders_pkey",
+      type: "btree",
+      columns: "id",
+      size: "64 MB",
+      unique: true,
+    },
+    {
+      name: "orders_customer_id_idx",
+      type: "btree",
+      columns: "customer_id",
+      size: "48 MB",
+      unique: false,
+    },
+    {
+      name: "orders_status_created_idx",
+      type: "btree",
+      columns: "status, created_at",
+      size: "32 MB",
+      unique: false,
+    },
   ];
 
   const sampleRows = [
@@ -92,48 +177,7 @@ function DatabaseTable() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card className="xl:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Rows</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{summary.rows}</p>
-          </CardContent>
-        </Card>
-        <Card className="xl:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Table size</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{summary.size}</p>
-          </CardContent>
-        </Card>
-        <Card className="xl:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Index size</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{summary.indexSize}</p>
-          </CardContent>
-        </Card>
-        <Card className="xl:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Columns</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{summary.columns}</p>
-          </CardContent>
-        </Card>
-        <Card className="xl:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Last analyze</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{summary.lastAnalyze}</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* <DataTable columns={columns} data={sampleRows} /> */}
 
       <Card>
         <CardHeader>
@@ -160,7 +204,9 @@ function DatabaseTable() {
                 <TableBody>
                   {columns.map((column) => (
                     <TableRow key={column.name}>
-                      <TableCell className="font-medium">{column.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {column.name}
+                      </TableCell>
                       <TableCell>{column.type}</TableCell>
                       <TableCell>{column.nullable ? "Yes" : "No"}</TableCell>
                       <TableCell>{column.defaultValue ?? "-"}</TableCell>
@@ -196,7 +242,9 @@ function DatabaseTable() {
                 <TableBody>
                   {indexes.map((index) => (
                     <TableRow key={index.name}>
-                      <TableCell className="font-medium">{index.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {index.name}
+                      </TableCell>
                       <TableCell>{index.type}</TableCell>
                       <TableCell>{index.columns}</TableCell>
                       <TableCell>{index.size}</TableCell>
@@ -223,7 +271,9 @@ function DatabaseTable() {
                       <TableCell className="font-medium">{row.id}</TableCell>
                       <TableCell>{row.customer_id}</TableCell>
                       <TableCell className="capitalize">{row.status}</TableCell>
-                      <TableCell>${(row.total_cents / 100).toFixed(2)}</TableCell>
+                      <TableCell>
+                        ${(row.total_cents / 100).toFixed(2)}
+                      </TableCell>
                       <TableCell>{row.created_at}</TableCell>
                     </TableRow>
                   ))}
