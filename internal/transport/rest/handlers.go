@@ -312,11 +312,20 @@ func (s *Server) KillSession(w http.ResponseWriter, r *http.Request, connectionI
 func (s *Server) PingConnection(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
 	id := uuid.UUID(connectionID)
 
-	response, err := s.app.Queries.PingConnection.Handle(r.Context(), queries.PingConnection{ConnectionID: id})
+	err := s.app.Queries.PingConnection.Handle(r.Context(), queries.PingConnection{ConnectionID: id})
+
+	var response contract.PingConnectionResponse
 	if err != nil {
-		log.Printf("ERROR: pingConnection %s: %v", id, err)
-		http.Error(w, ErrInternalServerError, http.StatusInternalServerError)
-		return
+		log.Printf("WARN: pingConnection %s: %v", id, err)
+		errMsg := err.Error()
+		response = contract.PingConnectionResponse{
+			Status: contract.PingConnectionResponseStatusError,
+			Error:  &errMsg,
+		}
+	} else {
+		response = contract.PingConnectionResponse{
+			Status: contract.PingConnectionResponseStatusOk,
+		}
 	}
 
 	s.respondJSON(w, http.StatusOK, response)

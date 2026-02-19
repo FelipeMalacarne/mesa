@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	"github.com/google/uuid"
@@ -12,11 +11,6 @@ import (
 
 type PingConnection struct {
 	ConnectionID uuid.UUID
-}
-
-type PingConnectionResponse struct {
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
 }
 
 type PingConnectionHandler struct {
@@ -37,31 +31,31 @@ func NewPingConnectionHandler(
 	}
 }
 
-func (h *PingConnectionHandler) Handle(ctx context.Context, query PingConnection) (PingConnectionResponse, error) {
+func (h *PingConnectionHandler) Handle(ctx context.Context, query PingConnection) error {
 	conn, err := h.repo.FindByID(ctx, query.ConnectionID)
 	if err != nil {
-		return PingConnectionResponse{Status: dtos.StatusError, Error: err.Error()}, nil
+		return err
 	}
 	if conn == nil {
-		return PingConnectionResponse{Status: dtos.StatusError, Error: "connection not found"}, nil
+		return ErrConnectionNotFound
 	}
 
 	password, err := h.crypto.Decrypt(conn.Password)
 	if err != nil {
-		return PingConnectionResponse{Status: dtos.StatusError, Error: err.Error()}, nil
+		return err
 	}
 
 	gateway, err := h.gateways.ForDriver(conn.Driver)
 	if err != nil {
-		return PingConnectionResponse{Status: dtos.StatusError, Error: err.Error()}, nil
+		return err
 	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
 	if err := gateway.Ping(pingCtx, *conn, password); err != nil {
-		return PingConnectionResponse{Status: dtos.StatusError, Error: err.Error()}, nil
+		return err
 	}
 
-	return PingConnectionResponse{Status: dtos.StatusOK}, nil
+	return nil
 }
