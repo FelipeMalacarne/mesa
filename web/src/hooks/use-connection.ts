@@ -4,7 +4,7 @@ import {
 	type CreateTableRequest,
 	type CreateUserRequest,
 	type DBUser,
-	type ListDatabasesResponse,
+	type Database,
 	type OverviewResponse,
 	type Session,
 } from "@/api";
@@ -34,7 +34,7 @@ export function useConnectionOverview(connectionId: ConnectionID) {
 }
 
 export function useConnectionDatabases(connectionId: ConnectionID) {
-  return useQuery<ListDatabasesResponse>({
+  return useQuery<Database[]>({
     queryKey: queryKey(connectionId, "databases"),
     enabled: Boolean(connectionId),
     queryFn: () => ConnectionsService.listDatabases({ connectionId }),

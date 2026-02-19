@@ -22,7 +22,7 @@ export const DatabaseTables = ({
   activeState,
 }: DatabaseTablesProps) => {
   const {
-    data: response,
+    data: tables,
     isLoading,
     isError,
     error,
@@ -34,8 +34,6 @@ export const DatabaseTables = ({
         databaseName,
       }),
   });
-
-  const tables = response?.tables ?? [];
 
   if (isLoading) {
     return (
@@ -53,7 +51,7 @@ export const DatabaseTables = ({
     );
   }
 
-  if (tables.length === 0) {
+  if (!tables || tables.length === 0) {
     return <DisabledSubButton size="sm">No tables found</DisabledSubButton>;
   }
 

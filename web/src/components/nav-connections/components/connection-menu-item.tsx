@@ -37,14 +37,17 @@ export const ConnectionMenuItem = ({
   const isConnectionActive =
     activeState.connectionId === connection.id && !activeState.databaseName;
 
-  const { data, isLoading, isError } = useQuery({
+  const { isLoading, isError, error } = useQuery({
     queryKey: ["connections", connection.id, "ping"],
-    queryFn: () =>
-      ConnectionsService.pingConnection({ connectionId: connection.id }),
+    queryFn: async () => {
+      await ConnectionsService.pingConnection({ connectionId: connection.id });
+      return true;
+    },
+    retry: false, // Don't retry if it fails, it's a ping
   });
 
-  const isPingError = data?.status === "error" || isError;
-  const isOk = data?.status === "ok";
+  const isPingError = isError;
+  const isOk = !isLoading && !isError;
 
   let statusDot = "bg-muted-foreground/40";
   if (isLoading) statusDot = "bg-yellow-500 animate-pulse";
@@ -92,7 +95,7 @@ export const ConnectionMenuItem = ({
           <SidebarMenuSub>
             {isPingError ? (
               <DisabledSubButton>
-                {data?.error ?? "Unable to connect to this database"}
+                {error?.message ?? "Unable to connect to this database"}
               </DisabledSubButton>
             ) : null}
             {isLoading ? (

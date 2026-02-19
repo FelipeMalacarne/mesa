@@ -66,28 +66,10 @@ const (
 	Spgist CreateTableIndexMethod = "spgist"
 )
 
-// Defines values for ListDatabasesResponseStatus.
-const (
-	ListDatabasesResponseStatusError ListDatabasesResponseStatus = "error"
-	ListDatabasesResponseStatusOk    ListDatabasesResponseStatus = "ok"
-)
-
-// Defines values for ListTablesResponseStatus.
-const (
-	ListTablesResponseStatusError ListTablesResponseStatus = "error"
-	ListTablesResponseStatusOk    ListTablesResponseStatus = "ok"
-)
-
 // Defines values for OverviewResponseStatus.
 const (
 	ONLINE      OverviewResponseStatus = "ONLINE"
 	UNREACHABLE OverviewResponseStatus = "UNREACHABLE"
-)
-
-// Defines values for PingConnectionResponseStatus.
-const (
-	PingConnectionResponseStatusError PingConnectionResponseStatus = "error"
-	PingConnectionResponseStatusOk    PingConnectionResponseStatus = "ok"
 )
 
 // ColumnDataType defines model for ColumnDataType.
@@ -188,25 +170,10 @@ type Database struct {
 	SizeFormatted string `json:"size_formatted"`
 }
 
-// ListDatabasesResponse defines model for ListDatabasesResponse.
-type ListDatabasesResponse struct {
-	Databases []Database                  `json:"databases"`
-	Error     *string                     `json:"error,omitempty"`
-	Status    ListDatabasesResponseStatus `json:"status"`
+// Error defines model for Error.
+type Error struct {
+	Message string `json:"message"`
 }
-
-// ListDatabasesResponseStatus defines model for ListDatabasesResponse.Status.
-type ListDatabasesResponseStatus string
-
-// ListTablesResponse defines model for ListTablesResponse.
-type ListTablesResponse struct {
-	Error  *string                  `json:"error,omitempty"`
-	Status ListTablesResponseStatus `json:"status"`
-	Tables []Table                  `json:"tables"`
-}
-
-// ListTablesResponseStatus defines model for ListTablesResponse.Status.
-type ListTablesResponseStatus string
 
 // OverviewResponse defines model for OverviewResponse.
 type OverviewResponse struct {
@@ -219,15 +186,6 @@ type OverviewResponse struct {
 
 // OverviewResponseStatus defines model for OverviewResponse.Status.
 type OverviewResponseStatus string
-
-// PingConnectionResponse defines model for PingConnectionResponse.
-type PingConnectionResponse struct {
-	Error  *string                      `json:"error,omitempty"`
-	Status PingConnectionResponseStatus `json:"status"`
-}
-
-// PingConnectionResponseStatus defines model for PingConnectionResponse.Status.
-type PingConnectionResponseStatus string
 
 // Session defines model for Session.
 type Session struct {

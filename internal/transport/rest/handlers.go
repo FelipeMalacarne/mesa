@@ -109,11 +109,11 @@ func (s *Server) ListDatabases(w http.ResponseWriter, r *http.Request, connectio
 		}
 
 		log.Printf("WARN: listDatabases get databases %q: %v", connectionID, err)
-		s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesErrorResponse(err))
+		s.respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, dtos.NewListDatabasesResponse(databases))
+	s.respondJSON(w, http.StatusOK, databases)
 }
 
 func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId, databaseName contract.DatabaseName) {
@@ -140,11 +140,11 @@ func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionID
 			return
 		}
 		log.Printf("WARN: listTables get tables %q/%q: %v", connectionID, dbName, err)
-		s.respondJSON(w, http.StatusOK, dtos.NewListTablesErrorResponse(err))
+		s.respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, dtos.NewListTablesResponse(tables))
+	s.respondJSON(w, http.StatusOK, tables)
 }
 
 func (s *Server) GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
@@ -313,20 +313,11 @@ func (s *Server) PingConnection(w http.ResponseWriter, r *http.Request, connecti
 	id := uuid.UUID(connectionID)
 
 	err := s.app.Queries.PingConnection.Handle(r.Context(), queries.PingConnection{ConnectionID: id})
-
-	var response contract.PingConnectionResponse
 	if err != nil {
 		log.Printf("WARN: pingConnection %s: %v", id, err)
-		errMsg := err.Error()
-		response = contract.PingConnectionResponse{
-			Status: contract.PingConnectionResponseStatusError,
-			Error:  &errMsg,
-		}
-	} else {
-		response = contract.PingConnectionResponse{
-			Status: contract.PingConnectionResponseStatusOk,
-		}
+		s.respondError(w, http.StatusBadGateway, err.Error())
+		return
 	}
 
-	s.respondJSON(w, http.StatusOK, response)
+	w.WriteHeader(http.StatusNoContent)
 }

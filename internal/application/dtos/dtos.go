@@ -67,18 +67,6 @@ type DBUserDTO struct {
 	ConnLimit   int    `json:"conn_limit"`
 }
 
-type ListDatabasesResponse struct {
-	Status    string         `json:"status"`
-	Error     string         `json:"error,omitempty"`
-	Databases []*DatabaseDTO `json:"databases"`
-}
-
-type ListTablesResponse struct {
-	Status string      `json:"status"`
-	Error  string      `json:"error,omitempty"`
-	Tables []*TableDTO `json:"tables"`
-}
-
 func NewConnectionDTO(conn *connection.Connection) *ConnectionDTO {
 	return &ConnectionDTO{
 		ID:        conn.ID.String(),
@@ -145,36 +133,6 @@ func NewDBUserDTO(user connection.DBUser) *DBUserDTO {
 		IsSuperUser: user.IsSuperUser,
 		CanLogin:    user.CanLogin,
 		ConnLimit:   user.ConnLimit,
-	}
-}
-
-func NewListDatabasesResponse(databases []*DatabaseDTO) *ListDatabasesResponse {
-	return &ListDatabasesResponse{
-		Status:    StatusOK,
-		Databases: databases,
-	}
-}
-
-func NewListDatabasesErrorResponse(err error) *ListDatabasesResponse {
-	return &ListDatabasesResponse{
-		Status:    StatusError,
-		Error:     err.Error(),
-		Databases: []*DatabaseDTO{},
-	}
-}
-
-func NewListTablesResponse(tables []*TableDTO) *ListTablesResponse {
-	return &ListTablesResponse{
-		Status: StatusOK,
-		Tables: tables,
-	}
-}
-
-func NewListTablesErrorResponse(err error) *ListTablesResponse {
-	return &ListTablesResponse{
-		Status: StatusError,
-		Error:  err.Error(),
-		Tables: []*TableDTO{},
 	}
 }
 

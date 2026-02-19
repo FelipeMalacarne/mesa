@@ -5,7 +5,7 @@ export const configureApiClient = () => {
   if (!base) {
     console.warn("VITE_API_BASE is not set; API client will use relative URLs");
   }
-  OpenAPI.BASE = base ?? "";
+  OpenAPI.BASE = base ?? "/api";
   OpenAPI.WITH_CREDENTIALS = false;
   // OpenAPI.TOKEN = async () => {
   //   const user = firebaseAuth.currentUser;

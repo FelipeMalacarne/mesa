@@ -66,12 +66,14 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ConnectionId"
       responses:
-        "200":
-          description: Status
+        "204":
+          description: OK (No Content)
+        "502":
+          description: Bad Gateway (Connection Failed)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PingConnectionResponse"
+                $ref: "#/components/schemas/Error"
 
   /connections/{connectionID}/databases:
     get:
@@ -87,7 +89,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ListDatabasesResponse"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Database"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     post:
       operationId: CreateDatabase
       summary: Create a new database
@@ -135,7 +145,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ListTablesResponse"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Table"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     post:
       operationId: CreateTable
       summary: Create a table in a database
@@ -301,41 +319,12 @@ components:
         size:
           type: integer
           format: int64
-    ListDatabasesResponse:
+    Error:
       type: object
-      required: [status, databases]
+      required: [message]
       properties:
-        status:
+        message:
           type: string
-          enum: [ok, error]
-        error:
-          type: string
-        databases:
-          type: array
-          items:
-            $ref: "#/components/schemas/Database"
-    PingConnectionResponse:
-      type: object
-      required: [status]
-      properties:
-        status:
-          type: string
-          enum: [ok, error]
-        error:
-          type: string
-    ListTablesResponse:
-      type: object
-      required: [status, tables]
-      properties:
-        status:
-          type: string
-          enum: [ok, error]
-        error:
-          type: string
-        tables:
-          type: array
-          items:
-            $ref: "#/components/schemas/Table"
     CreateConnectionRequest:
       type: object
       required: [name, driver, host, port, username, password]

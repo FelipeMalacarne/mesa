@@ -42,13 +42,13 @@ export const Route = createFileRoute("/connections/$connectionId/_layout/databas
 
 function ConnectionDatabases() {
   const { connectionId } = Route.useParams();
-  const { data, isLoading } = useConnectionDatabases(connectionId);
+  const { data, isLoading, isError, error } = useConnectionDatabases(connectionId);
 
   if (isLoading) {
     return <Skeleton className="h-48 w-full" />;
   }
 
-  const databases = data?.databases ?? [];
+  const databases = data ?? [];
 
   return (
     <div className="space-y-4">
@@ -62,9 +62,9 @@ function ConnectionDatabases() {
         <CreateDatabaseDialog connectionId={connectionId} />
       </div>
 
-      {data?.status === "error" ? (
+      {isError ? (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-          {data.error ?? "Failed to load databases"}
+          {error?.message ?? "Failed to load databases"}
         </div>
       ) : (
         <Table>

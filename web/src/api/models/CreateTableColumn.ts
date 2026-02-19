@@ -8,7 +8,6 @@ export type CreateTableColumn = {
     type: ColumnDataType;
     length?: number;
     precision?: number;
-    scale?: number;
     nullable?: boolean;
     primary_key?: boolean;
     default_value?: string;

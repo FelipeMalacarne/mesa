@@ -7,12 +7,11 @@ import type { CreateConnectionRequest } from '../models/CreateConnectionRequest'
 import type { CreateDatabaseRequest } from '../models/CreateDatabaseRequest';
 import type { CreateTableRequest } from '../models/CreateTableRequest';
 import type { CreateUserRequest } from '../models/CreateUserRequest';
+import type { Database } from '../models/Database';
 import type { DBUser } from '../models/DBUser';
-import type { ListDatabasesResponse } from '../models/ListDatabasesResponse';
-import type { ListTablesResponse } from '../models/ListTablesResponse';
 import type { OverviewResponse } from '../models/OverviewResponse';
-import type { PingConnectionResponse } from '../models/PingConnectionResponse';
 import type { Session } from '../models/Session';
+import type { Table } from '../models/Table';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -60,9 +59,9 @@ export class ConnectionsService {
     }): CancelablePromise<Connection> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/connections/{connectionId}',
+            url: '/connections/{connectionID}',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
             },
             errors: {
                 404: `Not Found`,
@@ -70,8 +69,32 @@ export class ConnectionsService {
         });
     }
     /**
+     * Checks the connection status
+     * @returns void
+     * @throws ApiError
+     */
+    public static pingConnection({
+        connectionId,
+    }: {
+        /**
+         * The unique identifier for the connection
+         */
+        connectionId: string,
+    }): CancelablePromise<void> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/connections/{connectionID}/ping',
+            path: {
+                'connectionID': connectionId,
+            },
+            errors: {
+                502: `Bad Gateway (Connection Failed)`,
+            },
+        });
+    }
+    /**
      * List databases from a connection
-     * @returns ListDatabasesResponse Databases
+     * @returns Database Databases
      * @throws ApiError
      */
     public static listDatabases({
@@ -81,12 +104,15 @@ export class ConnectionsService {
          * The unique identifier for the connection
          */
         connectionId: string,
-    }): CancelablePromise<ListDatabasesResponse> {
+    }): CancelablePromise<Array<Database>> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/connections/{connectionId}/databases',
+            url: '/connections/{connectionID}/databases',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
+            },
+            errors: {
+                500: `Internal Server Error`,
             },
         });
     }
@@ -107,9 +133,9 @@ export class ConnectionsService {
     }): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/connections/{connectionId}/databases',
+            url: '/connections/{connectionID}/databases',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -130,15 +156,15 @@ export class ConnectionsService {
     }): CancelablePromise<OverviewResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/connections/{connectionId}/overview',
+            url: '/connections/{connectionID}/overview',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
             },
         });
     }
     /**
      * List tables from a database
-     * @returns ListTablesResponse Tables
+     * @returns Table Tables
      * @throws ApiError
      */
     public static listTables({
@@ -153,13 +179,16 @@ export class ConnectionsService {
          * Database name
          */
         databaseName: string,
-    }): CancelablePromise<ListTablesResponse> {
+    }): CancelablePromise<Array<Table>> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/connections/{connectionId}/databases/{databaseName}/tables',
+            url: '/connections/{connectionID}/databases/{databaseName}/tables',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
                 'databaseName': databaseName,
+            },
+            errors: {
+                500: `Internal Server Error`,
             },
         });
     }
@@ -185,9 +214,9 @@ export class ConnectionsService {
     }): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/connections/{connectionId}/databases/{databaseName}/tables',
+            url: '/connections/{connectionID}/databases/{databaseName}/tables',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
                 'databaseName': databaseName,
             },
             body: requestBody,
@@ -209,9 +238,9 @@ export class ConnectionsService {
     }): CancelablePromise<Array<DBUser>> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/connections/{connectionId}/users',
+            url: '/connections/{connectionID}/users',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
             },
         });
     }
@@ -232,9 +261,9 @@ export class ConnectionsService {
     }): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/connections/{connectionId}/users',
+            url: '/connections/{connectionID}/users',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -255,9 +284,9 @@ export class ConnectionsService {
     }): CancelablePromise<Array<Session>> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/connections/{connectionId}/sessions',
+            url: '/connections/{connectionID}/sessions',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
             },
         });
     }
@@ -278,34 +307,11 @@ export class ConnectionsService {
     }): CancelablePromise<void> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/connections/{connectionId}/sessions/{pid}',
+            url: '/connections/{connectionID}/sessions/{pid}',
             path: {
-                'connectionId': connectionId,
+                'connectionID': connectionId,
                 'pid': pid,
             },
         });
     }
-
-    /**
-     * Ping connection to check status
-     * @returns PingConnectionResponse Ping result
-     * @throws ApiError
-     */
-    public static pingConnection({
-        connectionId,
-    }: {
-        /**
-         * The unique identifier for the connection
-         */
-        connectionId: string,
-    }): CancelablePromise<PingConnectionResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/connections/{connectionId}/ping',
-            path: {
-                'connectionId': connectionId,
-            },
-        });
-    }
 }
-
