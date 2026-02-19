@@ -22,7 +22,7 @@ export const ConnectionDatabases = ({
 }: ConnectionDatabasesProps) => {
   const { openDatabases } = useNavConnectionsState();
   const {
-    data: response,
+    data: databases,
     isLoading,
     isError,
     error,
@@ -30,8 +30,6 @@ export const ConnectionDatabases = ({
     queryKey: ["connection-databases", connectionId],
     queryFn: () => ConnectionsService.listDatabases({ connectionId }),
   });
-
-  const databases = response?.databases ?? [];
 
   if (isLoading) {
     return (
@@ -49,7 +47,7 @@ export const ConnectionDatabases = ({
     );
   }
 
-  if (databases.length === 0) {
+  if (!databases || databases.length === 0) {
     return <DisabledSubButton>No databases found</DisabledSubButton>;
   }
 
