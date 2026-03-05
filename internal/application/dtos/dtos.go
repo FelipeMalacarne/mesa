@@ -67,6 +67,14 @@ type DBUserDTO struct {
 	ConnLimit   int    `json:"conn_limit"`
 }
 
+type ColumnDTO struct {
+	Name         string  `json:"name"`
+	DataType     string  `json:"data_type"`
+	IsNullable   bool    `json:"is_nullable"`
+	IsPrimary    bool    `json:"is_primary"`
+	DefaultValue *string `json:"default_value,omitempty"`
+}
+
 func NewConnectionDTO(conn *connection.Connection) *ConnectionDTO {
 	return &ConnectionDTO{
 		ID:        conn.ID.String(),

@@ -18,11 +18,11 @@ type Table struct {
 }
 
 type Column struct {
-	Name         string
-	DataType     string
+	Name         Identifier
+	DataType     DataType
 	IsNullable   bool
 	IsPrimary    bool
-	DefaultValue *string
+	DefaultValue *DefaultValue
 }
 
 type ServerHealth struct {
