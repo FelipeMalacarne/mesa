@@ -180,7 +180,8 @@ ORDER BY c.ordinal_position;
 
 		col.IsNullable = isNullable == "YES"
 		if defaultValue.Valid {
-			col.DefaultValue = &defaultValue.String
+			value := connection.NewDefaultValue(defaultValue.String) 
+			col.DefaultValue = &value
 		}
 		columns = append(columns, col)
 	}
