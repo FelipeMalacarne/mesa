@@ -8,7 +8,6 @@ import (
 	"net/url"
 
 	"github.com/felipemalacarne/mesa/internal/application/commands"
-	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/application/queries"
 	"github.com/felipemalacarne/mesa/internal/transport/rest/contract"
 	"github.com/felipemalacarne/mesa/web"
@@ -44,10 +43,6 @@ func (s *Server) webHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) ListConnections(w http.ResponseWriter, r *http.Request) {
 	var query queries.ListConnections
-	// if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
 
 	conns, err := s.app.Queries.ListConnections.Handle(r.Context(), query)
 	if err != nil {
@@ -55,7 +50,13 @@ func (s *Server) ListConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, conns)
+	resp := make([]connectionResponse, len(conns))
+	for i, c := range conns {
+		resp[i] = newConnectionResponse(c)
+		resp[i].Status = "unknown"
+	}
+
+	s.respondJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) FindConnection(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
@@ -68,7 +69,7 @@ func (s *Server) FindConnection(w http.ResponseWriter, r *http.Request, connecti
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, dtos.NewConnectionDTO(conn))
+	s.respondJSON(w, http.StatusOK, newConnectionResponse(conn))
 }
 
 func (s *Server) CreateConnection(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +95,7 @@ func (s *Server) CreateConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.respondJSON(w, http.StatusCreated, conn)
+	s.respondJSON(w, http.StatusCreated, newConnectionResponse(conn))
 }
 
 func (s *Server) ListDatabases(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
@@ -113,7 +114,12 @@ func (s *Server) ListDatabases(w http.ResponseWriter, r *http.Request, connectio
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, databases)
+	resp := make([]databaseResponse, len(databases))
+	for i, d := range databases {
+		resp[i] = newDatabaseResponse(d)
+	}
+
+	s.respondJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId, databaseName contract.DatabaseName) {
@@ -144,13 +150,18 @@ func (s *Server) ListTables(w http.ResponseWriter, r *http.Request, connectionID
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, tables)
+	resp := make([]tableResponse, len(tables))
+	for i, t := range tables {
+		resp[i] = newTableResponse(t)
+	}
+
+	s.respondJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
 	id := uuid.UUID(connectionID)
 
-	dto, err := s.app.Queries.GetOverview.Handle(r.Context(), id)
+	health, latencyMs, err := s.app.Queries.GetOverview.Handle(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, queries.ErrConnectionNotFound) {
 			http.Error(w, ErrConnectionNotFound, http.StatusNotFound)
@@ -160,7 +171,7 @@ func (s *Server) GetConnectionOverview(w http.ResponseWriter, r *http.Request, c
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, dto)
+	s.respondJSON(w, http.StatusOK, newOverviewResponse(health, latencyMs))
 }
 
 func (s *Server) ListSessions(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
@@ -177,7 +188,12 @@ func (s *Server) ListSessions(w http.ResponseWriter, r *http.Request, connection
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, sessions)
+	resp := make([]sessionResponse, len(sessions))
+	for i, sess := range sessions {
+		resp[i] = newSessionResponse(sess)
+	}
+
+	s.respondJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) ListUsers(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {
@@ -195,7 +211,12 @@ func (s *Server) ListUsers(w http.ResponseWriter, r *http.Request, connectionID 
 		return
 	}
 
-	s.respondJSON(w, http.StatusOK, users)
+	resp := make([]dbUserResponse, len(users))
+	for i, u := range users {
+		resp[i] = newDBUserResponse(u)
+	}
+
+	s.respondJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) CreateDatabase(w http.ResponseWriter, r *http.Request, connectionID contract.ConnectionId) {

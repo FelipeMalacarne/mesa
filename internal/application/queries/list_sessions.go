@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	"github.com/google/uuid"
@@ -21,7 +20,7 @@ func NewListSessionsHandler(repo connection.Repository, crypto domain.Cryptograp
 	return &ListSessionsHandler{repo: repo, crypto: crypto, gateways: gateways}
 }
 
-func (h *ListSessionsHandler) Handle(ctx context.Context, connectionID uuid.UUID) ([]*dtos.SessionDTO, error) {
+func (h *ListSessionsHandler) Handle(ctx context.Context, connectionID uuid.UUID) ([]connection.Session, error) {
 	conn, err := h.repo.FindByID(ctx, connectionID)
 	if err != nil {
 		return nil, err
@@ -43,15 +42,5 @@ func (h *ListSessionsHandler) Handle(ctx context.Context, connectionID uuid.UUID
 	timedCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	sessions, err := gateway.ListSessions(timedCtx, *conn, password)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*dtos.SessionDTO, 0, len(sessions))
-	for _, session := range sessions {
-		result = append(result, dtos.NewSessionDTO(session))
-	}
-
-	return result, nil
+	return gateway.ListSessions(timedCtx, *conn, password)
 }

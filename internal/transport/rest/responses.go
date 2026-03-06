@@ -1,4 +1,4 @@
-package dtos
+package rest
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 )
 
-type ConnectionDTO struct {
+type connectionResponse struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Driver    string `json:"driver"`
@@ -21,28 +21,52 @@ type ConnectionDTO struct {
 	StatusErr string `json:"status_error,omitempty"`
 }
 
-type DatabaseDTO struct {
+func newConnectionResponse(c *connection.Connection) connectionResponse {
+	return connectionResponse{
+		ID:        c.ID.String(),
+		Name:      c.Name,
+		Driver:    c.Driver.String(),
+		Host:      c.Host,
+		Port:      c.Port,
+		Username:  c.Username,
+		UpdatedAt: c.UpdatedAt.Format(time.RFC3339),
+		CreatedAt: c.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+type databaseResponse struct {
 	Name          string `json:"name"`
 	Owner         string `json:"owner"`
 	Encoding      string `json:"encoding"`
 	SizeFormatted string `json:"size_formatted"`
 }
 
-type TableDTO struct {
+func newDatabaseResponse(d connection.Database) databaseResponse {
+	return databaseResponse{
+		Name:          d.Name,
+		Owner:         d.Owner,
+		Encoding:      d.Encoding,
+		SizeFormatted: formatBytes(d.Size),
+	}
+}
+
+type tableResponse struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Size     int64  `json:"size"`
 	RowCount int64  `json:"row_count"`
 }
 
-const (
-	StatusOK          = "ok"
-	StatusError       = "error"
-	StatusOnline      = "ONLINE"
-	StatusUnreachable = "UNREACHABLE"
-)
+func newTableResponse(t connection.Table) tableResponse {
+	return tableResponse{
+		Name:     t.Name,
+		Type:     t.Type,
+		Size:     t.Size,
+		RowCount: t.RowCount,
+	}
+}
 
-type OverviewDTO struct {
+type overviewResponse struct {
 	Status    string `json:"status"`
 	Version   string `json:"version"`
 	Uptime    string `json:"uptime"`
@@ -50,7 +74,23 @@ type OverviewDTO struct {
 	LatencyMs int64  `json:"latency_ms"`
 }
 
-type SessionDTO struct {
+func newOverviewResponse(h *connection.ServerHealth, latencyMs int64) overviewResponse {
+	if h == nil {
+		return overviewResponse{
+			Status:    "unreachable",
+			LatencyMs: latencyMs,
+		}
+	}
+	return overviewResponse{
+		Status:    "ONLINE",
+		Version:   h.Version,
+		Uptime:    formatUptime(h.Uptime),
+		Sessions:  fmt.Sprintf("%d/%d", h.ActiveSessions, h.MaxConnections),
+		LatencyMs: latencyMs,
+	}
+}
+
+type sessionResponse struct {
 	PID      int    `json:"pid"`
 	User     string `json:"user"`
 	Database string `json:"database"`
@@ -60,14 +100,35 @@ type SessionDTO struct {
 	IsSlow   bool   `json:"is_slow"`
 }
 
-type DBUserDTO struct {
+func newSessionResponse(s connection.Session) sessionResponse {
+	return sessionResponse{
+		PID:      s.PID,
+		User:     s.User,
+		Database: s.Database,
+		State:    s.State,
+		Query:    s.Query,
+		Duration: formatClock(s.Duration),
+		IsSlow:   s.Duration > time.Minute,
+	}
+}
+
+type dbUserResponse struct {
 	Name        string `json:"name"`
 	IsSuperUser bool   `json:"is_superuser"`
 	CanLogin    bool   `json:"can_login"`
 	ConnLimit   int    `json:"conn_limit"`
 }
 
-type ColumnDTO struct {
+func newDBUserResponse(u connection.DBUser) dbUserResponse {
+	return dbUserResponse{
+		Name:        u.Name.String(),
+		IsSuperUser: u.IsSuperUser,
+		CanLogin:    u.CanLogin,
+		ConnLimit:   u.ConnLimit,
+	}
+}
+
+type columnResponse struct {
 	Name         string  `json:"name"`
 	DataType     string  `json:"data_type"`
 	IsNullable   bool    `json:"is_nullable"`
@@ -75,72 +136,18 @@ type ColumnDTO struct {
 	DefaultValue *string `json:"default_value,omitempty"`
 }
 
-func NewConnectionDTO(conn *connection.Connection) *ConnectionDTO {
-	return &ConnectionDTO{
-		ID:        conn.ID.String(),
-		Name:      conn.Name,
-		Driver:    conn.Driver.String(),
-		Host:      conn.Host,
-		Port:      conn.Port,
-		Username:  conn.Username,
-		UpdatedAt: conn.UpdatedAt.Format(time.RFC3339),
-		CreatedAt: conn.CreatedAt.Format(time.RFC3339),
+func newColumnResponse(c connection.Column) columnResponse {
+	var defaultValue *string
+	if c.DefaultValue != nil {
+		s := c.DefaultValue.String()
+		defaultValue = &s
 	}
-}
-
-func NewDatabaseDTO(database connection.Database) *DatabaseDTO {
-	return &DatabaseDTO{
-		Name:          database.Name,
-		Owner:         database.Owner,
-		Encoding:      database.Encoding,
-		SizeFormatted: formatBytes(database.Size),
-	}
-}
-
-func NewTableDTO(table connection.Table) *TableDTO {
-	return &TableDTO{
-		Name:     table.Name,
-		Type:     table.Type,
-		Size:     table.Size,
-		RowCount: table.RowCount,
-	}
-}
-
-func NewOverviewDTO(health *connection.ServerHealth, latencyMs int64) *OverviewDTO {
-	return &OverviewDTO{
-		Status:    StatusOnline,
-		Version:   health.Version,
-		Uptime:    formatUptime(health.Uptime),
-		Sessions:  fmt.Sprintf("%d/%d", health.ActiveSessions, health.MaxConnections),
-		LatencyMs: latencyMs,
-	}
-}
-
-func NewOverviewUnreachableDTO(latencyMs int64) *OverviewDTO {
-	return &OverviewDTO{
-		Status:    StatusUnreachable,
-		LatencyMs: latencyMs,
-	}
-}
-
-func NewSessionDTO(session connection.Session) *SessionDTO {
-	return &SessionDTO{
-		PID:      session.PID,
-		User:     session.User,
-		Database: session.Database,
-		State:    session.State,
-		Query:    session.Query,
-		Duration: formatClock(session.Duration),
-		IsSlow:   session.Duration > time.Minute,
-	}
-}
-
-func NewDBUserDTO(user connection.DBUser) *DBUserDTO {
-	return &DBUserDTO{
-		Name:        user.Name.String(),
-		IsSuperUser: user.IsSuperUser,
-		CanLogin:    user.CanLogin,
-		ConnLimit:   user.ConnLimit,
+	return columnResponse{
+		Name:         c.Name.String(),
+		DataType:     c.DataType.Format(),
+		IsNullable:   c.IsNullable,
+		IsPrimary:    c.IsPrimary,
+		DefaultValue: defaultValue,
 	}
 }
 

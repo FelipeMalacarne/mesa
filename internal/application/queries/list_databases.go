@@ -3,7 +3,6 @@ package queries
 import (
 	"context"
 
-	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	"github.com/google/uuid"
@@ -23,7 +22,7 @@ func NewListDatabasesHandler(repo connection.Repository, crypto domain.Cryptogra
 	return &ListDatabasesHandler{repo: repo, crypto: crypto, gateways: gateways}
 }
 
-func (h *ListDatabasesHandler) Handle(ctx context.Context, query ListDatabases) ([]*dtos.DatabaseDTO, error) {
+func (h *ListDatabasesHandler) Handle(ctx context.Context, query ListDatabases) ([]connection.Database, error) {
 	conn, err := h.repo.FindByID(ctx, query.ConnectionID)
 	if err != nil {
 		return nil, err
@@ -43,15 +42,5 @@ func (h *ListDatabasesHandler) Handle(ctx context.Context, query ListDatabases) 
 		return nil, err
 	}
 
-	databases, err := gateway.GetDatabases(ctx, *conn, password)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*dtos.DatabaseDTO, 0, len(databases))
-	for _, database := range databases {
-		result = append(result, dtos.NewDatabaseDTO(database))
-	}
-
-	return result, nil
+	return gateway.GetDatabases(ctx, *conn, password)
 }

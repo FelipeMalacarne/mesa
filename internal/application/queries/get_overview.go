@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	"github.com/google/uuid"
@@ -21,23 +20,23 @@ func NewGetOverviewHandler(repo connection.Repository, crypto domain.Cryptograph
 	return &GetOverviewHandler{repo: repo, crypto: crypto, gateways: gateways}
 }
 
-func (h *GetOverviewHandler) Handle(ctx context.Context, connectionID uuid.UUID) (*dtos.OverviewDTO, error) {
+func (h *GetOverviewHandler) Handle(ctx context.Context, connectionID uuid.UUID) (*connection.ServerHealth, int64, error) {
 	conn, err := h.repo.FindByID(ctx, connectionID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if conn == nil {
-		return nil, ErrConnectionNotFound
+		return nil, 0, ErrConnectionNotFound
 	}
 
 	gateway, err := h.gateways.ForDriver(conn.Driver)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	password, err := h.crypto.Decrypt(conn.Password)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	timedCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -47,8 +46,8 @@ func (h *GetOverviewHandler) Handle(ctx context.Context, connectionID uuid.UUID)
 	health, err := gateway.GetServerHealth(timedCtx, *conn, password)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
-		return dtos.NewOverviewUnreachableDTO(latency), nil
+		return nil, latency, nil
 	}
 
-	return dtos.NewOverviewDTO(health, latency), nil
+	return health, latency, nil
 }

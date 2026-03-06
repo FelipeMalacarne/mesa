@@ -3,7 +3,6 @@ package queries
 import (
 	"context"
 
-	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	"github.com/google/uuid"
@@ -24,7 +23,7 @@ func NewListTablesHandler(repo connection.Repository, crypto domain.Cryptographe
 	return &ListTablesHandler{repo: repo, crypto: crypto, gateways: gateways}
 }
 
-func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables) ([]*dtos.TableDTO, error) {
+func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables) ([]connection.Table, error) {
 	conn, err := h.repo.FindByID(ctx, query.ConnectionID)
 	if err != nil {
 		return nil, err
@@ -49,15 +48,5 @@ func (h *ListTablesHandler) Handle(ctx context.Context, query ListTables) ([]*dt
 		return nil, err
 	}
 
-	tables, err := gateway.GetTables(ctx, *conn, password, dbName)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*dtos.TableDTO, 0, len(tables))
-	for _, table := range tables {
-		result = append(result, dtos.NewTableDTO(table))
-	}
-
-	return result, nil
+	return gateway.GetTables(ctx, *conn, password, dbName)
 }

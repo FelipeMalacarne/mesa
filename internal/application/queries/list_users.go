@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/felipemalacarne/mesa/internal/application/dtos"
 	"github.com/felipemalacarne/mesa/internal/domain"
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	"github.com/google/uuid"
@@ -25,7 +24,7 @@ func NewListUsersHandler(repo connection.Repository, crypto domain.Cryptographer
 	return &ListUsersHandler{repo: repo, crypto: crypto, gateways: gateways}
 }
 
-func (h *ListUsersHandler) Handle(ctx context.Context, query ListUsers) ([]*dtos.DBUserDTO, error) {
+func (h *ListUsersHandler) Handle(ctx context.Context, query ListUsers) ([]connection.DBUser, error) {
 	conn, err := h.repo.FindByID(ctx, query.ConnectionID)
 	if err != nil {
 		return nil, err
@@ -47,15 +46,5 @@ func (h *ListUsersHandler) Handle(ctx context.Context, query ListUsers) ([]*dtos
 	timedCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	users, err := gateway.ListUsers(timedCtx, *conn, password)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*dtos.DBUserDTO, 0, len(users))
-	for _, user := range users {
-		result = append(result, dtos.NewDBUserDTO(user))
-	}
-
-	return result, nil
+	return gateway.ListUsers(timedCtx, *conn, password)
 }
