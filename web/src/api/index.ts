@@ -7,6 +7,7 @@ export { CancelablePromise, CancelError } from './core/CancelablePromise';
 export { OpenAPI } from './core/OpenAPI';
 export type { OpenAPIConfig } from './core/OpenAPI';
 
+export type { Column } from './models/Column';
 export { ColumnDataType } from './models/ColumnDataType';
 export { Connection } from './models/Connection';
 export type { ConnectionId } from './models/ConnectionId';
@@ -23,5 +24,6 @@ export type { Error } from './models/Error';
 export { OverviewResponse } from './models/OverviewResponse';
 export type { Session } from './models/Session';
 export type { Table } from './models/Table';
+export type { TableName } from './models/TableName';
 
 export { ConnectionsService } from './services/ConnectionsService';

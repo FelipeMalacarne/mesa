@@ -72,6 +72,15 @@ const (
 	UNREACHABLE OverviewResponseStatus = "UNREACHABLE"
 )
 
+// Column defines model for Column.
+type Column struct {
+	DataType     string  `json:"data_type"`
+	DefaultValue *string `json:"default_value,omitempty"`
+	IsNullable   bool    `json:"is_nullable"`
+	IsPrimary    bool    `json:"is_primary"`
+	Name         string  `json:"name"`
+}
+
 // ColumnDataType defines model for ColumnDataType.
 type ColumnDataType string
 
@@ -212,6 +221,9 @@ type ConnectionId = openapi_types.UUID
 // DatabaseName defines model for DatabaseName.
 type DatabaseName = string
 
+// TableName defines model for TableName.
+type TableName = string
+
 // CreateConnectionJSONRequestBody defines body for CreateConnection for application/json ContentType.
 type CreateConnectionJSONRequestBody = CreateConnectionRequest
 
@@ -247,6 +259,9 @@ type ServerInterface interface {
 	// Create a table in a database
 	// (POST /connections/{connectionID}/databases/{databaseName}/tables)
 	CreateTable(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName)
+	// ListColumns
+	// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns)
+	ListColumns(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName)
 	// Get Server Health & Overview
 	// (GET /connections/{connectionID}/overview)
 	GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
@@ -310,6 +325,12 @@ func (_ Unimplemented) ListTables(w http.ResponseWriter, r *http.Request, connec
 // Create a table in a database
 // (POST /connections/{connectionID}/databases/{databaseName}/tables)
 func (_ Unimplemented) CreateTable(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListColumns
+// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns)
+func (_ Unimplemented) ListColumns(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -520,6 +541,49 @@ func (siw *ServerInterfaceWrapper) CreateTable(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateTable(w, r, connectionID, databaseName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListColumns operation middleware
+func (siw *ServerInterfaceWrapper) ListColumns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "databaseName" -------------
+	var databaseName DatabaseName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "databaseName", chi.URLParam(r, "databaseName"), &databaseName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "databaseName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "tableName" -------------
+	var tableName TableName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tableName", chi.URLParam(r, "tableName"), &tableName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tableName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListColumns(w, r, connectionID, databaseName, tableName)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -821,6 +885,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables", wrapper.CreateTable)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns", wrapper.ListColumns)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/connections/{connectionID}/overview", wrapper.GetConnectionOverview)

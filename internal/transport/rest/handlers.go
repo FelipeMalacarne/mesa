@@ -9,6 +9,7 @@ import (
 
 	"github.com/felipemalacarne/mesa/internal/application/commands"
 	"github.com/felipemalacarne/mesa/internal/application/queries"
+	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	"github.com/felipemalacarne/mesa/internal/transport/rest/contract"
 	"github.com/felipemalacarne/mesa/web"
 	"github.com/google/uuid"
@@ -341,4 +342,41 @@ func (s *Server) PingConnection(w http.ResponseWriter, r *http.Request, connecti
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) ListColumns(
+	w http.ResponseWriter,
+	r *http.Request,
+	connectionID contract.ConnectionId,
+	databaseName contract.DatabaseName,
+	tableName contract.TableName,
+) {
+	dbName, err := connection.NewIdentifier(databaseName)
+	if err != nil {
+		http.Error(w, "invalid database name", http.StatusBadRequest)
+		return
+	}
+
+	tblName, err := connection.NewIdentifier(tableName)
+	if err != nil {
+		http.Error(w, "invalid table name", http.StatusBadRequest)
+	}
+
+	query := queries.ListColumns{
+		ConnectionID: uuid.UUID(connectionID),
+		DatabaseName: dbName,
+		TableName:    tblName,
+	}
+
+	cols, err := s.app.Queries.ListColumns.Handle(r.Context(), query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	resp := make([]contract.Column, len(cols))
+	for i, c := range cols {
+		resp[i] = newColumnResponse(c)
+	}
+
+	s.respondJSON(w, http.StatusOK, resp)
 }

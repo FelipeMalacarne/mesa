@@ -25,6 +25,7 @@ type Queries struct {
 	ListSessions    *queries.ListSessionsHandler
 	ListUsers       *queries.ListUsersHandler
 	PingConnection  *queries.PingConnectionHandler
+	ListColumns     *queries.ListColumnsHandler
 }
 
 type Commands struct {
@@ -51,6 +52,7 @@ func NewApp(repos Repositories, crypto domain.Cryptographer) *App {
 			ListSessions:    queries.NewListSessionsHandler(repos.Connection, crypto, repos.Gateways),
 			ListUsers:       queries.NewListUsersHandler(repos.Connection, crypto, repos.Gateways),
 			PingConnection:  queries.NewPingConnectionHandler(repos.Connection, crypto, repos.Gateways),
+			ListColumns: queries.NewListColumnsHandler(repos.Connection, crypto, repos.Gateways),
 		},
 		Commands: Commands{
 			CreateConnection: commands.NewCreateConnectionHandler(repos.Connection, crypto),

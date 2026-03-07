@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
+	"github.com/felipemalacarne/mesa/internal/transport/rest/contract"
 )
 
 type connectionResponse struct {
@@ -128,21 +129,13 @@ func newDBUserResponse(u connection.DBUser) dbUserResponse {
 	}
 }
 
-type columnResponse struct {
-	Name         string  `json:"name"`
-	DataType     string  `json:"data_type"`
-	IsNullable   bool    `json:"is_nullable"`
-	IsPrimary    bool    `json:"is_primary"`
-	DefaultValue *string `json:"default_value,omitempty"`
-}
-
-func newColumnResponse(c connection.Column) columnResponse {
+func newColumnResponse(c connection.Column) contract.Column {
 	var defaultValue *string
 	if c.DefaultValue != nil {
 		s := c.DefaultValue.String()
 		defaultValue = &s
 	}
-	return columnResponse{
+	return contract.Column{
 		Name:         c.Name.String(),
 		DataType:     c.DataType.Format(),
 		IsNullable:   c.IsNullable,

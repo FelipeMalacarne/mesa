@@ -5,7 +5,6 @@ MIGRATE ?= migrate
 SQLC ?= sqlc
 OPENAPI_PATH := ./openapi.yaml
 
-
 %:
 	@:
 
@@ -32,12 +31,9 @@ sqlc-generate:
 generate-app-key:
 	@openssl rand -hex 32
 
-.PHONY: codegen-api
-codegen-api:
+.PHONY: codegen
+codegen:
 	@oapi-codegen -generate chi,types -package contract -o internal/transport/rest/contract/api.gen.go openapi.yaml
-
-.PHONY: codegen-client
-codegen-client:
 	pnpm dlx openapi-typescript-codegen@0.29.0 --input $(OPENAPI_PATH) --output web/src/api --client fetch --useOptions
 
 .PHONY: seed

@@ -171,6 +171,26 @@ paths:
       responses:
         "201":
           description: Created
+  /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns:
+    get:
+      operationId: ListColumns
+      summary: ListColumns
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+        - $ref: "#/components/parameters/DatabaseName"
+        - $ref: "#/components/parameters/TableName"
+      responses:
+        "200":
+          description: Columns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Column"
+
   /connections/{connectionID}/users:
     get:
       operationId: ListUsers
@@ -255,6 +275,13 @@ components:
       schema:
         type: string
       description: Database name
+    TableName:
+      in: path
+      name: tableName
+      required: true
+      schema:
+        type: string
+      description: Table Name
   schemas:
     Connection:
       type: object
@@ -319,6 +346,21 @@ components:
         size:
           type: integer
           format: int64
+    Column:
+      type: object
+      required: [name, data_type, is_nullable, is_primary]
+      properties:
+        name:
+          type: string
+        data_type:
+          type: string
+        is_primary:
+          type: boolean
+        is_nullable:
+          type: boolean
+        default_value:
+          type: string
+
     Error:
       type: object
       required: [message]

@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { Column } from '../models/Column';
 import type { Connection } from '../models/Connection';
 import type { CreateConnectionRequest } from '../models/CreateConnectionRequest';
 import type { CreateDatabaseRequest } from '../models/CreateDatabaseRequest';
@@ -221,6 +222,39 @@ export class ConnectionsService {
             },
             body: requestBody,
             mediaType: 'application/json',
+        });
+    }
+    /**
+     * ListColumns
+     * @returns Column Columns
+     * @throws ApiError
+     */
+    public static listColumns({
+        connectionId,
+        databaseName,
+        tableName,
+    }: {
+        /**
+         * The unique identifier for the connection
+         */
+        connectionId: string,
+        /**
+         * Database name
+         */
+        databaseName: string,
+        /**
+         * Table Name
+         */
+        tableName: string,
+    }): CancelablePromise<Array<Column>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns',
+            path: {
+                'connectionID': connectionId,
+                'databaseName': databaseName,
+                'tableName': tableName,
+            },
         });
     }
     /**
