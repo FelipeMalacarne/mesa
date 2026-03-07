@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Link } from "@tanstack/react-router";
 
-import type { Table } from "@/api";
+import type { Table } from "@/api/mesaAPI.schemas";
 
 export type TableMenuItemProps = {
   connectionId: string;

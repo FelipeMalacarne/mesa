@@ -21,15 +21,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ApiError, ConnectionsService } from "@/api";
-import { CreateConnectionRequest } from "@/api/models/CreateConnectionRequest";
+import {
+  createConnection,
+  getListConnectionsQueryKey,
+} from "@/api/connections/connections";
 
 const formSchema = z.object({
   name: z
     .string()
     .min(3, "Connection name must be at least 3 characters.")
     .max(255, "Connection name must be at most 255 characters."),
-  driver: z.nativeEnum(CreateConnectionRequest.driver),
+  driver: z.enum(["postgres", "mysql"]),
   host: z
     .string()
     .min(1, "Host is required.")
@@ -52,13 +54,13 @@ const formSchema = z.object({
 type ConnectionFormValues = z.infer<typeof formSchema>;
 
 export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
-	const queryClient = useQueryClient();
-	const resolver = zodResolver(formSchema as unknown as never) as never;
-	const form = useForm<ConnectionFormValues>({
-		resolver,
+  const queryClient = useQueryClient();
+  const resolver = zodResolver(formSchema as unknown as never) as never;
+  const form = useForm<ConnectionFormValues>({
+    resolver,
     defaultValues: {
       name: "",
-      driver: CreateConnectionRequest.driver.POSTGRES,
+      driver: "postgres",
       host: "",
       port: 5432,
       username: "",
@@ -66,44 +68,35 @@ export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
     },
   });
 
-  const createConnection = useMutation({
-    mutationFn: (values: ConnectionFormValues) =>
-      ConnectionsService.createConnection({ requestBody: values }),
+  const createConnectionMutation = useMutation({
+    mutationFn: (values: ConnectionFormValues) => createConnection(values),
     onSuccess: (connection) => {
       toast("Connection created", {
         description: `${connection.name} (${connection.driver})`,
       });
-      queryClient.invalidateQueries({ queryKey: ["connections"] });
+      queryClient.invalidateQueries({ queryKey: getListConnectionsQueryKey() });
       form.reset();
       onSuccess?.();
     },
-    onError: (error) => {
-      const message =
-        error instanceof ApiError
-          ? (error.body?.message ??
-            error.statusText ??
-            `Request failed (${error.status})`)
-          : "Unable to create connection.";
-
-      toast("Connection failed", {
-        description: message,
-      });
+    onError: (error: { message?: string }) => {
+      const message = error?.message ?? "Unable to create connection.";
+      toast("Connection failed", { description: message });
     },
   });
 
   const isSubmitting =
-    createConnection.isPending || form.formState.isSubmitting;
+    createConnectionMutation.isPending || form.formState.isSubmitting;
 
   const onSubmit = async (values: ConnectionFormValues) => {
-    await createConnection.mutateAsync(values);
+    await createConnectionMutation.mutateAsync(values);
   };
 
   return (
     <Form {...form}>
       <form
-		id="connection-form"
-		onSubmit={form.handleSubmit(onSubmit)}
-		className="space-y-6"
+        id="connection-form"
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="space-y-6"
       >
         <FormField
           control={form.control}
@@ -130,24 +123,20 @@ export function ConnectionForm({ onSuccess }: { onSuccess?: () => void }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Driver</FormLabel>
-				<Select
-					name={field.name}
-					value={field.value}
-					onValueChange={field.onChange}
-					disabled={isSubmitting}
-				>
-					<FormControl>
-						<SelectTrigger>
-							<SelectValue placeholder="Select a driver" />
-						</SelectTrigger>
-					</FormControl>
-					<SelectContent>
-						<SelectItem value={CreateConnectionRequest.driver.POSTGRES}>
-							Postgres
-                  </SelectItem>
-                  <SelectItem value={CreateConnectionRequest.driver.MYSQL}>
-                    MySQL
-                  </SelectItem>
+              <Select
+                name={field.name}
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={isSubmitting}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a driver" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="postgres">Postgres</SelectItem>
+                  <SelectItem value="mysql">MySQL</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />

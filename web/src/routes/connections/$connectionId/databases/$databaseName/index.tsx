@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-import { ColumnDataType, type CreateTableIndex } from "@/api";
+import { ColumnDataType, type CreateTableIndex } from "@/api/mesaAPI.schemas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -318,37 +318,37 @@ function DatabaseDetail() {
 }
 
 const COLUMN_TYPE_OPTIONS = [
-  { value: ColumnDataType.UUID, label: "UUID" },
-  { value: ColumnDataType.TEXT, label: "Text" },
-  { value: ColumnDataType.VARCHAR, label: "Varchar" },
-  { value: ColumnDataType.CHAR, label: "Char" },
-  { value: ColumnDataType.INTEGER, label: "Integer" },
-  { value: ColumnDataType.BIGINT, label: "Bigint" },
-  { value: ColumnDataType.SMALLINT, label: "Smallint" },
-  { value: ColumnDataType.NUMERIC, label: "Numeric" },
-  { value: ColumnDataType.DECIMAL, label: "Decimal" },
-  { value: ColumnDataType.BOOLEAN, label: "Boolean" },
-  { value: ColumnDataType.TIMESTAMPTZ, label: "Timestamp TZ" },
-  { value: ColumnDataType.TIMESTAMP, label: "Timestamp" },
-  { value: ColumnDataType.DATE, label: "Date" },
-  { value: ColumnDataType.TIME, label: "Time" },
-  { value: ColumnDataType.JSONB, label: "JSONB" },
-  { value: ColumnDataType.JSON, label: "JSON" },
-  { value: ColumnDataType.BYTEA, label: "Bytea" },
-  { value: ColumnDataType.REAL, label: "Real" },
-  { value: ColumnDataType.DOUBLE_PRECISION, label: "Double precision" },
-  { value: ColumnDataType.SERIAL, label: "Serial" },
-  { value: ColumnDataType.BIGSERIAL, label: "Bigserial" },
+  { value: ColumnDataType.uuid, label: "UUID" },
+  { value: ColumnDataType.text, label: "Text" },
+  { value: ColumnDataType.varchar, label: "Varchar" },
+  { value: ColumnDataType.char, label: "Char" },
+  { value: ColumnDataType.integer, label: "Integer" },
+  { value: ColumnDataType.bigint, label: "Bigint" },
+  { value: ColumnDataType.smallint, label: "Smallint" },
+  { value: ColumnDataType.numeric, label: "Numeric" },
+  { value: ColumnDataType.decimal, label: "Decimal" },
+  { value: ColumnDataType.boolean, label: "Boolean" },
+  { value: ColumnDataType.timestamptz, label: "Timestamp TZ" },
+  { value: ColumnDataType.timestamp, label: "Timestamp" },
+  { value: ColumnDataType.date, label: "Date" },
+  { value: ColumnDataType.time, label: "Time" },
+  { value: ColumnDataType.jsonb, label: "JSONB" },
+  { value: ColumnDataType.json, label: "JSON" },
+  { value: ColumnDataType.bytea, label: "Bytea" },
+  { value: ColumnDataType.real, label: "Real" },
+  { value: ColumnDataType.double_precision, label: "Double precision" },
+  { value: ColumnDataType.serial, label: "Serial" },
+  { value: ColumnDataType.bigserial, label: "Bigserial" },
 ] as const;
 
 const LENGTH_TYPES = new Set<ColumnDataType>([
-  ColumnDataType.VARCHAR,
-  ColumnDataType.CHAR,
+  ColumnDataType.varchar,
+  ColumnDataType.char,
 ]);
 
 const PRECISION_TYPES = new Set<ColumnDataType>([
-  ColumnDataType.NUMERIC,
-  ColumnDataType.DECIMAL,
+  ColumnDataType.numeric,
+  ColumnDataType.decimal,
 ]);
 
 const INDEX_METHOD_OPTIONS = [
@@ -478,7 +478,7 @@ type BooleanFieldName =
 const createColumnField = (): ColumnFormValues => ({
   clientId: createId(),
   name: "",
-  type: ColumnDataType.TEXT,
+  type: ColumnDataType.text,
   length: "",
   precision: "",
   scale: "",

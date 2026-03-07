@@ -34,7 +34,7 @@ generate-app-key:
 .PHONY: codegen
 codegen:
 	@oapi-codegen -generate chi,types -package contract -o internal/transport/rest/contract/api.gen.go openapi.yaml
-	pnpm dlx openapi-typescript-codegen@0.29.0 --input $(OPENAPI_PATH) --output web/src/api --client fetch --useOptions
+	cd web && pnpm orval --config orval.config.ts
 
 .PHONY: seed
 seed:

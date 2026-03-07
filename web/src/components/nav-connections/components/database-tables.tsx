@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { ConnectionsService } from "@/api";
+import { listTables, getListTablesQueryKey } from "@/api/connections/connections";
 import { TableMenuItem } from "./table-menu-item";
 import { DisabledSubButton } from "./disabled-sub-button";
 import { Spinner } from "../../ui/spinner";
@@ -27,12 +27,8 @@ export const DatabaseTables = ({
     isError,
     error,
   } = useQuery({
-    queryKey: ["connection-tables", connectionId, databaseName],
-    queryFn: () =>
-      ConnectionsService.listTables({
-        connectionId,
-        databaseName,
-      }),
+    queryKey: getListTablesQueryKey(connectionId, databaseName),
+    queryFn: ({ signal }) => listTables(connectionId, databaseName, { signal }),
   });
 
   if (isLoading) {

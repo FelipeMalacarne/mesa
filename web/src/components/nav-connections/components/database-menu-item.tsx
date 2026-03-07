@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Link } from "@tanstack/react-router";
 
-import type { Database } from "@/api";
+import type { Database } from "@/api/mesaAPI.schemas";
 import { useNavConnectionsState } from "../state/context";
 import { DatabaseTables } from "./database-tables";
 import { databaseKey } from "../state/utils";

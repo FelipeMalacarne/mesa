@@ -12,7 +12,7 @@ import {
 import { ResponsiveDialog } from "./responsive-dialog";
 import { ConnectionForm } from "./connection-form";
 import { Button } from "./ui/button";
-import type { Connection } from "@/api";
+import type { Connection } from "@/api/mesaAPI.schemas";
 
 import {
   NavConnectionsProvider,

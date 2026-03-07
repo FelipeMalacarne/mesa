@@ -1,118 +1,109 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-	ConnectionsService,
-	type CreateDatabaseRequest,
-	type CreateTableRequest,
-	type CreateUserRequest,
-	type DBUser,
-	type Database,
-	type OverviewResponse,
-	type Session,
-} from "@/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+  useFindConnection,
+  useGetConnectionOverview,
+  useListDatabases,
+  useListUsers,
+  useListSessions,
+  createDatabase,
+  createUser,
+  createTable,
+  killSession,
+  getListDatabasesQueryKey,
+  getListUsersQueryKey,
+  getListSessionsQueryKey,
+  getListTablesQueryKey,
+} from "@/api/connections/connections";
+import type {
+  CreateDatabaseRequest,
+  CreateUserRequest,
+  CreateTableRequest,
+} from "@/api/mesaAPI.schemas";
 
 type ConnectionID = string;
 
-const queryKey = (id: ConnectionID, resource: string) => ["connection", id, resource];
-
 export function useConnectionDetails(connectionId: ConnectionID) {
-  return useQuery({
-    queryKey: queryKey(connectionId, "details"),
-    enabled: Boolean(connectionId),
-    queryFn: () => ConnectionsService.findConnection({ connectionId }),
-    staleTime: 1000 * 30,
+  return useFindConnection(connectionId, {
+    query: { staleTime: 1000 * 30, enabled: Boolean(connectionId) },
   });
 }
 
 export function useConnectionOverview(connectionId: ConnectionID) {
-  return useQuery<OverviewResponse>({
-    queryKey: queryKey(connectionId, "overview"),
-    enabled: Boolean(connectionId),
-    queryFn: () =>
-      ConnectionsService.getConnectionOverview({ connectionId }),
-    staleTime: 1000 * 30,
+  return useGetConnectionOverview(connectionId, {
+    query: { staleTime: 1000 * 30, enabled: Boolean(connectionId) },
   });
 }
 
 export function useConnectionDatabases(connectionId: ConnectionID) {
-  return useQuery<Database[]>({
-    queryKey: queryKey(connectionId, "databases"),
-    enabled: Boolean(connectionId),
-    queryFn: () => ConnectionsService.listDatabases({ connectionId }),
-    staleTime: 1000 * 60 * 5,
+  return useListDatabases(connectionId, {
+    query: { staleTime: 1000 * 60 * 5, enabled: Boolean(connectionId) },
   });
 }
 
 export function useConnectionUsers(connectionId: ConnectionID) {
-  return useQuery<DBUser[]>({
-    queryKey: queryKey(connectionId, "users"),
-    enabled: Boolean(connectionId),
-    queryFn: () => ConnectionsService.listUsers({ connectionId }),
-    staleTime: 1000 * 60 * 5,
+  return useListUsers(connectionId, {
+    query: { staleTime: 1000 * 60 * 5, enabled: Boolean(connectionId) },
   });
 }
 
 export function useConnectionSessions(connectionId: ConnectionID) {
-  return useQuery<Session[]>({
-    queryKey: queryKey(connectionId, "sessions"),
-    enabled: Boolean(connectionId),
-    queryFn: () => ConnectionsService.listSessions({ connectionId }),
-    refetchInterval: 5000,
-    refetchOnWindowFocus: true,
+  return useListSessions(connectionId, {
+    query: { refetchInterval: 5000, refetchOnWindowFocus: true },
   });
 }
 
 export function useCreateDatabase(connectionId: ConnectionID) {
   const client = useQueryClient();
   return useMutation({
-	mutationFn: (payload: CreateDatabaseRequest) =>
-	  ConnectionsService.createDatabase({
-		connectionId,
-		requestBody: payload,
-	  }),
+    mutationFn: (payload: CreateDatabaseRequest) =>
+      createDatabase(connectionId, payload),
     onSuccess: () => {
-      client.invalidateQueries({ queryKey: queryKey(connectionId, "databases") });
+      client.invalidateQueries({
+        queryKey: getListDatabasesQueryKey(connectionId),
+      });
     },
   });
 }
 
 export function useCreateUser(connectionId: ConnectionID) {
-	const client = useQueryClient();
-	return useMutation({
-		mutationFn: (payload: CreateUserRequest) =>
-			ConnectionsService.createUser({
-				connectionId,
-				requestBody: payload,
-			}),
-		onSuccess: () => {
-			client.invalidateQueries({ queryKey: queryKey(connectionId, "users") });
-		},
-	});
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateUserRequest) =>
+      createUser(connectionId, payload),
+    onSuccess: () => {
+      client.invalidateQueries({
+        queryKey: getListUsersQueryKey(connectionId),
+      });
+    },
+  });
 }
 
-export function useCreateTable(connectionId: ConnectionID, databaseName: string) {
-	const client = useQueryClient();
-	return useMutation({
-		mutationFn: (payload: CreateTableRequest) =>
-			ConnectionsService.createTable({
-				connectionId,
-				databaseName,
-				requestBody: payload,
-			}),
-		onSuccess: () => {
-			client.invalidateQueries({
-				queryKey: ["connection-tables", connectionId, databaseName],
-			});
-		},
-	});
+export function useCreateTable(
+  connectionId: ConnectionID,
+  databaseName: string
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateTableRequest) =>
+      createTable(connectionId, databaseName, payload),
+    onSuccess: () => {
+      client.invalidateQueries({
+        queryKey: getListTablesQueryKey(connectionId, databaseName),
+      });
+    },
+  });
 }
 
 export function useKillSession(connectionId: ConnectionID) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (pid: number) =>
-      ConnectionsService.killSession({ connectionId, pid }),
+    mutationFn: (pid: number) => killSession(connectionId, pid),
     onSuccess: () => {
-      client.invalidateQueries({ queryKey: queryKey(connectionId, "sessions") });
+      client.invalidateQueries({
+        queryKey: getListSessionsQueryKey(connectionId),
+      });
     },
   });
 }
+
+export type { CreateDatabaseRequest, CreateUserRequest, CreateTableRequest };

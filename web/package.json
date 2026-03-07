@@ -6,7 +6,8 @@
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build && tsc",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "codegen": "orval --config orval.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",
@@ -50,6 +51,7 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
     "jsdom": "^27.0.0",
+    "orval": "^8.5.3",
     "typescript": "^5.7.2",
     "vite": "^7.1.7",
     "vitest": "^3.0.5",

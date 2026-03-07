@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { ConnectionsService } from "@/api";
+import { listDatabases, getListDatabasesQueryKey } from "@/api/connections/connections";
 import { DatabaseMenuItem } from "./database-menu-item";
 import { DisabledSubButton } from "./disabled-sub-button";
 import { Spinner } from "../../ui/spinner";
@@ -27,8 +27,8 @@ export const ConnectionDatabases = ({
     isError,
     error,
   } = useQuery({
-    queryKey: ["connection-databases", connectionId],
-    queryFn: () => ConnectionsService.listDatabases({ connectionId }),
+    queryKey: getListDatabasesQueryKey(connectionId),
+    queryFn: ({ signal }) => listDatabases(connectionId, { signal }),
   });
 
   if (isLoading) {

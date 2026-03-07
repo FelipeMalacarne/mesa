@@ -13,7 +13,8 @@ import {
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 
-import { Connection, ConnectionsService } from "@/api";
+import type { Connection } from "@/api/mesaAPI.schemas";
+import { pingConnection, getPingConnectionQueryKey } from "@/api/connections/connections";
 import { ConnectionDatabases } from "./connection-databases";
 import { DisabledSubButton } from "./disabled-sub-button";
 import { useNavConnectionsState } from "../state/context";
@@ -38,9 +39,9 @@ export const ConnectionMenuItem = ({
     activeState.connectionId === connection.id && !activeState.databaseName;
 
   const { isLoading, isError, error } = useQuery({
-    queryKey: ["connections", connection.id, "ping"],
-    queryFn: async () => {
-      await ConnectionsService.pingConnection({ connectionId: connection.id });
+    queryKey: getPingConnectionQueryKey(connection.id),
+    queryFn: async ({ signal }) => {
+      await pingConnection(connection.id, { signal });
       return true;
     },
     retry: false, // Don't retry if it fails, it's a ping

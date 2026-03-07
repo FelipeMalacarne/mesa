@@ -13,7 +13,7 @@ import {
 import { NavConnections } from "./nav-connections";
 import { NavMain } from "./nav-main";
 import { useQuery } from "@tanstack/react-query";
-import { ConnectionsService } from "@/api";
+import { listConnections, getListConnectionsQueryKey, useListColumns } from "@/api/connections/connections";
 
 const navMain = [
   {
@@ -30,8 +30,8 @@ const navMain = [
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
   const { data: connections = [], isLoading } = useQuery({
-    queryKey: ["connections"],
-    queryFn: async () => (await ConnectionsService.listConnections()) ?? [],
+    queryKey: getListConnectionsQueryKey(),
+    queryFn: ({ signal }) => listConnections({ signal }),
   });
 
   return (
