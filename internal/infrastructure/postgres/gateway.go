@@ -172,15 +172,27 @@ ORDER BY c.ordinal_position;
 	var columns []connection.Column
 	for rows.Next() {
 		var col connection.Column
-		var isNullable string
+		var colName, dataType, isNullable string
 		var defaultValue sql.NullString
-		if err := rows.Scan(&col.Name, &col.DataType, &isNullable, &col.IsPrimary, &defaultValue); err != nil {
+		if err := rows.Scan(&colName, &dataType, &isNullable, &col.IsPrimary, &defaultValue); err != nil {
 			return nil, fmt.Errorf("%w: scanning column: %v", connection.ErrQueryFailed, err)
 		}
 
+		nameIdent, err := connection.NewIdentifier(colName)
+		if err != nil {
+			return nil, fmt.Errorf("%w: invalid column name '%s': %v", connection.ErrQueryFailed, colName, err)
+		}
+		col.Name = nameIdent
+
+		dt, err := connection.NewDataType(dataType, nil, nil)
+		if err != nil {
+			return nil, fmt.Errorf("%w: invalid data type '%s' for column '%s': %v", connection.ErrQueryFailed, dataType, colName, err)
+		}
+		col.DataType = dt
+
 		col.IsNullable = isNullable == "YES"
 		if defaultValue.Valid {
-			value := connection.NewDefaultValue(defaultValue.String) 
+			value := connection.NewDefaultValue(defaultValue.String)
 			col.DefaultValue = &value
 		}
 		columns = append(columns, col)
