@@ -4,6 +4,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -13,7 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ColumnDef } from "@tanstack/react-table";
 import { useListColumns } from "@/api/connections/connections";
 
 export const Route = createFileRoute(
@@ -27,102 +27,26 @@ export const Route = createFileRoute(
   },
 });
 
-export type Payment = {
-  id: string;
-  amount: number;
-  status: "pending" | "processing" | "success" | "failed";
-  email: string;
-};
-
-export const columns: ColumnDef<Payment>[] = [
-  {
-    accessorKey: "status",
-    header: "Status",
-  },
-  {
-    accessorKey: "email",
-    header: "Email",
-  },
-  {
-    accessorKey: "amount",
-    header: "Amount",
-  },
-];
-
-function getData(): Payment[] {
-  // Fetch data from your API here.
-  return [
-    {
-      id: "728ed52f",
-      amount: 100,
-      status: "pending",
-      email: "m@example.com",
-    },
-    // ...
-  ];
+function ColumnsSkeleton() {
+  return (
+    <div className="animate-in fade-in-0 duration-300 delay-150 space-y-2">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Skeleton key={i} className="h-10 w-full" />
+      ))}
+    </div>
+  );
 }
 
 function DatabaseTable() {
   const { tableName, databaseName, connectionId } = Route.useParams();
-  console.log("Params:", { connectionId, databaseName, tableName });
 
-  const { data: columns } = useListColumns(
-    connectionId!,
-    databaseName!,
-    tableName!,
+  const { data: columns, isLoading, isError } = useListColumns(
+    connectionId,
+    databaseName,
+    tableName,
+    { query: { staleTime: 60_000 } },
   );
 
-  console.log(columns);
-  if (!columns) {
-    return <div>Loading...</div>;
-  }
-
-  const summary = {
-    rows: "1.2M",
-    size: "840 MB",
-    indexSize: "210 MB",
-    lastAnalyze: "18m ago",
-    columns: 14,
-  };
-
-  // const columns = [
-  //   {
-  //     name: "id",
-  //     type: "uuid",
-  //     nullable: false,
-  //     defaultValue: "gen_random_uuid()",
-  //     tags: ["PK"],
-  //   },
-  //   {
-  //     name: "customer_id",
-  //     type: "uuid",
-  //     nullable: false,
-  //     defaultValue: null,
-  //     tags: ["FK"],
-  //   },
-  //   {
-  //     name: "status",
-  //     type: "text",
-  //     nullable: false,
-  //     defaultValue: "pending",
-  //     tags: [],
-  //   },
-  //   {
-  //     name: "total_cents",
-  //     type: "int4",
-  //     nullable: false,
-  //     defaultValue: "0",
-  //     tags: [],
-  //   },
-  //   {
-  //     name: "created_at",
-  //     type: "timestamptz",
-  //     nullable: false,
-  //     defaultValue: "now()",
-  //     tags: [],
-  //   },
-  // ];
-  //
   const indexes = [
     {
       name: "orders_pkey",
@@ -204,38 +128,42 @@ function DatabaseTable() {
               <TabsTrigger value="sample">Sample data</TabsTrigger>
             </TabsList>
             <TabsContent value="columns" className="mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Nullable</TableHead>
-                    <TableHead>Default</TableHead>
-                    <TableHead>Tags</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {columns.map((column) => (
-                    <TableRow key={column.name}>
-                      <TableCell className="font-medium">
-                        {column.name}
-                      </TableCell>
-                      <TableCell>{column.type}</TableCell>
-                      <TableCell>{column.nullable ? "Yes" : "No"}</TableCell>
-                      <TableCell>{column.default_value ?? "-"}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
+              {isLoading ? (
+                <ColumnsSkeleton />
+              ) : isError ? (
+                <p className="text-sm text-destructive">Failed to load columns.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Nullable</TableHead>
+                      <TableHead>Default</TableHead>
+                      <TableHead>Tags</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {columns?.map((column) => (
+                      <TableRow key={column.name}>
+                        <TableCell className="font-medium">
+                          {column.name}
+                        </TableCell>
+                        <TableCell>{column.type}</TableCell>
+                        <TableCell>{column.nullable ? "Yes" : "No"}</TableCell>
+                        <TableCell>{column.default_value ?? "-"}</TableCell>
+                        <TableCell>
                           {column.primary ? (
                             <Badge variant="secondary">PK</Badge>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </TabsContent>
             <TabsContent value="indexes" className="mt-4">
               <Table>
