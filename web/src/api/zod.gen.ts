@@ -197,9 +197,9 @@ export const ListColumnsParams = zod.object({
 
 export const ListColumnsResponseItem = zod.object({
   "name": zod.string(),
-  "data_type": zod.string(),
-  "is_primary": zod.boolean(),
-  "is_nullable": zod.boolean(),
+  "type": zod.string(),
+  "primary": zod.boolean(),
+  "nullable": zod.boolean(),
   "default_value": zod.string().optional()
 })
 export const ListColumnsResponse = zod.array(ListColumnsResponseItem)

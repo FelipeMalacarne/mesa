@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DataTable } from "@/components/data-table";
+import { useListColumns } from "@/api/connections/connections";
 
 export const Route = createFileRoute(
   "/connections/$connectionId/databases/$databaseName/tables/$tableName",
@@ -63,7 +63,20 @@ function getData(): Payment[] {
 }
 
 function DatabaseTable() {
-  const { tableName } = Route.useParams();
+  const { tableName, databaseName, connectionId } = Route.useParams();
+  console.log("Params:", { connectionId, databaseName, tableName });
+
+  const { data: columns } = useListColumns(
+    connectionId!,
+    databaseName!,
+    tableName!,
+  );
+
+  console.log(columns);
+  if (!columns) {
+    return <div>Loading...</div>;
+  }
+
   const summary = {
     rows: "1.2M",
     size: "840 MB",
@@ -72,44 +85,44 @@ function DatabaseTable() {
     columns: 14,
   };
 
-  const columns = [
-    {
-      name: "id",
-      type: "uuid",
-      nullable: false,
-      defaultValue: "gen_random_uuid()",
-      tags: ["PK"],
-    },
-    {
-      name: "customer_id",
-      type: "uuid",
-      nullable: false,
-      defaultValue: null,
-      tags: ["FK"],
-    },
-    {
-      name: "status",
-      type: "text",
-      nullable: false,
-      defaultValue: "pending",
-      tags: [],
-    },
-    {
-      name: "total_cents",
-      type: "int4",
-      nullable: false,
-      defaultValue: "0",
-      tags: [],
-    },
-    {
-      name: "created_at",
-      type: "timestamptz",
-      nullable: false,
-      defaultValue: "now()",
-      tags: [],
-    },
-  ];
-
+  // const columns = [
+  //   {
+  //     name: "id",
+  //     type: "uuid",
+  //     nullable: false,
+  //     defaultValue: "gen_random_uuid()",
+  //     tags: ["PK"],
+  //   },
+  //   {
+  //     name: "customer_id",
+  //     type: "uuid",
+  //     nullable: false,
+  //     defaultValue: null,
+  //     tags: ["FK"],
+  //   },
+  //   {
+  //     name: "status",
+  //     type: "text",
+  //     nullable: false,
+  //     defaultValue: "pending",
+  //     tags: [],
+  //   },
+  //   {
+  //     name: "total_cents",
+  //     type: "int4",
+  //     nullable: false,
+  //     defaultValue: "0",
+  //     tags: [],
+  //   },
+  //   {
+  //     name: "created_at",
+  //     type: "timestamptz",
+  //     nullable: false,
+  //     defaultValue: "now()",
+  //     tags: [],
+  //   },
+  // ];
+  //
   const indexes = [
     {
       name: "orders_pkey",

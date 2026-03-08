@@ -137,9 +137,9 @@ func newColumnResponse(c connection.Column) contract.Column {
 	}
 	return contract.Column{
 		Name:         c.Name.String(),
-		DataType:     c.DataType.Format(),
-		IsNullable:   c.IsNullable,
-		IsPrimary:    c.IsPrimary,
+		Type:     c.Type.Format(),
+		Nullable: c.Nullable,
+		Primary:  c.Primary,
 		DefaultValue: defaultValue,
 	}
 }

@@ -66,9 +66,9 @@ export interface Table {
 
 export interface Column {
   name: string;
-  data_type: string;
-  is_primary: boolean;
-  is_nullable: boolean;
+  type: string;
+  primary: boolean;
+  nullable: boolean;
   default_value?: string;
 }
 

@@ -19,9 +19,9 @@ type Table struct {
 
 type Column struct {
 	Name         Identifier
-	DataType     DataType
-	IsNullable   bool
-	IsPrimary    bool
+	Type         DataType
+	Nullable     bool
+	Primary      bool
 	DefaultValue *DefaultValue
 }
 

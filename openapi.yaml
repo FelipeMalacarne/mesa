@@ -348,15 +348,15 @@ components:
           format: int64
     Column:
       type: object
-      required: [name, data_type, is_nullable, is_primary]
+      required: [name, type, nullable, primary]
       properties:
         name:
           type: string
-        data_type:
+        type:
           type: string
-        is_primary:
+        primary:
           type: boolean
-        is_nullable:
+        nullable:
           type: boolean
         default_value:
           type: string

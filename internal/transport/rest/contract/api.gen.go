@@ -74,11 +74,11 @@ const (
 
 // Column defines model for Column.
 type Column struct {
-	DataType     string  `json:"data_type"`
 	DefaultValue *string `json:"default_value,omitempty"`
-	IsNullable   bool    `json:"is_nullable"`
-	IsPrimary    bool    `json:"is_primary"`
 	Name         string  `json:"name"`
+	Nullable     bool    `json:"nullable"`
+	Primary      bool    `json:"primary"`
+	Type         string  `json:"type"`
 }
 
 // ColumnDataType defines model for ColumnDataType.

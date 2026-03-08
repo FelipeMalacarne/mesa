@@ -174,7 +174,7 @@ ORDER BY c.ordinal_position;
 		var col connection.Column
 		var colName, dataType, isNullable string
 		var defaultValue sql.NullString
-		if err := rows.Scan(&colName, &dataType, &isNullable, &col.IsPrimary, &defaultValue); err != nil {
+		if err := rows.Scan(&colName, &dataType, &isNullable, &col.Primary, &defaultValue); err != nil {
 			return nil, fmt.Errorf("%w: scanning column: %v", connection.ErrQueryFailed, err)
 		}
 
@@ -188,9 +188,9 @@ ORDER BY c.ordinal_position;
 		if err != nil {
 			return nil, fmt.Errorf("%w: invalid data type '%s' for column '%s': %v", connection.ErrQueryFailed, dataType, colName, err)
 		}
-		col.DataType = dt
+		col.Type = dt
 
-		col.IsNullable = isNullable == "YES"
+		col.Nullable = isNullable == "YES"
 		if defaultValue.Valid {
 			value := connection.NewDefaultValue(defaultValue.String)
 			col.DefaultValue = &value
