@@ -40,12 +40,13 @@ function ColumnsSkeleton() {
 function DatabaseTable() {
   const { tableName, databaseName, connectionId } = Route.useParams();
 
-  const { data: columns, isLoading, isError } = useListColumns(
-    connectionId,
-    databaseName,
-    tableName,
-    { query: { staleTime: 60_000 } },
-  );
+  const {
+    data: columns,
+    isLoading,
+    isError,
+  } = useListColumns(connectionId, databaseName, tableName, {
+    query: { staleTime: 60_000 },
+  });
 
   const indexes = [
     {
@@ -116,110 +117,97 @@ function DatabaseTable() {
 
       {/* <DataTable columns={columns} data={sampleRows} /> */}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Inspector</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="columns">
-            <TabsList variant="line">
-              <TabsTrigger value="columns">Columns</TabsTrigger>
-              <TabsTrigger value="indexes">Indexes</TabsTrigger>
-              <TabsTrigger value="sample">Sample data</TabsTrigger>
-            </TabsList>
-            <TabsContent value="columns" className="mt-4">
-              {isLoading ? (
-                <ColumnsSkeleton />
-              ) : isError ? (
-                <p className="text-sm text-destructive">Failed to load columns.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Nullable</TableHead>
-                      <TableHead>Default</TableHead>
-                      <TableHead>Tags</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {columns?.map((column) => (
-                      <TableRow key={column.name}>
-                        <TableCell className="font-medium">
-                          {column.name}
-                        </TableCell>
-                        <TableCell>{column.type}</TableCell>
-                        <TableCell>{column.nullable ? "Yes" : "No"}</TableCell>
-                        <TableCell>{column.default_value ?? "-"}</TableCell>
-                        <TableCell>
-                          {column.primary ? (
-                            <Badge variant="secondary">PK</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </TabsContent>
-            <TabsContent value="indexes" className="mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Columns</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Unique</TableHead>
+      <Tabs defaultValue="columns">
+        <TabsList variant="line">
+          <TabsTrigger value="columns">Columns</TabsTrigger>
+          <TabsTrigger value="indexes">Indexes</TabsTrigger>
+          <TabsTrigger value="sample">Sample data</TabsTrigger>
+        </TabsList>
+        <TabsContent value="columns" className="mt-4">
+          {isLoading ? (
+            <ColumnsSkeleton />
+          ) : isError ? (
+            <p className="text-sm text-destructive">Failed to load columns.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Nullable</TableHead>
+                  <TableHead>Default</TableHead>
+                  <TableHead>Tags</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {columns?.map((column) => (
+                  <TableRow key={column.name}>
+                    <TableCell className="font-medium">{column.name}</TableCell>
+                    <TableCell>{column.type}</TableCell>
+                    <TableCell>{column.nullable ? "Yes" : "No"}</TableCell>
+                    <TableCell>{column.default_value ?? "-"}</TableCell>
+                    <TableCell>
+                      {column.primary ? (
+                        <Badge variant="secondary">PK</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {indexes.map((index) => (
-                    <TableRow key={index.name}>
-                      <TableCell className="font-medium">
-                        {index.name}
-                      </TableCell>
-                      <TableCell>{index.type}</TableCell>
-                      <TableCell>{index.columns}</TableCell>
-                      <TableCell>{index.size}</TableCell>
-                      <TableCell>{index.unique ? "Yes" : "No"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            <TabsContent value="sample" className="mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Created</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sampleRows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-medium">{row.id}</TableCell>
-                      <TableCell>{row.customer_id}</TableCell>
-                      <TableCell className="capitalize">{row.status}</TableCell>
-                      <TableCell>
-                        ${(row.total_cents / 100).toFixed(2)}
-                      </TableCell>
-                      <TableCell>{row.created_at}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+        <TabsContent value="indexes" className="mt-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Columns</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead>Unique</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {indexes.map((index) => (
+                <TableRow key={index.name}>
+                  <TableCell className="font-medium">{index.name}</TableCell>
+                  <TableCell>{index.type}</TableCell>
+                  <TableCell>{index.columns}</TableCell>
+                  <TableCell>{index.size}</TableCell>
+                  <TableCell>{index.unique ? "Yes" : "No"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TabsContent>
+        <TabsContent value="sample" className="mt-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sampleRows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="font-medium">{row.id}</TableCell>
+                  <TableCell>{row.customer_id}</TableCell>
+                  <TableCell className="capitalize">{row.status}</TableCell>
+                  <TableCell>${(row.total_cents / 100).toFixed(2)}</TableCell>
+                  <TableCell>{row.created_at}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
