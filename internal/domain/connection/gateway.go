@@ -7,6 +7,7 @@ type Inspector interface {
 	GetDatabases(ctx context.Context, conn Connection, password string) ([]Database, error)
 	GetTables(ctx context.Context, conn Connection, password string, dbName Identifier) ([]Table, error)
 	GetColumns(ctx context.Context, conn Connection, password string, dbName, tableName Identifier) ([]Column, error)
+	QueryTableRows(ctx context.Context, conn Connection, password string, dbName, tableName Identifier, limit, offset int, sortBy *Identifier, sortOrder string) (*TableRows, error)
 }
 
 // Monitor checks runtime health and active sessions.

@@ -72,6 +72,12 @@ const (
 	UNREACHABLE OverviewResponseStatus = "UNREACHABLE"
 )
 
+// Defines values for QueryTableRowsParamsSortOrder.
+const (
+	Asc  QueryTableRowsParamsSortOrder = "asc"
+	Desc QueryTableRowsParamsSortOrder = "desc"
+)
+
 // Column defines model for Column.
 type Column struct {
 	DefaultValue *string `json:"default_value,omitempty"`
@@ -215,6 +221,15 @@ type Table struct {
 	Type     string `json:"type"`
 }
 
+// TableRowsResponse defines model for TableRowsResponse.
+type TableRowsResponse struct {
+	Columns []string        `json:"columns"`
+	Limit   int             `json:"limit"`
+	Offset  int             `json:"offset"`
+	Rows    [][]interface{} `json:"rows"`
+	Total   int64           `json:"total"`
+}
+
 // ConnectionId defines model for ConnectionId.
 type ConnectionId = openapi_types.UUID
 
@@ -223,6 +238,17 @@ type DatabaseName = string
 
 // TableName defines model for TableName.
 type TableName = string
+
+// QueryTableRowsParams defines parameters for QueryTableRows.
+type QueryTableRowsParams struct {
+	Limit     *int                           `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset    *int                           `form:"offset,omitempty" json:"offset,omitempty"`
+	SortBy    *string                        `form:"sort_by,omitempty" json:"sort_by,omitempty"`
+	SortOrder *QueryTableRowsParamsSortOrder `form:"sort_order,omitempty" json:"sort_order,omitempty"`
+}
+
+// QueryTableRowsParamsSortOrder defines parameters for QueryTableRows.
+type QueryTableRowsParamsSortOrder string
 
 // CreateConnectionJSONRequestBody defines body for CreateConnection for application/json ContentType.
 type CreateConnectionJSONRequestBody = CreateConnectionRequest
@@ -262,6 +288,9 @@ type ServerInterface interface {
 	// ListColumns
 	// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns)
 	ListColumns(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName)
+	// QueryTableRows
+	// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows)
+	QueryTableRows(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName, params QueryTableRowsParams)
 	// Get Server Health & Overview
 	// (GET /connections/{connectionID}/overview)
 	GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
@@ -331,6 +360,12 @@ func (_ Unimplemented) CreateTable(w http.ResponseWriter, r *http.Request, conne
 // ListColumns
 // (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns)
 func (_ Unimplemented) ListColumns(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// QueryTableRows
+// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows)
+func (_ Unimplemented) QueryTableRows(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName, params QueryTableRowsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -584,6 +619,84 @@ func (siw *ServerInterfaceWrapper) ListColumns(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListColumns(w, r, connectionID, databaseName, tableName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryTableRows operation middleware
+func (siw *ServerInterfaceWrapper) QueryTableRows(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "databaseName" -------------
+	var databaseName DatabaseName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "databaseName", chi.URLParam(r, "databaseName"), &databaseName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "databaseName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "tableName" -------------
+	var tableName TableName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tableName", chi.URLParam(r, "tableName"), &tableName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tableName", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params QueryTableRowsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "sort_by" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "sort_by", r.URL.Query(), &params.SortBy)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort_by", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "sort_order" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "sort_order", r.URL.Query(), &params.SortOrder)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort_order", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryTableRows(w, r, connectionID, databaseName, tableName, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -888,6 +1001,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns", wrapper.ListColumns)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows", wrapper.QueryTableRows)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/connections/{connectionID}/overview", wrapper.GetConnectionOverview)

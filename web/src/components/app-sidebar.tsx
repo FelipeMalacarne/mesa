@@ -13,7 +13,7 @@ import {
 import { NavConnections } from "./nav-connections";
 import { NavMain } from "./nav-main";
 import { useQuery } from "@tanstack/react-query";
-import { listConnections, getListConnectionsQueryKey, useListColumns } from "@/api/connections/connections";
+import { listConnections, getListConnectionsQueryKey } from "@/api/connections/connections";
 
 const navMain = [
   {

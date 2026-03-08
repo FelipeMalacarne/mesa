@@ -206,6 +206,39 @@ export const ListColumnsResponse = zod.array(ListColumnsResponseItem)
 
 
 /**
+ * @summary QueryTableRows
+ */
+export const QueryTableRowsParams = zod.object({
+  "connectionID": zod.uuid().describe('The unique identifier for the connection'),
+  "databaseName": zod.string().describe('Database name'),
+  "tableName": zod.string().describe('Table Name')
+})
+
+export const queryTableRowsQueryLimitDefault = 50;
+export const queryTableRowsQueryLimitMax = 500;
+
+export const queryTableRowsQueryOffsetDefault = 0;
+export const queryTableRowsQueryOffsetMin = 0;
+
+export const queryTableRowsQuerySortOrderDefault = `asc`;
+
+export const QueryTableRowsQueryParams = zod.object({
+  "limit": zod.number().min(1).max(queryTableRowsQueryLimitMax).default(queryTableRowsQueryLimitDefault),
+  "offset": zod.number().min(queryTableRowsQueryOffsetMin).default(queryTableRowsQueryOffsetDefault),
+  "sort_by": zod.string().optional(),
+  "sort_order": zod.enum(['asc', 'desc']).default(queryTableRowsQuerySortOrderDefault)
+})
+
+export const QueryTableRowsResponse = zod.object({
+  "columns": zod.array(zod.string()),
+  "rows": zod.array(zod.array(zod.unknown())),
+  "total": zod.number(),
+  "limit": zod.number(),
+  "offset": zod.number()
+})
+
+
+/**
  * @summary List database users (roles)
  */
 export const ListUsersParams = zod.object({

@@ -205,6 +205,78 @@ ORDER BY c.ordinal_position;
 	return columns, nil
 }
 
+func (h *Gateway) QueryTableRows(ctx context.Context, conn connection.Connection, password string, dbName, tableName connection.Identifier, limit, offset int, sortBy *connection.Identifier, sortOrder string) (*connection.TableRows, error) {
+	db, err := h.connect(conn, password, dbName)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	var total int64
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "public".%s`, tableName.Quoted())
+	if err := db.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
+		return nil, fmt.Errorf("%w: counting rows: %v", connection.ErrQueryFailed, err)
+	}
+
+	dataQuery := fmt.Sprintf(`SELECT * FROM "public".%s`, tableName.Quoted())
+	if sortBy != nil {
+		order := "ASC"
+		if sortOrder == "desc" {
+			order = "DESC"
+		}
+		dataQuery += fmt.Sprintf(" ORDER BY %s %s", sortBy.Quoted(), order)
+	}
+	dataQuery += fmt.Sprintf(" LIMIT %d OFFSET %d", limit, offset)
+
+	rows, err := db.QueryContext(ctx, dataQuery)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", connection.ErrQueryFailed, err)
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("%w: getting columns: %v", connection.ErrQueryFailed, err)
+	}
+
+	var result [][]any
+	for rows.Next() {
+		raw := make([]any, len(cols))
+		ptrs := make([]any, len(cols))
+		for i := range raw {
+			ptrs[i] = &raw[i]
+		}
+		if err := rows.Scan(ptrs...); err != nil {
+			return nil, fmt.Errorf("%w: scanning row: %v", connection.ErrQueryFailed, err)
+		}
+		row := make([]any, len(cols))
+		for i, v := range raw {
+			if b, ok := v.([]byte); ok {
+				row[i] = string(b)
+			} else {
+				row[i] = v
+			}
+		}
+		result = append(result, row)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%w: iterating rows: %v", connection.ErrQueryFailed, err)
+	}
+
+	if result == nil {
+		result = [][]any{}
+	}
+
+	return &connection.TableRows{
+		Columns: cols,
+		Rows:    result,
+		Total:   total,
+		Limit:   limit,
+		Offset:  offset,
+	}, nil
+}
+
 // --- Monitor Implementation ---
 
 func (h *Gateway) Ping(ctx context.Context, conn connection.Connection, password string) error {

@@ -344,6 +344,74 @@ func (s *Server) PingConnection(w http.ResponseWriter, r *http.Request, connecti
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) QueryTableRows(
+	w http.ResponseWriter,
+	r *http.Request,
+	connectionID contract.ConnectionId,
+	databaseName contract.DatabaseName,
+	tableName contract.TableName,
+	params contract.QueryTableRowsParams,
+) {
+	dbName, err := connection.NewIdentifier(databaseName)
+	if err != nil {
+		s.respondError(w, http.StatusBadRequest, "invalid database name")
+		return
+	}
+
+	tblName, err := connection.NewIdentifier(tableName)
+	if err != nil {
+		s.respondError(w, http.StatusBadRequest, "invalid table name")
+		return
+	}
+
+	limit := 50
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+
+	offset := 0
+	if params.Offset != nil {
+		offset = *params.Offset
+	}
+
+	sortOrder := "asc"
+	if params.SortOrder != nil {
+		sortOrder = string(*params.SortOrder)
+	}
+
+	var sortBy *connection.Identifier
+	if params.SortBy != nil && *params.SortBy != "" {
+		ident, err := connection.NewIdentifier(*params.SortBy)
+		if err != nil {
+			s.respondError(w, http.StatusBadRequest, "invalid sort_by column name")
+			return
+		}
+		sortBy = &ident
+	}
+
+	query := queries.QueryTableRows{
+		ConnectionID: uuid.UUID(connectionID),
+		DatabaseName: dbName,
+		TableName:    tblName,
+		Limit:        limit,
+		Offset:       offset,
+		SortBy:       sortBy,
+		SortOrder:    sortOrder,
+	}
+
+	result, err := s.app.Queries.QueryTableRows.Handle(r.Context(), query)
+	if err != nil {
+		if errors.Is(err, queries.ErrConnectionNotFound) {
+			s.respondError(w, http.StatusNotFound, ErrConnectionNotFound)
+			return
+		}
+		s.respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, newTableRowsResponse(result))
+}
+
 func (s *Server) ListColumns(
 	w http.ResponseWriter,
 	r *http.Request,

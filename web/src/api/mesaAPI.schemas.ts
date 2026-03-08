@@ -72,6 +72,14 @@ export interface Column {
   default_value?: string;
 }
 
+export interface TableRowsResponse {
+  columns: string[];
+  rows: unknown[][];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface Error {
   message: string;
 }
@@ -204,4 +212,26 @@ export interface CreateTableRequest {
   columns: CreateTableColumn[];
   indexes?: CreateTableIndex[];
 }
+
+export type QueryTableRowsParams = {
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+sort_by?: string;
+sort_order?: QueryTableRowsSortOrder;
+};
+
+export type QueryTableRowsSortOrder = typeof QueryTableRowsSortOrder[keyof typeof QueryTableRowsSortOrder];
+
+
+export const QueryTableRowsSortOrder = {
+  asc: 'asc',
+  desc: 'desc',
+} as const;
 

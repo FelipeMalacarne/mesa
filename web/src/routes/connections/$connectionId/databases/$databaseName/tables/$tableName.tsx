@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColumnsTab } from "./_components/columns-tab";
 import { IndexesTab } from "./_components/indexes-tab";
@@ -59,7 +58,11 @@ function DatabaseTable() {
           <IndexesTab />
         </TabsContent>
         <TabsContent value="sample" className="mt-4">
-          <SampleTab />
+          <SampleTab
+            connectionId={connectionId}
+            databaseName={databaseName}
+            tableName={tableName}
+          />
         </TabsContent>
       </Tabs>
     </div>

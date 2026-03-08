@@ -144,6 +144,20 @@ func newColumnResponse(c connection.Column) contract.Column {
 	}
 }
 
+func newTableRowsResponse(r *connection.TableRows) contract.TableRowsResponse {
+	rows := make([][]any, len(r.Rows))
+	for i, row := range r.Rows {
+		rows[i] = row
+	}
+	return contract.TableRowsResponse{
+		Columns: r.Columns,
+		Rows:    rows,
+		Total:   r.Total,
+		Limit:   r.Limit,
+		Offset:  r.Offset,
+	}
+}
+
 func formatBytes(size int64) string {
 	const unit = 1024
 	if size < unit {

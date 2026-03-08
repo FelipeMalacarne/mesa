@@ -191,6 +191,47 @@ paths:
                 items:
                   $ref: "#/components/schemas/Column"
 
+  /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows:
+    get:
+      operationId: QueryTableRows
+      summary: QueryTableRows
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+        - $ref: "#/components/parameters/DatabaseName"
+        - $ref: "#/components/parameters/TableName"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 500
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        "200":
+          description: Paginated table rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableRowsResponse"
+
   /connections/{connectionID}/users:
     get:
       operationId: ListUsers
@@ -360,6 +401,27 @@ components:
           type: boolean
         default_value:
           type: string
+
+    TableRowsResponse:
+      type: object
+      required: [columns, rows, total, limit, offset]
+      properties:
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        total:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+        offset:
+          type: integer
 
     Error:
       type: object

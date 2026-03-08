@@ -34,8 +34,10 @@ import type {
   Database,
   Error,
   OverviewResponse,
+  QueryTableRowsParams,
   Session,
-  Table
+  Table,
+  TableRowsResponse
 } from '../mesaAPI.schemas';
 
 import { customInstance } from '../../lib/fetch-client';
@@ -960,6 +962,135 @@ export function useListColumns<TData = Awaited<ReturnType<typeof listColumns>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListColumnsQueryOptions(connectionID,databaseName,tableName,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * @summary QueryTableRows
+ */
+export const getQueryTableRowsUrl = (connectionID: string,
+    databaseName: string,
+    tableName: string,
+    params?: QueryTableRowsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/connections/${connectionID}/databases/${databaseName}/tables/${tableName}/rows?${stringifiedParams}` : `/connections/${connectionID}/databases/${databaseName}/tables/${tableName}/rows`
+}
+
+export const queryTableRows = async (connectionID: string,
+    databaseName: string,
+    tableName: string,
+    params?: QueryTableRowsParams, options?: RequestInit): Promise<TableRowsResponse> => {
+  
+  return customInstance<TableRowsResponse>(getQueryTableRowsUrl(connectionID,databaseName,tableName,params),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getQueryTableRowsQueryKey = (connectionID: string,
+    databaseName: string,
+    tableName: string,
+    params?: QueryTableRowsParams,) => {
+    return [
+    `/connections/${connectionID}/databases/${databaseName}/tables/${tableName}/rows`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+    
+export const getQueryTableRowsQueryOptions = <TData = Awaited<ReturnType<typeof queryTableRows>>, TError = unknown>(connectionID: string,
+    databaseName: string,
+    tableName: string,
+    params?: QueryTableRowsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof queryTableRows>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getQueryTableRowsQueryKey(connectionID,databaseName,tableName,params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof queryTableRows>>> = ({ signal }) => queryTableRows(connectionID,databaseName,tableName,params, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(connectionID && databaseName && tableName), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof queryTableRows>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type QueryTableRowsQueryResult = NonNullable<Awaited<ReturnType<typeof queryTableRows>>>
+export type QueryTableRowsQueryError = unknown
+
+
+export function useQueryTableRows<TData = Awaited<ReturnType<typeof queryTableRows>>, TError = unknown>(
+ connectionID: string,
+    databaseName: string,
+    tableName: string,
+    params: undefined |  QueryTableRowsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof queryTableRows>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof queryTableRows>>,
+          TError,
+          Awaited<ReturnType<typeof queryTableRows>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useQueryTableRows<TData = Awaited<ReturnType<typeof queryTableRows>>, TError = unknown>(
+ connectionID: string,
+    databaseName: string,
+    tableName: string,
+    params?: QueryTableRowsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof queryTableRows>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof queryTableRows>>,
+          TError,
+          Awaited<ReturnType<typeof queryTableRows>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useQueryTableRows<TData = Awaited<ReturnType<typeof queryTableRows>>, TError = unknown>(
+ connectionID: string,
+    databaseName: string,
+    tableName: string,
+    params?: QueryTableRowsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof queryTableRows>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary QueryTableRows
+ */
+
+export function useQueryTableRows<TData = Awaited<ReturnType<typeof queryTableRows>>, TError = unknown>(
+ connectionID: string,
+    databaseName: string,
+    tableName: string,
+    params?: QueryTableRowsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof queryTableRows>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getQueryTableRowsQueryOptions(connectionID,databaseName,tableName,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

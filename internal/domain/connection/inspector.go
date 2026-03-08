@@ -25,6 +25,14 @@ type Column struct {
 	DefaultValue *DefaultValue
 }
 
+type TableRows struct {
+	Columns []string
+	Rows    [][]any
+	Total   int64
+	Limit   int
+	Offset  int
+}
+
 type ServerHealth struct {
 	Version        string
 	Uptime         time.Duration
