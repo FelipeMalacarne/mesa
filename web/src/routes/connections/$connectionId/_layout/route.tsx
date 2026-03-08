@@ -29,7 +29,7 @@ function ConnectionLayout() {
   const overview = overviewQuery.data;
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-w-0 h-full flex-col">
       <header className="flex flex-col gap-3 border-b bg-background/95 px-6 py-4 backdrop-blur">
         <div className="flex items-center gap-3">
           <div className="rounded-lg border bg-primary/10 p-2 text-primary">
@@ -81,7 +81,7 @@ function ConnectionLayout() {
           ))}
         </div>
       </nav>
-      <div className="flex-1 overflow-auto bg-muted/5 p-6">
+      <div className="flex-1 min-w-0 overflow-auto bg-muted/5 p-6">
         <Outlet />
       </div>
     </div>

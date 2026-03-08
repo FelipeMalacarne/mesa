@@ -19,7 +19,7 @@ export function SampleTab({ connectionId, databaseName, tableName }: SampleTabPr
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  const { data, isLoading, isError } = useQueryTableRows(
+  const { data, isLoading, isFetching, isError } = useQueryTableRows(
     connectionId,
     databaseName,
     tableName,
@@ -28,7 +28,7 @@ export function SampleTab({ connectionId, databaseName, tableName }: SampleTabPr
       offset: page * PAGE_SIZE,
       ...(sortBy ? { sort_by: sortBy, sort_order: sortOrder as QueryTableRowsSortOrder } : {}),
     },
-    { query: { staleTime: 30_000 } },
+    { query: { staleTime: 30_000, placeholderData: (prev) => prev } },
   );
 
   if (isLoading) {
@@ -67,6 +67,7 @@ export function SampleTab({ connectionId, databaseName, tableName }: SampleTabPr
     <DataTable
       columns={columnDefs}
       data={rows as unknown[][]}
+      isFetching={isFetching}
       pagination={{
         pageIndex: page,
         pageSize: PAGE_SIZE,
