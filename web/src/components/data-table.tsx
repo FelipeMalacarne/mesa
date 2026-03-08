@@ -9,6 +9,7 @@ import {
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   Pagination,
   PaginationContent,
@@ -103,8 +104,10 @@ export function DataTable<TData, TValue>({
                     return (
                       <TableHead key={header.id} className="whitespace-nowrap">
                         {header.isPlaceholder ? null : canSort ? (
-                          <button
-                            className="flex cursor-pointer select-none items-center font-medium"
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="-ml-2 font-medium text-foreground"
                             onClick={header.column.getToggleSortingHandler()}
                           >
                             {flexRender(
@@ -112,7 +115,7 @@ export function DataTable<TData, TValue>({
                               header.getContext(),
                             )}
                             <SortIcon state={sorted} />
-                          </button>
+                          </Button>
                         ) : (
                           flexRender(
                             header.column.columnDef.header,
