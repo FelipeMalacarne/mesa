@@ -222,17 +222,13 @@ function DatabaseTable() {
                       </TableCell>
                       <TableCell>{column.type}</TableCell>
                       <TableCell>{column.nullable ? "Yes" : "No"}</TableCell>
-                      <TableCell>{column.defaultValue ?? "-"}</TableCell>
+                      <TableCell>{column.default_value ?? "-"}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
-                          {column.tags.length === 0 ? (
-                            <span className="text-muted-foreground">-</span>
+                          {column.primary ? (
+                            <Badge variant="secondary">PK</Badge>
                           ) : (
-                            column.tags.map((tag) => (
-                              <Badge key={tag} variant="secondary">
-                                {tag}
-                              </Badge>
-                            ))
+                            <span className="text-muted-foreground">-</span>
                           )}
                         </div>
                       </TableCell>
