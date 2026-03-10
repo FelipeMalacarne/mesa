@@ -491,6 +491,7 @@ func (s *Server) ListIndexes(
 			Columns: idx.Columns,
 			Method:  string(idx.Method),
 			Unique:  idx.Unique,
+			Size:    idx.Size,
 		}
 	}
 

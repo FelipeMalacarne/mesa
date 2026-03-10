@@ -218,7 +218,8 @@ export const ListIndexesResponseItem = zod.object({
   "name": zod.string(),
   "columns": zod.array(zod.string()),
   "method": zod.string(),
-  "unique": zod.boolean()
+  "unique": zod.boolean(),
+  "size": zod.number()
 })
 export const ListIndexesResponse = zod.array(ListIndexesResponseItem)
 

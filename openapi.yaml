@@ -424,7 +424,7 @@ components:
 
     Index:
       type: object
-      required: [name, columns, method, unique]
+      required: [name, columns, method, unique, size]
       properties:
         name:
           type: string
@@ -436,6 +436,9 @@ components:
           type: string
         unique:
           type: boolean
+        size:
+          type: integer
+          format: int64
 
     TableRowsResponse:
       type: object

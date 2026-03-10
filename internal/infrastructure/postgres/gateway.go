@@ -218,7 +218,8 @@ SELECT
     i.relname AS index_name,
     ix.indisunique AS is_unique,
     am.amname AS index_type,
-    array_agg(a.attname ORDER BY k.ordinality) AS columns
+    array_agg(a.attname ORDER BY k.ordinality) AS columns,
+    pg_relation_size(i.oid) AS index_size
 FROM
     pg_index ix
     JOIN pg_class t ON t.oid = ix.indrelid
@@ -229,7 +230,7 @@ FROM
 WHERE
     t.relname = $1
     AND t.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
-GROUP BY i.relname, ix.indisunique, am.amname
+GROUP BY i.relname, ix.indisunique, am.amname, i.oid
 ORDER BY i.relname
 `
 
@@ -244,7 +245,7 @@ ORDER BY i.relname
 		var idx connection.Index
 		var methodStr string
 		var cols []string
-		if err := rows.Scan(&idx.Name, &idx.Unique, &methodStr, pq.Array(&cols)); err != nil {
+		if err := rows.Scan(&idx.Name, &idx.Unique, &methodStr, pq.Array(&cols), &idx.Size); err != nil {
 			return nil, fmt.Errorf("%w: scanning index: %v", connection.ErrQueryFailed, err)
 		}
 		idx.Method = connection.IndexMethod(strings.ToUpper(methodStr))

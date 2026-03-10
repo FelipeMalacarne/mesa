@@ -195,6 +195,7 @@ type Index struct {
 	Columns []string `json:"columns"`
 	Method  string   `json:"method"`
 	Name    string   `json:"name"`
+	Size    int64    `json:"size"`
 	Unique  bool     `json:"unique"`
 }
 

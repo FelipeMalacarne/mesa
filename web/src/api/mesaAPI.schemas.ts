@@ -77,6 +77,7 @@ export interface Index {
   columns: string[];
   method: string;
   unique: boolean;
+  size: number;
 }
 
 export interface TableRowsResponse {

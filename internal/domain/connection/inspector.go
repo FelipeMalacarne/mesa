@@ -30,6 +30,7 @@ type Index struct {
 	Columns []string
 	Method  IndexMethod
 	Unique  bool
+	Size    int64
 }
 
 type TableRows struct {

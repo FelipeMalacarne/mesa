@@ -1,5 +1,6 @@
 import { useListIndexes } from "@/api/connections/connections";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatBytes } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -43,6 +44,7 @@ export function IndexesTab({ connectionId, databaseName, tableName }: IndexesTab
           <TableHead>Name</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Columns</TableHead>
+          <TableHead>Size</TableHead>
           <TableHead>Unique</TableHead>
         </TableRow>
       </TableHeader>
@@ -52,6 +54,7 @@ export function IndexesTab({ connectionId, databaseName, tableName }: IndexesTab
             <TableCell className="font-medium">{index.name}</TableCell>
             <TableCell>{index.method}</TableCell>
             <TableCell>{index.columns.join(", ")}</TableCell>
+            <TableCell>{formatBytes(index.size)}</TableCell>
             <TableCell>{index.unique ? "Yes" : "No"}</TableCell>
           </TableRow>
         ))}
