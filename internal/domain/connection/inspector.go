@@ -25,6 +25,13 @@ type Column struct {
 	DefaultValue *DefaultValue
 }
 
+type Index struct {
+	Name    string
+	Columns []string
+	Method  IndexMethod
+	Unique  bool
+}
+
 type TableRows struct {
 	Columns []string
 	Rows    [][]any

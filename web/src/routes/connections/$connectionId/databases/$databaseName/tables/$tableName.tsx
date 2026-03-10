@@ -55,7 +55,11 @@ function DatabaseTable() {
           />
         </TabsContent>
         <TabsContent value="indexes" className="mt-4">
-          <IndexesTab />
+          <IndexesTab
+            connectionId={connectionId}
+            databaseName={databaseName}
+            tableName={tableName}
+          />
         </TabsContent>
         <TabsContent value="sample" className="mt-4">
           <SampleTab

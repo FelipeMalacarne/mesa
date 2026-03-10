@@ -206,6 +206,24 @@ export const ListColumnsResponse = zod.array(ListColumnsResponseItem)
 
 
 /**
+ * @summary ListIndexes
+ */
+export const ListIndexesParams = zod.object({
+  "connectionID": zod.uuid().describe('The unique identifier for the connection'),
+  "databaseName": zod.string().describe('Database name'),
+  "tableName": zod.string().describe('Table Name')
+})
+
+export const ListIndexesResponseItem = zod.object({
+  "name": zod.string(),
+  "columns": zod.array(zod.string()),
+  "method": zod.string(),
+  "unique": zod.boolean()
+})
+export const ListIndexesResponse = zod.array(ListIndexesResponseItem)
+
+
+/**
  * @summary QueryTableRows
  */
 export const QueryTableRowsParams = zod.object({

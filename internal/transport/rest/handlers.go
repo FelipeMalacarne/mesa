@@ -448,3 +448,51 @@ func (s *Server) ListColumns(
 
 	s.respondJSON(w, http.StatusOK, resp)
 }
+
+func (s *Server) ListIndexes(
+	w http.ResponseWriter,
+	r *http.Request,
+	connectionID contract.ConnectionId,
+	databaseName contract.DatabaseName,
+	tableName contract.TableName,
+) {
+	dbName, err := connection.NewIdentifier(databaseName)
+	if err != nil {
+		http.Error(w, "invalid database name", http.StatusBadRequest)
+		return
+	}
+
+	tblName, err := connection.NewIdentifier(tableName)
+	if err != nil {
+		http.Error(w, "invalid table name", http.StatusBadRequest)
+		return
+	}
+
+	query := queries.ListIndexes{
+		ConnectionID: uuid.UUID(connectionID),
+		DatabaseName: dbName,
+		TableName:    tblName,
+	}
+
+	indexes, err := s.app.Queries.ListIndexes.Handle(r.Context(), query)
+	if err != nil {
+		if errors.Is(err, queries.ErrConnectionNotFound) {
+			s.respondError(w, http.StatusNotFound, ErrConnectionNotFound)
+			return
+		}
+		s.respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	resp := make([]contract.Index, len(indexes))
+	for i, idx := range indexes {
+		resp[i] = contract.Index{
+			Name:    idx.Name,
+			Columns: idx.Columns,
+			Method:  string(idx.Method),
+			Unique:  idx.Unique,
+		}
+	}
+
+	s.respondJSON(w, http.StatusOK, resp)
+}

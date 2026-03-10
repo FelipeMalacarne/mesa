@@ -10,6 +10,7 @@ import (
 
 	"github.com/felipemalacarne/mesa/internal/domain/connection"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/lib/pq"
 )
 
 // Gateway implementa o contrato de runtime e inspeção para Postgres.
@@ -203,6 +204,59 @@ ORDER BY c.ordinal_position;
 	}
 
 	return columns, nil
+}
+
+func (h *Gateway) GetIndexes(ctx context.Context, conn connection.Connection, password string, dbName, tableName connection.Identifier) ([]connection.Index, error) {
+	db, err := h.connect(conn, password, dbName)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	query := `
+SELECT
+    i.relname AS index_name,
+    ix.indisunique AS is_unique,
+    am.amname AS index_type,
+    array_agg(a.attname ORDER BY k.ordinality) AS columns
+FROM
+    pg_index ix
+    JOIN pg_class t ON t.oid = ix.indrelid
+    JOIN pg_class i ON i.oid = ix.indexrelid
+    JOIN pg_am am ON am.oid = i.relam
+    JOIN LATERAL unnest(ix.indkey) WITH ORDINALITY AS k(attnum, ordinality) ON true
+    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+WHERE
+    t.relname = $1
+    AND t.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+GROUP BY i.relname, ix.indisunique, am.amname
+ORDER BY i.relname
+`
+
+	rows, err := db.QueryContext(ctx, query, tableName)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", connection.ErrQueryFailed, err)
+	}
+	defer rows.Close()
+
+	var indexes []connection.Index
+	for rows.Next() {
+		var idx connection.Index
+		var methodStr string
+		var cols []string
+		if err := rows.Scan(&idx.Name, &idx.Unique, &methodStr, pq.Array(&cols)); err != nil {
+			return nil, fmt.Errorf("%w: scanning index: %v", connection.ErrQueryFailed, err)
+		}
+		idx.Method = connection.IndexMethod(strings.ToUpper(methodStr))
+		idx.Columns = cols
+		indexes = append(indexes, idx)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%w: iterating indexes: %v", connection.ErrQueryFailed, err)
+	}
+
+	return indexes, nil
 }
 
 func (h *Gateway) QueryTableRows(ctx context.Context, conn connection.Connection, password string, dbName, tableName connection.Identifier, limit, offset int, sortBy *connection.Identifier, sortOrder string) (*connection.TableRows, error) {

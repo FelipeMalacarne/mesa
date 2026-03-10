@@ -26,6 +26,7 @@ type Queries struct {
 	ListUsers       *queries.ListUsersHandler
 	PingConnection  *queries.PingConnectionHandler
 	ListColumns     *queries.ListColumnsHandler
+	ListIndexes     *queries.ListIndexesHandler
 	QueryTableRows  *queries.QueryTableRowsHandler
 }
 
@@ -54,6 +55,7 @@ func NewApp(repos Repositories, crypto domain.Cryptographer) *App {
 			ListUsers:       queries.NewListUsersHandler(repos.Connection, crypto, repos.Gateways),
 			PingConnection:  queries.NewPingConnectionHandler(repos.Connection, crypto, repos.Gateways),
 			ListColumns:    queries.NewListColumnsHandler(repos.Connection, crypto, repos.Gateways),
+			ListIndexes:    queries.NewListIndexesHandler(repos.Connection, crypto, repos.Gateways),
 			QueryTableRows: queries.NewQueryTableRowsHandler(repos.Connection, crypto, repos.Gateways),
 		},
 		Commands: Commands{

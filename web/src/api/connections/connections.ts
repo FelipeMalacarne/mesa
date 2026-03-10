@@ -33,6 +33,7 @@ import type {
   DBUser,
   Database,
   Error,
+  Index,
   OverviewResponse,
   QueryTableRowsParams,
   Session,
@@ -962,6 +963,120 @@ export function useListColumns<TData = Awaited<ReturnType<typeof listColumns>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListColumnsQueryOptions(connectionID,databaseName,tableName,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * @summary ListIndexes
+ */
+export const getListIndexesUrl = (connectionID: string,
+    databaseName: string,
+    tableName: string,) => {
+
+
+  
+
+  return `/connections/${connectionID}/databases/${databaseName}/tables/${tableName}/indexes`
+}
+
+export const listIndexes = async (connectionID: string,
+    databaseName: string,
+    tableName: string, options?: RequestInit): Promise<Index[]> => {
+  
+  return customInstance<Index[]>(getListIndexesUrl(connectionID,databaseName,tableName),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getListIndexesQueryKey = (connectionID: string,
+    databaseName: string,
+    tableName: string,) => {
+    return [
+    `/connections/${connectionID}/databases/${databaseName}/tables/${tableName}/indexes`
+    ] as const;
+    }
+
+    
+export const getListIndexesQueryOptions = <TData = Awaited<ReturnType<typeof listIndexes>>, TError = unknown>(connectionID: string,
+    databaseName: string,
+    tableName: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIndexes>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListIndexesQueryKey(connectionID,databaseName,tableName);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listIndexes>>> = ({ signal }) => listIndexes(connectionID,databaseName,tableName, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(connectionID && databaseName && tableName), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listIndexes>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListIndexesQueryResult = NonNullable<Awaited<ReturnType<typeof listIndexes>>>
+export type ListIndexesQueryError = unknown
+
+
+export function useListIndexes<TData = Awaited<ReturnType<typeof listIndexes>>, TError = unknown>(
+ connectionID: string,
+    databaseName: string,
+    tableName: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIndexes>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listIndexes>>,
+          TError,
+          Awaited<ReturnType<typeof listIndexes>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListIndexes<TData = Awaited<ReturnType<typeof listIndexes>>, TError = unknown>(
+ connectionID: string,
+    databaseName: string,
+    tableName: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIndexes>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listIndexes>>,
+          TError,
+          Awaited<ReturnType<typeof listIndexes>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListIndexes<TData = Awaited<ReturnType<typeof listIndexes>>, TError = unknown>(
+ connectionID: string,
+    databaseName: string,
+    tableName: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIndexes>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary ListIndexes
+ */
+
+export function useListIndexes<TData = Awaited<ReturnType<typeof listIndexes>>, TError = unknown>(
+ connectionID: string,
+    databaseName: string,
+    tableName: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIndexes>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListIndexesQueryOptions(connectionID,databaseName,tableName,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

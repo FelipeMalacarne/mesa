@@ -1,3 +1,5 @@
+import { useListIndexes } from "@/api/connections/connections";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -7,14 +9,33 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-// TODO: replace with real API data
-const indexes = [
-  { name: "orders_pkey", type: "btree", columns: "id", size: "64 MB", unique: true },
-  { name: "orders_customer_id_idx", type: "btree", columns: "customer_id", size: "48 MB", unique: false },
-  { name: "orders_status_created_idx", type: "btree", columns: "status, created_at", size: "32 MB", unique: false },
-];
+interface IndexesTabProps {
+  connectionId: string;
+  databaseName: string;
+  tableName: string;
+}
 
-export function IndexesTab() {
+function IndexesSkeleton() {
+  return (
+    <div className="animate-in fade-in-0 duration-300 delay-150 space-y-2">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton key={i} className="h-10 w-full" />
+      ))}
+    </div>
+  );
+}
+
+export function IndexesTab({ connectionId, databaseName, tableName }: IndexesTabProps) {
+  const { data: indexes, isLoading, isError } = useListIndexes(
+    connectionId,
+    databaseName,
+    tableName,
+    { query: { staleTime: 60_000 } },
+  );
+
+  if (isLoading) return <IndexesSkeleton />;
+  if (isError) return <p className="text-sm text-destructive">Failed to load indexes.</p>;
+
   return (
     <Table>
       <TableHeader>
@@ -22,17 +43,15 @@ export function IndexesTab() {
           <TableHead>Name</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Columns</TableHead>
-          <TableHead>Size</TableHead>
           <TableHead>Unique</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {indexes.map((index) => (
+        {indexes?.map((index) => (
           <TableRow key={index.name}>
             <TableCell className="font-medium">{index.name}</TableCell>
-            <TableCell>{index.type}</TableCell>
-            <TableCell>{index.columns}</TableCell>
-            <TableCell>{index.size}</TableCell>
+            <TableCell>{index.method}</TableCell>
+            <TableCell>{index.columns.join(", ")}</TableCell>
             <TableCell>{index.unique ? "Yes" : "No"}</TableCell>
           </TableRow>
         ))}

@@ -191,6 +191,26 @@ paths:
                 items:
                   $ref: "#/components/schemas/Column"
 
+  /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/indexes:
+    get:
+      operationId: ListIndexes
+      summary: ListIndexes
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+        - $ref: "#/components/parameters/DatabaseName"
+        - $ref: "#/components/parameters/TableName"
+      responses:
+        "200":
+          description: Indexes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Index"
+
   /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows:
     get:
       operationId: QueryTableRows
@@ -401,6 +421,21 @@ components:
           type: boolean
         default_value:
           type: string
+
+    Index:
+      type: object
+      required: [name, columns, method, unique]
+      properties:
+        name:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        method:
+          type: string
+        unique:
+          type: boolean
 
     TableRowsResponse:
       type: object

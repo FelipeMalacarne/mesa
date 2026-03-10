@@ -72,6 +72,13 @@ export interface Column {
   default_value?: string;
 }
 
+export interface Index {
+  name: string;
+  columns: string[];
+  method: string;
+  unique: boolean;
+}
+
 export interface TableRowsResponse {
   columns: string[];
   rows: unknown[][];

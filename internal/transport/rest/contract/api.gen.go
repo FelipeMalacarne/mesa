@@ -190,6 +190,14 @@ type Error struct {
 	Message string `json:"message"`
 }
 
+// Index defines model for Index.
+type Index struct {
+	Columns []string `json:"columns"`
+	Method  string   `json:"method"`
+	Name    string   `json:"name"`
+	Unique  bool     `json:"unique"`
+}
+
 // OverviewResponse defines model for OverviewResponse.
 type OverviewResponse struct {
 	LatencyMs int                    `json:"latency_ms"`
@@ -288,6 +296,9 @@ type ServerInterface interface {
 	// ListColumns
 	// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns)
 	ListColumns(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName)
+	// ListIndexes
+	// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/indexes)
+	ListIndexes(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName)
 	// QueryTableRows
 	// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows)
 	QueryTableRows(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName, params QueryTableRowsParams)
@@ -360,6 +371,12 @@ func (_ Unimplemented) CreateTable(w http.ResponseWriter, r *http.Request, conne
 // ListColumns
 // (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns)
 func (_ Unimplemented) ListColumns(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListIndexes
+// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/indexes)
+func (_ Unimplemented) ListIndexes(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -619,6 +636,49 @@ func (siw *ServerInterfaceWrapper) ListColumns(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListColumns(w, r, connectionID, databaseName, tableName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListIndexes operation middleware
+func (siw *ServerInterfaceWrapper) ListIndexes(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "databaseName" -------------
+	var databaseName DatabaseName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "databaseName", chi.URLParam(r, "databaseName"), &databaseName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "databaseName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "tableName" -------------
+	var tableName TableName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tableName", chi.URLParam(r, "tableName"), &tableName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tableName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListIndexes(w, r, connectionID, databaseName, tableName)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1001,6 +1061,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns", wrapper.ListColumns)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables/{tableName}/indexes", wrapper.ListIndexes)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows", wrapper.QueryTableRows)
