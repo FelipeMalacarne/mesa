@@ -1,24 +1,26 @@
-# 🚀 Mesa
+# Mesa
 
 **The open-source SQL Control Plane for modern infrastructure.**
 
-Mesa is a web-based SQL client designed for developers and SREs who need a "cloud provider" experience within their own infrastructure. It goes beyond simple queries, offering a full suite for managing database users, permissions, and multi-instance configurations.
+Mesa is a web-based database management tool built for developers and SREs. It goes beyond simple queries — offering a full suite for exploring databases, inspecting tables, managing users, and monitoring active sessions, all from a clean cloud-like UI.
 
-## 🌟 Why Mesa?
+## Features
 
-- **Infrastructure-First:** Designed to run as a lightweight, single-binary pod in your Kubernetes cluster.
-- **Security & Trust:** All database credentials are encrypted at rest (AES-256-GCM) and the code is fully audit-at-will under AGPL v3.
-- **User Provisioning:** A clean UI to manage DB users (GRANT/REVOKE) without memorizing vendor-specific syntax.
-- **Modern UX:** High-performance editor built with Shadcn/UI and React, featuring a sleek, cloud-like dashboard.
+- **Connection Management** — Add and switch between multiple PostgreSQL instances.
+- **Database & Table Explorer** — Browse databases, tables, columns, indexes, and sample data.
+- **Session Monitor** — View and kill active database sessions.
+- **User Management** — Create and manage DB users without memorizing SQL syntax.
+- **Credential Encryption** — All connection credentials are encrypted at rest (AES-256-GCM).
+- **OpenAPI-first** — Typed Go server and auto-generated TypeScript client from a single `openapi.yaml`.
 
-## 🛠 Tech Stack
+## Tech Stack
 
-- **Backend:** Go - fast, concurrent, and memory-efficient.
-- **Frontend:** React (Vite) + Shadcn/UI + Tailwind CSS.
-- **Metadata DB:** PostgreSQL (with JSONB for flexible settings).
-- **Deployment:** Docker-native, optimized for Kubernetes & ArgoCD.
+- **Backend:** Go, [chi](https://github.com/go-chi/chi), [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen), [sqlc](https://sqlc.dev/), [pgx](https://github.com/jackc/pgx)
+- **Frontend:** React (Vite), [TanStack Router](https://tanstack.com/router), Shadcn/UI, Tailwind CSS, [orval](https://orval.dev/)
+- **Metadata DB:** PostgreSQL
+- **Deployment:** Docker-native, optimized for Kubernetes & ArgoCD
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -28,84 +30,53 @@ Mesa is a web-based SQL client designed for developers and SREs who need a "clou
 
 ### Quick Start (Docker)
 
-The easiest way to run Mesa is using Docker Compose.
+```bash
+git clone https://github.com/felipemalacarne/mesa.git
+cd mesa
+docker-compose up -d --build
+```
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/mesa.git
-    cd mesa
-    ```
-
-2.  **Start the services:**
-    ```bash
-    docker-compose up -d --build
-    ```
-
-    This will start:
-    -   **PostgreSQL**: Database for Mesa metadata.
-    -   **API**: Go backend running on port `8080`.
-    -   **Frontend**: React app running on port `3000`.
-
-3.  **Access the application:**
-    -   Frontend: [http://localhost:3000](http://localhost:3000)
-    -   API: [http://localhost:8080](http://localhost:8080)
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- API: [http://localhost:8080](http://localhost:8080)
 
 ### Local Development
 
-If you prefer to run services locally without Docker for development:
-
 #### Backend
 
-1.  Ensure you have a PostgreSQL instance running and configured.
-2.  Run migrations:
-    ```bash
-    make migrate-up
-    ```
-3.  Start the server:
-    ```bash
-    go run cmd/server/main.go
-    ```
+```bash
+make migrate-up
+go run cmd/server/main.go
+```
 
 #### Frontend
 
-1.  Navigate to the web directory:
-    ```bash
-    cd web
-    ```
-2.  Install dependencies:
-    ```bash
-    pnpm install
-    ```
-3.  Start the development server:
-    ```bash
-    pnpm dev
-    ```
+```bash
+cd web
+pnpm install
+pnpm dev
+```
 
-## 📜 Makefile Commands
+## Makefile Commands
 
-We provide a `Makefile` to simplify common tasks:
+| Command | Description |
+|---|---|
+| `make migrate-up` | Run database migrations |
+| `make migrate-down` | Revert database migrations |
+| `make migration name=<name>` | Create a new migration file |
+| `make sqlc-generate` | Generate Go code from SQL queries |
+| `make codegen` | Generate Go server + TypeScript client from `openapi.yaml` |
+| `make generate-app-key` | Generate a random 32-byte encryption key |
+| `make seed` | Seed the database with initial data |
 
--   `make migrate-up`: Run database migrations.
--   `make migrate-down`: Revert database migrations.
--   `make migration name=<name>`: Create a new migration file.
--   `make sqlc-generate`: Generate Go code from SQL queries using `sqlc`.
--   `make codegen-client`: Generate the TypeScript API client from `openapi.yaml`.
--   `make seed`: Seed the database with initial data.
+## Security
 
-## 🔒 Security
-
-We take security seriously. Since this tool manages your database credentials:
-
-- It integrates natively with **Kubernetes Secrets**.
-- Supports encryption keys stored in external KMS (optional).
+- All database credentials are encrypted at rest using AES-256-GCM.
+- Integrates with Kubernetes Secrets and external KMS providers.
 - Every SQL execution is logged for audit purposes.
+- Fully auditable source code under AGPL-3.0.
 
-## ⚖️ License
+## License
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+Licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
 
-We believe in the power of open-source. If you incorporate this software into a network service, you must make your modified source code available to the community. For commercial licensing without AGPL restrictions, please contact felipemalacarne012@gmail.com.
-
----
-
-Built for the community, powered by Go.
+For commercial licensing without AGPL restrictions, contact felipemalacarne012@gmail.com.
