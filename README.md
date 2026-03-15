@@ -2,7 +2,9 @@
 
 **The open-source SQL Control Plane for modern infrastructure.**
 
-Mesa is a web-based database management tool built for developers and SREs. It goes beyond simple queries — offering a full suite for exploring databases, inspecting tables, managing users, and monitoring active sessions, all from a clean cloud-like UI.
+Mesa is a web-based database management tool built for developers and SREs.
+It goes beyond simple queries — offering a full suite for exploring databases,
+inspecting tables, managing users, and monitoring active sessions, all from a clean cloud-like UI.
 
 ## Features
 
@@ -58,15 +60,15 @@ pnpm dev
 
 ## Makefile Commands
 
-| Command | Description |
-|---|---|
-| `make migrate-up` | Run database migrations |
-| `make migrate-down` | Revert database migrations |
-| `make migration name=<name>` | Create a new migration file |
-| `make sqlc-generate` | Generate Go code from SQL queries |
-| `make codegen` | Generate Go server + TypeScript client from `openapi.yaml` |
-| `make generate-app-key` | Generate a random 32-byte encryption key |
-| `make seed` | Seed the database with initial data |
+| Command                      | Description                                                |
+| ---------------------------- | ---------------------------------------------------------- |
+| `make migrate-up`            | Run database migrations                                    |
+| `make migrate-down`          | Revert database migrations                                 |
+| `make migration name=<name>` | Create a new migration file                                |
+| `make sqlc-generate`         | Generate Go code from SQL queries                          |
+| `make codegen`               | Generate Go server + TypeScript client from `openapi.yaml` |
+| `make generate-app-key`      | Generate a random 32-byte encryption key                   |
+| `make seed`                  | Seed the database with initial data                        |
 
 ## Security
 
