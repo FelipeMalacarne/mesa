@@ -429,6 +429,7 @@ func (s *Server) ListColumns(
 	tblName, err := connection.NewIdentifier(tableName)
 	if err != nil {
 		http.Error(w, "invalid table name", http.StatusBadRequest)
+		return
 	}
 
 	query := queries.ListColumns{
