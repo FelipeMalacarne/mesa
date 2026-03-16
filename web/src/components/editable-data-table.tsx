@@ -198,7 +198,7 @@ export function EditableDataTable<TData, TValue>({
         serverSorting={serverSorting}
         getRowClassName={readOnly ? undefined : getRowClassName}
       />
-      {pendingChanges.size > 0 && (
+      {!readOnly && pendingChanges.size > 0 && (
         <div className="flex items-center justify-between rounded-md border border-pending bg-pending/10 px-3 py-2">
           <span className="text-sm font-medium text-pending-foreground">
             {pendingChanges.size === 1
