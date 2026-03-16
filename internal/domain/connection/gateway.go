@@ -25,6 +25,7 @@ type Administrator interface {
 	CreateUser(ctx context.Context, conn Connection, password string, user DBUser, secret string) error
 	DropUser(ctx context.Context, conn Connection, password string, username Identifier) error
 	CreateDatabase(ctx context.Context, conn Connection, password string, dbName, owner Identifier) error
+	UpdateTableRow(ctx context.Context, conn Connection, password string, dbName, tableName Identifier, where, set map[string]any) error
 }
 
 // Gateway aggregates all operations (kept for backward compatibility during refactor).
