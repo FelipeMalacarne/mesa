@@ -7,6 +7,28 @@
 
 Rename the "Sample data" tab to "Rows" and add inline cell editing with pending-change highlighting and a confirm/discard flow. Editing is backed by a new backend UPDATE endpoint.
 
+## Design Tokens
+
+Add a `--pending` semantic color token to `web/src/styles.css` (both `:root` and `.dark`) and expose it via `@theme inline`. All pending-change highlight classes use this token — no raw Tailwind color classes.
+
+```css
+/* :root */
+--pending: oklch(0.80 0.14 88);           /* warm yellow border/accent */
+--pending-foreground: oklch(0.45 0.10 88); /* dark warm yellow for text */
+
+/* .dark */
+--pending: oklch(0.75 0.14 88);
+--pending-foreground: oklch(0.95 0.05 88);
+```
+
+```css
+/* @theme inline */
+--color-pending: var(--pending);
+--color-pending-foreground: var(--pending-foreground);
+```
+
+The exact OKLCH values can be tuned during implementation to match the visual design — the exact numbers above are a starting point.
+
 ## Rename
 
 | Before | After |
@@ -56,7 +78,7 @@ activeCell: { rowKey: string; col: string } | null
 - Double-click a non-PK cell → sets `activeCell`, renders an `<input>` in place
 - Enter or blur on input → commits value to `pendingChanges` if changed from original; clears `activeCell`
 - Escape on input → cancels edit without committing; clears `activeCell`
-- Rows with entries in `pendingChanges` receive `bg-yellow-50 border-l-2 border-yellow-400`; changed cells render their value in amber (`text-amber-800 font-medium`)
+- Rows with entries in `pendingChanges` receive `bg-pending/10 border-l-2 border-pending`; changed cells render their value in `text-pending-foreground font-medium`
 - Action bar appears below the table only when `pendingChanges.size > 0`:
   - Left: "N rows with pending changes"
   - Right: "Discard" button (clears `pendingChanges`) + "Confirm changes" button (calls `onConfirmChanges`, then clears state on success)
