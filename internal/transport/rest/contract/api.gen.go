@@ -239,6 +239,15 @@ type TableRowsResponse struct {
 	Total   int64           `json:"total"`
 }
 
+// UpdateTableRowRequest defines model for UpdateTableRowRequest.
+type UpdateTableRowRequest struct {
+	// Set Column(s) and new values to apply
+	Set map[string]interface{} `json:"set"`
+
+	// Where Primary key column(s) and their values to identify the row
+	Where map[string]interface{} `json:"where"`
+}
+
 // ConnectionId defines model for ConnectionId.
 type ConnectionId = openapi_types.UUID
 
@@ -267,6 +276,9 @@ type CreateDatabaseJSONRequestBody = CreateDatabaseRequest
 
 // CreateTableJSONRequestBody defines body for CreateTable for application/json ContentType.
 type CreateTableJSONRequestBody = CreateTableRequest
+
+// UpdateTableRowJSONRequestBody defines body for UpdateTableRow for application/json ContentType.
+type UpdateTableRowJSONRequestBody = UpdateTableRowRequest
 
 // CreateUserJSONRequestBody defines body for CreateUser for application/json ContentType.
 type CreateUserJSONRequestBody = CreateUserRequest
@@ -303,6 +315,9 @@ type ServerInterface interface {
 	// QueryTableRows
 	// (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows)
 	QueryTableRows(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName, params QueryTableRowsParams)
+	// Update a row in a table
+	// (PUT /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows)
+	UpdateTableRow(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName)
 	// Get Server Health & Overview
 	// (GET /connections/{connectionID}/overview)
 	GetConnectionOverview(w http.ResponseWriter, r *http.Request, connectionID ConnectionId)
@@ -384,6 +399,12 @@ func (_ Unimplemented) ListIndexes(w http.ResponseWriter, r *http.Request, conne
 // QueryTableRows
 // (GET /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows)
 func (_ Unimplemented) QueryTableRows(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName, params QueryTableRowsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update a row in a table
+// (PUT /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows)
+func (_ Unimplemented) UpdateTableRow(w http.ResponseWriter, r *http.Request, connectionID ConnectionId, databaseName DatabaseName, tableName TableName) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -767,6 +788,49 @@ func (siw *ServerInterfaceWrapper) QueryTableRows(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// UpdateTableRow operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTableRow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "connectionID" -------------
+	var connectionID ConnectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionID", chi.URLParam(r, "connectionID"), &connectionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionID", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "databaseName" -------------
+	var databaseName DatabaseName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "databaseName", chi.URLParam(r, "databaseName"), &databaseName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "databaseName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "tableName" -------------
+	var tableName TableName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tableName", chi.URLParam(r, "tableName"), &tableName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tableName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTableRow(w, r, connectionID, databaseName, tableName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetConnectionOverview operation middleware
 func (siw *ServerInterfaceWrapper) GetConnectionOverview(w http.ResponseWriter, r *http.Request) {
 
@@ -1068,6 +1132,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows", wrapper.QueryTableRows)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows", wrapper.UpdateTableRow)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/connections/{connectionID}/overview", wrapper.GetConnectionOverview)

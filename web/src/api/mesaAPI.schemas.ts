@@ -221,6 +221,23 @@ export interface CreateTableRequest {
   indexes?: CreateTableIndex[];
 }
 
+/**
+ * Primary key column(s) and their values to identify the row
+ */
+export type UpdateTableRowRequestWhere = { [key: string]: unknown };
+
+/**
+ * Column(s) and new values to apply
+ */
+export type UpdateTableRowRequestSet = { [key: string]: unknown };
+
+export interface UpdateTableRowRequest {
+  /** Primary key column(s) and their values to identify the row */
+  where: UpdateTableRowRequestWhere;
+  /** Column(s) and new values to apply */
+  set: UpdateTableRowRequestSet;
+}
+
 export type QueryTableRowsParams = {
 /**
  * @minimum 1

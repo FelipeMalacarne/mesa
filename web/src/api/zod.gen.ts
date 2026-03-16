@@ -258,6 +258,21 @@ export const QueryTableRowsResponse = zod.object({
 
 
 /**
+ * @summary Update a row in a table
+ */
+export const UpdateTableRowParams = zod.object({
+  "connectionID": zod.uuid().describe('The unique identifier for the connection'),
+  "databaseName": zod.string().describe('Database name'),
+  "tableName": zod.string().describe('Table Name')
+})
+
+export const UpdateTableRowBody = zod.object({
+  "where": zod.record(zod.string(), zod.unknown()).describe('Primary key column(s) and their values to identify the row'),
+  "set": zod.record(zod.string(), zod.unknown()).describe('Column(s) and new values to apply')
+})
+
+
+/**
  * @summary List database users (roles)
  */
 export const ListUsersParams = zod.object({

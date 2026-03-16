@@ -38,7 +38,8 @@ import type {
   QueryTableRowsParams,
   Session,
   Table,
-  TableRowsResponse
+  TableRowsResponse,
+  UpdateTableRowRequest
 } from '../mesaAPI.schemas';
 
 import { customInstance } from '../../lib/fetch-client';
@@ -1216,6 +1217,81 @@ export function useQueryTableRows<TData = Awaited<ReturnType<typeof queryTableRo
 
 
 /**
+ * @summary Update a row in a table
+ */
+export const getUpdateTableRowUrl = (connectionID: string,
+    databaseName: string,
+    tableName: string,) => {
+
+
+  
+
+  return `/connections/${connectionID}/databases/${databaseName}/tables/${tableName}/rows`
+}
+
+export const updateTableRow = async (connectionID: string,
+    databaseName: string,
+    tableName: string,
+    updateTableRowRequest: UpdateTableRowRequest, options?: RequestInit): Promise<void> => {
+  
+  return customInstance<void>(getUpdateTableRowUrl(connectionID,databaseName,tableName),
+  {      
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateTableRowRequest,)
+  }
+);}
+  
+
+
+
+export const getUpdateTableRowMutationOptions = <TError = Error,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTableRow>>, TError,{connectionID: string;databaseName: string;tableName: string;data: UpdateTableRowRequest}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTableRow>>, TError,{connectionID: string;databaseName: string;tableName: string;data: UpdateTableRowRequest}, TContext> => {
+
+const mutationKey = ['updateTableRow'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTableRow>>, {connectionID: string;databaseName: string;tableName: string;data: UpdateTableRowRequest}> = (props) => {
+          const {connectionID,databaseName,tableName,data} = props ?? {};
+
+          return  updateTableRow(connectionID,databaseName,tableName,data,requestOptions)
+        }
+
+
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTableRowMutationResult = NonNullable<Awaited<ReturnType<typeof updateTableRow>>>
+    export type UpdateTableRowMutationBody = UpdateTableRowRequest
+    export type UpdateTableRowMutationError = Error
+
+    /**
+ * @summary Update a row in a table
+ */
+export const useUpdateTableRow = <TError = Error,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTableRow>>, TError,{connectionID: string;databaseName: string;tableName: string;data: UpdateTableRowRequest}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateTableRow>>,
+        TError,
+        {connectionID: string;databaseName: string;tableName: string;data: UpdateTableRowRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateTableRowMutationOptions(options), queryClient);
+    }
+    /**
  * @summary List database users (roles)
  */
 export const getListUsersUrl = (connectionID: string,) => {
