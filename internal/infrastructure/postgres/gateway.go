@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"time"
 
@@ -575,19 +576,37 @@ func (h *Gateway) UpdateTableRow(ctx context.Context, conn connection.Connection
 	defer db.Close()
 
 	args := make([]any, 0, len(set)+len(where))
-	setClauses := make([]string, 0, len(set))
+
+	// Sort SET keys for deterministic parameter numbering
+	setKeys := make([]connection.Identifier, 0, len(set))
+	for k := range set {
+		setKeys = append(setKeys, k)
+	}
+	sort.Slice(setKeys, func(i, j int) bool {
+		return setKeys[i].String() < setKeys[j].String()
+	})
 
 	i := 1
-	for col, val := range set {
+	setClauses := make([]string, 0, len(set))
+	for _, col := range setKeys {
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col.Quoted(), i))
-		args = append(args, val)
+		args = append(args, set[col])
 		i++
 	}
 
+	// Sort WHERE keys for deterministic parameter numbering
+	whereKeys := make([]connection.Identifier, 0, len(where))
+	for k := range where {
+		whereKeys = append(whereKeys, k)
+	}
+	sort.Slice(whereKeys, func(i, j int) bool {
+		return whereKeys[i].String() < whereKeys[j].String()
+	})
+
 	whereClauses := make([]string, 0, len(where))
-	for col, val := range where {
+	for _, col := range whereKeys {
 		whereClauses = append(whereClauses, fmt.Sprintf("%s = $%d", col.Quoted(), i))
-		args = append(args, val)
+		args = append(args, where[col])
 		i++
 	}
 
