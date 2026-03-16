@@ -1,23 +1,31 @@
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useQueryClient } from "@tanstack/react-query";
 
-import { useQueryTableRows } from "@/api/connections/connections";
+import {
+  useQueryTableRows,
+  getQueryTableRowsQueryKey,
+  useListColumns,
+  useUpdateTableRow,
+} from "@/api/connections/connections";
 import type { QueryTableRowsSortOrder } from "@/api/mesaAPI.schemas";
-import { DataTable } from "@/components/data-table";
+import { EditableDataTable } from "@/components/editable-data-table";
+import type { RowChange } from "@/components/editable-data-table";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const PAGE_SIZE = 50;
 
-interface SampleTabProps {
+interface RowsTabProps {
   connectionId: string;
   databaseName: string;
   tableName: string;
 }
 
-export function SampleTab({ connectionId, databaseName, tableName }: SampleTabProps) {
+export function RowsTab({ connectionId, databaseName, tableName }: RowsTabProps) {
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const queryClient = useQueryClient();
 
   const { data, isLoading, isFetching, isError } = useQueryTableRows(
     connectionId,
@@ -30,6 +38,12 @@ export function SampleTab({ connectionId, databaseName, tableName }: SampleTabPr
     },
     { query: { staleTime: 30_000, placeholderData: (prev) => prev } },
   );
+
+  const { data: columnMetadata } = useListColumns(connectionId, databaseName, tableName, {
+    query: { staleTime: 60_000 },
+  });
+
+  const updateTableRow = useUpdateTableRow();
 
   if (isLoading) {
     return (
@@ -49,6 +63,14 @@ export function SampleTab({ connectionId, databaseName, tableName }: SampleTabPr
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
 
+  const pkColumns = (columnMetadata ?? [])
+    .filter((col) => col.primary)
+    .map((col) => col.name);
+
+  const editableColumns = (columnMetadata ?? [])
+    .filter((col) => !col.primary)
+    .map((col) => col.name);
+
   const columnDefs: ColumnDef<unknown[], unknown>[] = columns.map((col) => ({
     id: col,
     accessorFn: (row: unknown[]) => row[columns.indexOf(col)],
@@ -63,8 +85,29 @@ export function SampleTab({ connectionId, databaseName, tableName }: SampleTabPr
     },
   }));
 
+  function getPkValues(row: unknown[]): Record<string, unknown> {
+    return Object.fromEntries(
+      pkColumns.map((col) => [col, row[columns.indexOf(col)]]),
+    );
+  }
+
+  async function onSaveRow(change: RowChange) {
+    await updateTableRow.mutateAsync({
+      connectionID: connectionId,
+      databaseName,
+      tableName,
+      data: change,
+    });
+  }
+
+  function onConfirmComplete() {
+    queryClient.invalidateQueries({
+      queryKey: getQueryTableRowsQueryKey(connectionId, databaseName, tableName),
+    });
+  }
+
   return (
-    <DataTable
+    <EditableDataTable
       columns={columnDefs}
       data={rows as unknown[][]}
       isFetching={isFetching}
@@ -83,6 +126,10 @@ export function SampleTab({ connectionId, databaseName, tableName }: SampleTabPr
           setPage(0);
         },
       }}
+      editableColumns={editableColumns}
+      getPkValues={getPkValues}
+      onSaveRow={onSaveRow}
+      onConfirmComplete={onConfirmComplete}
     />
   );
 }
