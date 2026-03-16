@@ -1,0 +1,34 @@
+image:
+  repository: mesa
+  tag: latest
+  pullPolicy: IfNotPresent
+
+config:
+  port: "8080"
+  dbDriver: "sqlite"
+  databaseUrl: "/data/mesa.db"
+  appKey: ""  # REQUIRED — set via --set config.appKey=... or existing secret
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: "local-path"  # k3s default
+  accessMode: ReadWriteOnce
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: "traefik"
+  host: "mesa.local"
+  tls: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

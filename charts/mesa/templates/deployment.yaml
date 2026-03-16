@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mesa.fullname" . }}
+  labels: {{ include "mesa.labels" . | nindent 4 }}
+spec:
+  replicas: 1  # SQLite does not support concurrent writes; keep at 1
+  selector:
+    matchLabels: {{ include "mesa.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{ include "mesa.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: mesa
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mesa.fullname" . }}
+                  key: APP_KEY
+            - name: PORT
+              value: {{ .Values.config.port | quote }}
+            - name: DB_DRIVER
+              value: {{ .Values.config.dbDriver | quote }}
+            - name: DATABASE_URL
+              value: {{ .Values.config.databaseUrl | quote }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "mesa.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

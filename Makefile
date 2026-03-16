@@ -36,6 +36,17 @@ codegen:
 	@oapi-codegen -generate chi,types -package contract -o internal/transport/rest/contract/api.gen.go openapi.yaml
 	cd web && pnpm orval --config orval.config.ts
 
+IMAGE_NAME ?= mesa
+IMAGE_TAG  ?= latest
+
+.PHONY: docker-build
+docker-build:
+	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+
+.PHONY: docker-push
+docker-push:
+	docker push $(IMAGE_NAME):$(IMAGE_TAG)
+
 .PHONY: seed
 seed:
 	@for f in $(SEEDS_DIR)*.sql; do \
