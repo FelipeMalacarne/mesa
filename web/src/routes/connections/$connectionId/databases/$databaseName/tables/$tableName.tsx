@@ -41,11 +41,11 @@ function DatabaseTable() {
         </div>
       </div>
 
-      <Tabs defaultValue="columns">
+      <Tabs defaultValue="rows">
         <TabsList variant="line">
+          <TabsTrigger value="rows">Rows</TabsTrigger>
           <TabsTrigger value="columns">Columns</TabsTrigger>
           <TabsTrigger value="indexes">Indexes</TabsTrigger>
-          <TabsTrigger value="rows">Rows</TabsTrigger>
         </TabsList>
         <TabsContent value="columns" className="mt-4">
           <ColumnsTab
