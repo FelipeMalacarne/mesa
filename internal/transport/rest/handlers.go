@@ -3,6 +3,7 @@ package rest
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -496,4 +497,79 @@ func (s *Server) ListIndexes(
 	}
 
 	s.respondJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) UpdateTableRow(
+	w http.ResponseWriter,
+	r *http.Request,
+	connectionID contract.ConnectionId,
+	databaseName contract.DatabaseName,
+	tableName contract.TableName,
+) {
+	var body contract.UpdateTableRowRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if len(body.Where) == 0 || len(body.Set) == 0 {
+		s.respondError(w, http.StatusBadRequest, "where and set must be non-empty")
+		return
+	}
+
+	dbName, err := connection.NewIdentifier(string(databaseName))
+	if err != nil {
+		s.respondError(w, http.StatusBadRequest, "invalid database name")
+		return
+	}
+
+	tblName, err := connection.NewIdentifier(string(tableName))
+	if err != nil {
+		s.respondError(w, http.StatusBadRequest, "invalid table name")
+		return
+	}
+
+	whereIdent := make(map[connection.Identifier]any, len(body.Where))
+	for k, v := range body.Where {
+		ident, err := connection.NewIdentifier(k)
+		if err != nil {
+			s.respondError(w, http.StatusBadRequest, fmt.Sprintf("invalid where key %q: %v", k, err))
+			return
+		}
+		whereIdent[ident] = v
+	}
+
+	setIdent := make(map[connection.Identifier]any, len(body.Set))
+	for k, v := range body.Set {
+		ident, err := connection.NewIdentifier(k)
+		if err != nil {
+			s.respondError(w, http.StatusBadRequest, fmt.Sprintf("invalid set key %q: %v", k, err))
+			return
+		}
+		setIdent[ident] = v
+	}
+
+	cmd := commands.UpdateTableRowCmd{
+		ConnectionID: uuid.UUID(connectionID),
+		DatabaseName: dbName,
+		TableName:    tblName,
+		Where:        whereIdent,
+		Set:          setIdent,
+	}
+
+	if err := s.app.Commands.UpdateTableRow.Handle(r.Context(), cmd); err != nil {
+		if errors.Is(err, commands.ErrConnectionNotFound) {
+			s.respondError(w, http.StatusNotFound, ErrConnectionNotFound)
+			return
+		}
+		if errors.Is(err, connection.ErrResourceNotFound) {
+			s.respondError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		log.Printf("WARN: updateTableRow %s/%s/%s: %v", connectionID, databaseName, tableName, err)
+		s.respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

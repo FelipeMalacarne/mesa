@@ -36,6 +36,7 @@ type Commands struct {
 	CreateUser       *commands.CreateUserHandler
 	CreateDatabase   *commands.CreateDatabaseHandler
 	CreateTable      *commands.CreateTableHandler
+	UpdateTableRow   *commands.UpdateTableRowHandler
 }
 
 type App struct {
@@ -64,6 +65,7 @@ func NewApp(repos Repositories, crypto domain.Cryptographer) *App {
 			CreateUser:       commands.NewCreateUserHandler(repos.Connection, crypto, repos.Gateways),
 			CreateDatabase:   commands.NewCreateDatabaseHandler(repos.Connection, crypto, repos.Gateways),
 			CreateTable:      commands.NewCreateTableHandler(repos.Connection, crypto, repos.Gateways),
+			UpdateTableRow:   commands.NewUpdateTableRowHandler(repos.Connection, crypto, repos.Gateways),
 		},
 	}
 
