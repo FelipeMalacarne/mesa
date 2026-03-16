@@ -1,5 +1,6 @@
 import {
   type ColumnDef,
+  type Row,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -45,6 +46,7 @@ interface DataTableProps<TData, TValue> {
   isFetching?: boolean;
   pagination?: PaginationState;
   serverSorting?: SortingChangeState;
+  getRowClassName?: (row: Row<TData>) => string;
 }
 
 function SortIcon({ state }: { state: "asc" | "desc" | false }) {
@@ -59,6 +61,7 @@ export function DataTable<TData, TValue>({
   isFetching = false,
   pagination,
   serverSorting,
+  getRowClassName,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -134,6 +137,7 @@ export function DataTable<TData, TValue>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
+                    className={getRowClassName ? getRowClassName(row) : undefined}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="whitespace-nowrap">
