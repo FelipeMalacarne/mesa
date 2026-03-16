@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColumnsTab } from "./_components/columns-tab";
 import { IndexesTab } from "./_components/indexes-tab";
-import { SampleTab } from "./_components/sample-tab";
+import { RowsTab } from "./_components/rows-tab";
 
 export const Route = createFileRoute(
   "/connections/$connectionId/databases/$databaseName/tables/$tableName",
@@ -45,7 +45,7 @@ function DatabaseTable() {
         <TabsList variant="line">
           <TabsTrigger value="columns">Columns</TabsTrigger>
           <TabsTrigger value="indexes">Indexes</TabsTrigger>
-          <TabsTrigger value="sample">Sample data</TabsTrigger>
+          <TabsTrigger value="rows">Rows</TabsTrigger>
         </TabsList>
         <TabsContent value="columns" className="mt-4">
           <ColumnsTab
@@ -61,8 +61,8 @@ function DatabaseTable() {
             tableName={tableName}
           />
         </TabsContent>
-        <TabsContent value="sample" className="mt-4">
-          <SampleTab
+        <TabsContent value="rows" className="mt-4">
+          <RowsTab
             connectionId={connectionId}
             databaseName={databaseName}
             tableName={tableName}
