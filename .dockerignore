@@ -1,0 +1,7 @@
+.git
+.air.toml
+docker/
+docker-compose.yaml
+*.md
+web/node_modules
+web/dist
