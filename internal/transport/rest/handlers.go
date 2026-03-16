@@ -563,11 +563,15 @@ func (s *Server) UpdateTableRow(
 			return
 		}
 		if errors.Is(err, connection.ErrResourceNotFound) {
-			s.respondError(w, http.StatusNotFound, err.Error())
+			s.respondError(w, http.StatusNotFound, "row not found")
+			return
+		}
+		if errors.Is(err, commands.ErrInvalidInput) {
+			s.respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		log.Printf("WARN: updateTableRow %s/%s/%s: %v", connectionID, databaseName, tableName, err)
-		s.respondError(w, http.StatusInternalServerError, err.Error())
+		s.respondError(w, http.StatusInternalServerError, ErrInternalServerError)
 		return
 	}
 
