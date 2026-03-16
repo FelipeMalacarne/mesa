@@ -560,6 +560,61 @@ func (h *Gateway) CreateDatabase(ctx context.Context, conn connection.Connection
 	return nil
 }
 
+func (h *Gateway) UpdateTableRow(ctx context.Context, conn connection.Connection, password string, dbName, tableName connection.Identifier, where, set map[connection.Identifier]any) error {
+	if len(where) == 0 {
+		return fmt.Errorf("%w: where clause cannot be empty", connection.ErrInvalidConfiguration)
+	}
+	if len(set) == 0 {
+		return fmt.Errorf("%w: set clause cannot be empty", connection.ErrInvalidConfiguration)
+	}
+
+	db, err := h.connect(conn, password, dbName)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	args := make([]any, 0, len(set)+len(where))
+	setClauses := make([]string, 0, len(set))
+
+	i := 1
+	for col, val := range set {
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col.Quoted(), i))
+		args = append(args, val)
+		i++
+	}
+
+	whereClauses := make([]string, 0, len(where))
+	for col, val := range where {
+		whereClauses = append(whereClauses, fmt.Sprintf("%s = $%d", col.Quoted(), i))
+		args = append(args, val)
+		i++
+	}
+
+	query := fmt.Sprintf(
+		`UPDATE "public".%s SET %s WHERE %s`,
+		tableName.Quoted(),
+		strings.Join(setClauses, ", "),
+		strings.Join(whereClauses, " AND "),
+	)
+
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("%w: updating row: %v", connection.ErrQueryFailed, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%w: checking rows affected: %v", connection.ErrQueryFailed, err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("%w: no row matched the WHERE clause", connection.ErrResourceNotFound)
+	}
+
+	return nil
+}
+
 // --- SchemaManager Implementation ---
 
 func (h *Gateway) CreateTable(ctx context.Context, conn connection.Connection, password string, dbName connection.Identifier, table connection.TableDefinition) error {
