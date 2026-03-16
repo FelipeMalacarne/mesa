@@ -15,6 +15,9 @@ Rename the "Sample data" tab to "Rows" and add inline cell editing with pending-
 | `SampleTab` component | `RowsTab` component |
 | Tab label "Sample data" | Tab label "Rows" |
 | Tab value `"sample"` | Tab value `"rows"` |
+| Import `SampleTab` in `$tableName.tsx` | Import `RowsTab` |
+| `<TabsTrigger value="sample">` | `<TabsTrigger value="rows">` |
+| `<TabsContent value="sample">` | `<TabsContent value="rows">` |
 
 ## Components
 
@@ -62,15 +65,18 @@ activeCell: { rowKey: string; col: string } | null
 **`DataTable` addition:**
 Add a single optional prop `getRowClassName?: (row: Row<TData>) => string` to `DataTable`. `EditableDataTable` passes this to apply yellow highlighting.
 
+**No primary key fallback:**
+If `editableColumns` is empty (no PK columns found), the table renders normally but all cells are non-interactive. A muted notice is shown directly above the table: `"This table has no primary key — editing is disabled."` No action bar is shown.
+
 ### `RowsTab` (`web/src/routes/.../tables/_components/rows-tab.tsx`)
 
 Replaces `SampleTab`. Uses `EditableDataTable` instead of `DataTable`.
 
 Additional data fetch: `useListColumns` to determine which columns have `primary: true` — these are excluded from `editableColumns` and rendered as muted, non-interactive cells.
 
-`rowKey` is built from primary key column values: `JSON.stringify({ id: row[pkIndex] })`.
+`rowKey` is built from all primary key column values: `JSON.stringify(Object.fromEntries(pkColumns.map(col => [col, row[columns.indexOf(col)]])))`. This handles single, composite, and non-`id` primary keys correctly.
 
-`onConfirmChanges` fires one `useUpdateTableRow` mutation per dirty row sequentially, then calls `queryClient.invalidateQueries` on the rows query key. On any failure, it surfaces an error toast and keeps the pending changes intact.
+`onConfirmChanges` fires one `useUpdateTableRow` mutation per dirty row sequentially. As each row succeeds it is removed from `pendingChanges` immediately. If a row fails, an error toast is shown and processing stops — remaining pending changes (including the failed row) are preserved so the user can retry. `queryClient.invalidateQueries` is called once after all mutations complete (whether fully or partially).
 
 ## Backend
 
@@ -99,7 +105,7 @@ PUT /api/connections/:connectionId/databases/:databaseName/tables/:tableName/row
 3. **`Administrator` interface** in `gateway.go` gains `UpdateTableRow` method
 4. **Postgres gateway** implements `UpdateTableRow`
 5. **REST handler** `UpdateTableRow` added to `handlers.go`
-6. **OpenAPI spec** updated; orval re-run to regenerate `connections.ts` and `mesaAPI.schemas.ts`
+6. **OpenAPI spec** updated; orval re-run via `npm run generate` (configured in `web/package.json`) to regenerate `connections.ts` and `mesaAPI.schemas.ts`
 
 ## Error Handling
 
