@@ -251,6 +251,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TableRowsResponse"
+    put:
+      operationId: UpdateTableRow
+      summary: Update a row in a table
+      tags:
+        - Connections
+      parameters:
+        - $ref: "#/components/parameters/ConnectionId"
+        - $ref: "#/components/parameters/DatabaseName"
+        - $ref: "#/components/parameters/TableName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTableRowRequest"
+      responses:
+        "204":
+          description: Updated (No Content)
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /connections/{connectionID}/users:
     get:
@@ -627,3 +663,15 @@ components:
         - json
         - jsonb
         - bytea
+    UpdateTableRowRequest:
+      type: object
+      required: [where, set]
+      properties:
+        where:
+          type: object
+          additionalProperties: true
+          description: Primary key column(s) and their values to identify the row
+        set:
+          type: object
+          additionalProperties: true
+          description: Column(s) and new values to apply
