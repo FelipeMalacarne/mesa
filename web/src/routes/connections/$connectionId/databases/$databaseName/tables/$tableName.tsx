@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColumnsTab } from "./_components/columns-tab";
 import { IndexesTab } from "./_components/indexes-tab";
@@ -24,21 +22,9 @@ function DatabaseTable() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Breadcrumbs />
-          <h2 className="text-2xl font-semibold">{tableName}</h2>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <Badge variant="secondary">Primary table</Badge>
-            <span>•</span>
-            <span>Public schema</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline">Query</Button>
-          <Button variant="outline">Insert Row</Button>
-          <Button>New Index</Button>
-        </div>
+      <div>
+        <Breadcrumbs />
+        <h2 className="text-2xl font-semibold">{tableName}</h2>
       </div>
 
       <Tabs defaultValue="rows">
