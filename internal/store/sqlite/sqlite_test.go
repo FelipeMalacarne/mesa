@@ -3,6 +3,7 @@ package sqlite_test
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -72,8 +73,12 @@ func TestOpenFile(t *testing.T) {
 	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM mesa_migrations`).Scan(&applied); err != nil {
 		t.Fatal(err)
 	}
-	if applied != 1 {
-		t.Fatalf("migrations applied = %d, want 1", applied)
+	files, err := os.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if applied != len(files) {
+		t.Fatalf("migrations applied = %d, want %d", applied, len(files))
 	}
 	var mode string
 	if err := db.QueryRowContext(ctx, `PRAGMA journal_mode`).Scan(&mode); err != nil {

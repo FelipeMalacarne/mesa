@@ -20,6 +20,7 @@ type Store interface {
 	Layouts() Layouts
 	History() History
 	Queries() SavedQueries
+	Metrics() Metrics
 	Close() error
 }
 
@@ -120,4 +121,26 @@ type SavedQueries interface {
 	List(ctx context.Context) ([]SavedQuery, error)
 	Put(ctx context.Context, q SavedQuery) error
 	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+// MetricPoint is one Monitor sample kept as history.
+type MetricPoint struct {
+	At        time.Time
+	TPS       float64
+	Active    int
+	Idle      int
+	IdleTx    int
+	LatencyMs float64
+	SizeBytes int64
+}
+
+// Metrics keeps Monitor samples per connection and database so the charts can
+// show hours and days, not only what was sampled while the page was open.
+type Metrics interface {
+	Add(ctx context.Context, connectionID uuid.UUID, database string, p MetricPoint) error
+	// Range returns the samples in [from, to) averaged into at most buckets
+	// points, oldest first.
+	Range(ctx context.Context, connectionID uuid.UUID, database string, from, to time.Time, buckets int) ([]MetricPoint, error)
+	// Prune drops samples older than before.
+	Prune(ctx context.Context, before time.Time) error
 }

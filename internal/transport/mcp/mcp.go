@@ -256,7 +256,7 @@ func (t *tools) monitor(ctx context.Context, _ *mcp.CallToolRequest, in connRef)
 		r, _, e := fail(err)
 		return r, nil, e
 	}
-	snap, err := t.app.Monitor.Snapshot(ctx, id, in.Database)
+	snap, err := t.app.Monitor.Snapshot(ctx, id, in.Database, "")
 	if err != nil {
 		r, _, e := fail(err)
 		return r, nil, e

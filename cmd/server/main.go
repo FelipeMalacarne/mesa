@@ -44,6 +44,9 @@ func run() error {
 	}
 	defer func() { _ = a.Close() }()
 
+	// Databases opened in Monitor keep being sampled, so its ranges have history.
+	go a.Monitor.Run(ctx)
+
 	handler := httptransport.New(a, httptransport.Options{
 		Assets:      web.Assets(),
 		CORSOrigins: cfg.CORSOrigins,

@@ -540,7 +540,11 @@ func (h *handlers) GetMonitorOverview(ctx context.Context, r gen.GetMonitorOverv
 }
 
 func (h *handlers) GetMonitorSnapshot(ctx context.Context, r gen.GetMonitorSnapshotRequestObject) (gen.GetMonitorSnapshotResponseObject, error) {
-	s, err := h.app.Monitor.Snapshot(ctx, r.ConnectionId, r.DatabaseName)
+	rng := ""
+	if r.Params.Range != nil {
+		rng = string(*r.Params.Range)
+	}
+	s, err := h.app.Monitor.Snapshot(ctx, r.ConnectionId, r.DatabaseName, rng)
 	if err != nil {
 		return nil, err
 	}

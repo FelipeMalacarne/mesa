@@ -84,7 +84,7 @@ func New(o Options) *App {
 		Explore:     exp,
 		Changes:     ch,
 		Query:       query.New(sessions, o.Store.History(), o.Store.Queries(), unlocks),
-		Monitor:     monitor.New(sessions, unlocks),
+		Monitor:     monitor.New(sessions, unlocks, o.Store.Metrics()),
 		Roles:       roles.New(sessions, ch),
 	}
 	a.Designer = designer.New(sessions, ch, o.Store.Layouts(), exp.Schema)

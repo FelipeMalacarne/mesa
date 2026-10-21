@@ -47,6 +47,9 @@ func run() error {
 		return err
 	}
 	defer func() { _ = a.Close() }()
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
+	go a.Monitor.Run(ctx)
 
 	handler := httptransport.New(a, httptransport.Options{Assets: web.Assets(), Logger: log})
 	var wctx context.Context

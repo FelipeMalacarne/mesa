@@ -30,6 +30,7 @@ import type {
 import type {
   ActiveSession,
   ErrorResponse,
+  GetMonitorSnapshotParams,
   KillSessionBody,
   Overview,
   Panel,
@@ -144,21 +145,30 @@ export function useGetMonitorOverview<TData = Awaited<ReturnType<typeof getMonit
 
 
 /**
- * @summary Current metrics, rates since the previous sample and the recent series
+ * @summary Current metrics, rates since the previous sample, and the series for a range
  */
 export const getGetMonitorSnapshotUrl = (connectionId: string,
-    database: string,) => {
+    database: string,
+    params?: GetMonitorSnapshotParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
-  
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/connections/${connectionId}/databases/${database}/monitor/snapshot`
+  return stringifiedParams.length > 0 ? `/connections/${connectionId}/databases/${database}/monitor/snapshot?${stringifiedParams}` : `/connections/${connectionId}/databases/${database}/monitor/snapshot`
 }
 
 export const getMonitorSnapshot = async (connectionId: string,
-    database: string, options?: RequestInit): Promise<Snapshot> => {
+    database: string,
+    params?: GetMonitorSnapshotParams, options?: RequestInit): Promise<Snapshot> => {
   
-  return customFetch<Snapshot>(getGetMonitorSnapshotUrl(connectionId,database),
+  return customFetch<Snapshot>(getGetMonitorSnapshotUrl(connectionId,database,params),
   {      
     ...options,
     method: 'GET'
@@ -172,24 +182,26 @@ export const getMonitorSnapshot = async (connectionId: string,
 
 
 export const getGetMonitorSnapshotQueryKey = (connectionId: string,
-    database: string,) => {
+    database: string,
+    params?: GetMonitorSnapshotParams,) => {
     return [
-    `/connections/${connectionId}/databases/${database}/monitor/snapshot`
+    `/connections/${connectionId}/databases/${database}/monitor/snapshot`, ...(params ? [params] : [])
     ] as const;
     }
 
     
 export const getGetMonitorSnapshotQueryOptions = <TData = Awaited<ReturnType<typeof getMonitorSnapshot>>, TError = ErrorResponse>(connectionId: string,
-    database: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+    database: string,
+    params?: GetMonitorSnapshotParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetMonitorSnapshotQueryKey(connectionId,database);
+  const queryKey =  queryOptions?.queryKey ?? getGetMonitorSnapshotQueryKey(connectionId,database,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMonitorSnapshot>>> = ({ signal }) => getMonitorSnapshot(connectionId,database, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMonitorSnapshot>>> = ({ signal }) => getMonitorSnapshot(connectionId,database,params, { signal, ...requestOptions });
 
       
 
@@ -204,7 +216,8 @@ export type GetMonitorSnapshotQueryError = ErrorResponse
 
 export function useGetMonitorSnapshot<TData = Awaited<ReturnType<typeof getMonitorSnapshot>>, TError = ErrorResponse>(
  connectionId: string,
-    database: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>> & Pick<
+    database: string,
+    params: undefined |  GetMonitorSnapshotParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getMonitorSnapshot>>,
           TError,
@@ -215,7 +228,8 @@ export function useGetMonitorSnapshot<TData = Awaited<ReturnType<typeof getMonit
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetMonitorSnapshot<TData = Awaited<ReturnType<typeof getMonitorSnapshot>>, TError = ErrorResponse>(
  connectionId: string,
-    database: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>> & Pick<
+    database: string,
+    params?: GetMonitorSnapshotParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getMonitorSnapshot>>,
           TError,
@@ -226,20 +240,22 @@ export function useGetMonitorSnapshot<TData = Awaited<ReturnType<typeof getMonit
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetMonitorSnapshot<TData = Awaited<ReturnType<typeof getMonitorSnapshot>>, TError = ErrorResponse>(
  connectionId: string,
-    database: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+    database: string,
+    params?: GetMonitorSnapshotParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Current metrics, rates since the previous sample and the recent series
+ * @summary Current metrics, rates since the previous sample, and the series for a range
  */
 
 export function useGetMonitorSnapshot<TData = Awaited<ReturnType<typeof getMonitorSnapshot>>, TError = ErrorResponse>(
  connectionId: string,
-    database: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+    database: string,
+    params?: GetMonitorSnapshotParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMonitorSnapshot>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetMonitorSnapshotQueryOptions(connectionId,database,options)
+  const queryOptions = getGetMonitorSnapshotQueryOptions(connectionId,database,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

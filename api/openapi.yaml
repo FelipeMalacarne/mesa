@@ -495,7 +495,12 @@ paths:
     get:
       operationId: getMonitorSnapshot
       tags: [Monitor]
-      summary: Current metrics, rates since the previous sample and the recent series
+      summary: Current metrics, rates since the previous sample, and the series for a range
+      parameters:
+        - name: range
+          in: query
+          description: "live: samples taken while watching; otherwise stored history"
+          schema: { type: string, enum: [live, 15m, 1h, 6h, 24h, 7d], default: live }
       responses:
         "200":
           description: OK
@@ -1237,7 +1242,7 @@ components:
         metrics: { $ref: "#/components/schemas/Metrics" }
         tps: { type: number, format: double, description: Transactions per second since the previous sample }
         latencyMs: { type: number, format: double }
-        sizeDelta7d: { type: integer, format: int64, description: Growth in bytes over the series window when known }
+        sizeDelta7d: { type: integer, format: int64, description: Growth in bytes over the last 7 days when known }
         series: { type: array, items: { $ref: "#/components/schemas/Point" } }
     ActiveSession:
       type: object

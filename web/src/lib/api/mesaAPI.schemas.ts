@@ -549,7 +549,7 @@ export interface Snapshot {
   /** Transactions per second since the previous sample */
   tps: number;
   latencyMs: number;
-  /** Growth in bytes over the series window when known */
+  /** Growth in bytes over the last 7 days when known */
   sizeDelta7d?: number;
   series: Point[];
 }
@@ -752,6 +752,25 @@ export type ListHistoryParams = {
  */
 limit?: number;
 };
+
+export type GetMonitorSnapshotParams = {
+/**
+ * live: samples taken while watching; otherwise stored history
+ */
+range?: GetMonitorSnapshotRange;
+};
+
+export type GetMonitorSnapshotRange = typeof GetMonitorSnapshotRange[keyof typeof GetMonitorSnapshotRange];
+
+
+export const GetMonitorSnapshotRange = {
+  live: 'live',
+  '15m': '15m',
+  '1h': '1h',
+  '6h': '6h',
+  '24h': '24h',
+  '7d': '7d',
+} as const;
 
 export type KillSessionBody = {
   terminate?: boolean;

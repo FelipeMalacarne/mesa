@@ -44,6 +44,7 @@ func (s *Store) Audit() store.Audit             { return audit{s} }
 func (s *Store) Layouts() store.Layouts         { return layouts{s} }
 func (s *Store) History() store.History         { return history{s} }
 func (s *Store) Queries() store.SavedQueries    { return savedQueries{s} }
+func (s *Store) Metrics() store.Metrics         { return metrics{s} }
 
 // Close closes the database handle.
 func (s *Store) Close() error { return s.db.Close() }

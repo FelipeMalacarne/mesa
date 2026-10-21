@@ -26,6 +26,43 @@ func Run(t *testing.T, open func(t *testing.T) store.Store) {
 	t.Run("layouts", func(t *testing.T) { testLayouts(t, open(t)) })
 	t.Run("history", func(t *testing.T) { testHistory(t, open(t)) })
 	t.Run("saved queries", func(t *testing.T) { testSavedQueries(t, open(t)) })
+	t.Run("metrics", func(t *testing.T) { testMetrics(t, open(t)) })
+}
+
+func testMetrics(t *testing.T, s store.Store) {
+	ctx := context.Background()
+	id := uuid.New()
+	m := s.Metrics()
+	// Ten samples a minute apart; two buckets of five.
+	for i := 0; i < 10; i++ {
+		p := store.MetricPoint{At: base.Add(time.Duration(i) * time.Minute), TPS: float64(i), Active: i, LatencyMs: 1, SizeBytes: int64(1000 + i)}
+		if err := m.Add(ctx, id, "shop", p); err != nil {
+			t.Fatalf("Add: %v", err)
+		}
+	}
+	if err := m.Add(ctx, id, "other", store.MetricPoint{At: base, TPS: 99}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := m.Range(ctx, id, "shop", base, base.Add(10*time.Minute), 2)
+	if err != nil {
+		t.Fatalf("Range: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("Range buckets = %d, want 2: %+v", len(got), got)
+	}
+	if got[0].TPS != 2 || got[1].TPS != 7 || got[1].SizeBytes != 1009 || got[0].Active != 2 {
+		t.Errorf("Range averages = %+v", got)
+	}
+	if !got[0].At.Before(got[1].At) {
+		t.Error("Range must be oldest first")
+	}
+	if err := m.Prune(ctx, base.Add(5*time.Minute)); err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	got, err = m.Range(ctx, id, "shop", base, base.Add(10*time.Minute), 10)
+	if err != nil || len(got) != 5 {
+		t.Errorf("after Prune: %d points, %v", len(got), err)
+	}
 }
 
 // base is a fixed instant with microsecond precision, the finest both

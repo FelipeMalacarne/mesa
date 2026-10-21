@@ -30,6 +30,7 @@ export function MonitorPage({ view, database: requested }: { view: "overview" | 
   const database = requested ?? connection.database;
   const dbs = useListDatabases(connectionId);
   const [paused, setPaused] = React.useState(false);
+  const [range, setRange] = React.useState<Range>("live");
 
   React.useEffect(() => {
     useTabs.getState().open(connectionId, { id: "monitor", kind: "monitor", title: view === "sessions" ? "Sessions" : "Monitor", view });
@@ -56,20 +57,46 @@ export function MonitorPage({ view, database: requested }: { view: "overview" | 
           <Select size="sm" mono aria-label="Database" value={database} options={(dbs.data ?? [{ name: database }]).map((d) => ({ value: d.name, label: d.name }))} onChange={(v) => go({ database: v })} />
         </span>
         <span className="m-spacer" />
-        <span className="m-help">{paused ? "Paused" : "Live · every 2 s"}</span>
+        {view === "overview" ? (
+          <div className="m-seg" role="tablist" aria-label="Time range">
+            {RANGES.map((r) => (
+              <button key={r.value} type="button" role="tab" aria-selected={range === r.value} className={cn("m-seg__item", range === r.value && "is-active")} onClick={() => setRange(r.value)}>
+                {r.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <span className="m-help">{paused ? "Paused" : range === "live" || view === "sessions" ? "Live · every 2 s" : "Every 30 s"}</span>
         <Button variant="ghost" size="sm" icon aria-label={paused ? "Resume" : "Pause"} onClick={() => setPaused(!paused)}>
           {paused ? <Play className="m-icon m-icon--sm" aria-hidden="true" /> : <Pause className="m-icon m-icon--sm" aria-hidden="true" />}
         </Button>
       </div>
-      {view === "overview" ? <Overview database={database} paused={paused} /> : <Sessions database={database} paused={paused} />}
+      {view === "overview" ? <Overview database={database} paused={paused} range={range} /> : <Sessions database={database} paused={paused} />}
     </>
   );
 }
 
-function Overview({ database, paused }: { database: string; paused: boolean }) {
+type Range = "live" | "15m" | "1h" | "6h" | "24h" | "7d";
+
+const RANGES: { value: Range; label: string }[] = [
+  { value: "live", label: "Live" },
+  { value: "15m", label: "15m" },
+  { value: "1h", label: "1h" },
+  { value: "6h", label: "6h" },
+  { value: "24h", label: "24h" },
+  { value: "7d", label: "7d" },
+];
+
+function Overview({ database, paused, range }: { database: string; paused: boolean; range: Range }) {
   const { connectionId } = useWorkspace();
   const overview = useGetMonitorOverview(connectionId, database);
-  const snap = useQuery({ queryKey: ["snapshot", connectionId, database], queryFn: () => getMonitorSnapshot(connectionId, database), refetchInterval: paused ? false : 2000, retry: false });
+  const snap = useQuery({
+    queryKey: ["snapshot", connectionId, database, range],
+    queryFn: () => getMonitorSnapshot(connectionId, database, { range }),
+    refetchInterval: paused ? false : range === "live" ? 2000 : 30_000,
+    retry: false,
+    placeholderData: (prev) => prev,
+  });
   const panel = useGetEnginePanel(connectionId, database, { query: { refetchInterval: paused ? false : 15_000, retry: false } });
   useStatusFacts(overview.data ? [`PostgreSQL ${overview.data.version}`, `up ${relativeTime(overview.data.startedAt).replace(" ago", "")}`] : []);
 
@@ -83,7 +110,7 @@ function Overview({ database, paused }: { database: string; paused: boolean }) {
             General
           </h2>
           {s ? <GeneralTiles s={s} /> : <p className="m-help">Sampling…</p>}
-          {s ? <Charts s={s} /> : null}
+          {s ? <Charts s={s} range={range} /> : null}
         </section>
         <section style={{ display: "flex", flexDirection: "column", gap: 12 }} aria-labelledby="engine-h">
           <h2 id="engine-h" className="m-section-title">
@@ -173,8 +200,15 @@ function GeneralTiles({ s }: { s: Snapshot }) {
   );
 }
 
-function Charts({ s }: { s: Snapshot }) {
-  const labels = s.series.map((p) => clockTime(p.at));
+function Charts({ s, range }: { s: Snapshot; range: Range }) {
+  const labels = s.series.map((p) => (range === "24h" || range === "7d" ? dayTime(p.at) : clockTime(p.at)));
+  if (s.series.length < 2) {
+    return (
+      <p className="m-help">
+        {range === "live" ? "Collecting samples…" : "No history for this range yet. Mesa keeps sampling a database once its Monitor has been opened, while the server or desktop app runs."}
+      </p>
+    );
+  }
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 12 }}>
       <section className="m-card">
@@ -417,4 +451,9 @@ function Sessions({ database, paused }: { database: string; paused: boolean }) {
       </Dialog>
     </div>
   );
+}
+
+function dayTime(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
