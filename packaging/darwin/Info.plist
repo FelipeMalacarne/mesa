@@ -5,7 +5,7 @@
   <key>CFBundleName</key><string>Mesa</string>
   <key>CFBundleDisplayName</key><string>Mesa</string>
   <key>CFBundleIdentifier</key><string>dev.mesa.desktop</string>
-  <key>CFBundleVersion</key><string>@VERSION@</string>
+  <key>CFBundleVersion</key><string>@BUILD@</string>
   <key>CFBundleShortVersionString</key><string>@VERSION@</string>
   <key>CFBundleExecutable</key><string>mesa-desktop</string>
   <key>CFBundlePackageType</key><string>APPL</string>

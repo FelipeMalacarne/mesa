@@ -15,7 +15,8 @@ trap 'rm -rf "$stage"' EXIT
 app="$stage/Mesa.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 install -m 0755 "$bin" "$app/Contents/MacOS/mesa-desktop"
-sed "s/@VERSION@/$version/g" "$here/Info.plist" > "$app/Contents/Info.plist"
+# CFBundleVersion must be numbers and dots: 1.2.0-rc.1 builds as 1.2.0.
+sed -e "s/@VERSION@/$version/g" -e "s/@BUILD@/${version%%-*}/g" "$here/Info.plist" > "$app/Contents/Info.plist"
 
 iconset="$stage/mesa.iconset"
 mkdir -p "$iconset"
