@@ -115,20 +115,38 @@ func run() error {
 }
 
 func appMenu(ctx func() context.Context, updates *updates) *menu.Menu {
+	// send runs one of the web app's commands (web/src/app/commands.ts), the
+	// same ones its keyboard shortcuts run; it ignores a repeat within 250 ms,
+	// so a key press seen by both the menu and the page acts once.
+	send := func(id string) menu.Callback {
+		return func(*menu.CallbackData) {
+			runtime.WindowExecJS(ctx(), `window.dispatchEvent(new CustomEvent("mesa:command",{detail:"`+id+`"}))`)
+		}
+	}
 	m := menu.NewMenu()
 	// The role menus exist only on macOS, where Edit is what makes copy and
 	// paste work in the webview; Linux and Windows handle those natively.
 	if isMac() {
 		m.Append(menu.AppMenu())
+	}
+	file := m.AddSubmenu("File")
+	file.AddText("New Query Tab", keys.CmdOrCtrl("t"), send("tab.new"))
+	file.AddText("Reopen Closed Tab", keys.Combo("t", keys.CmdOrCtrlKey, keys.ShiftKey), send("tab.reopen"))
+	file.AddSeparator()
+	file.AddText("Close Tab", keys.CmdOrCtrl("w"), send("tab.close"))
+	if isMac() {
 		m.Append(menu.EditMenu())
 	}
 	view := m.AddSubmenu("View")
-	view.AddText("Reload", keys.CmdOrCtrl("r"), func(*menu.CallbackData) { runtime.WindowReload(ctx()) })
-	view.AddText("Command palette", keys.CmdOrCtrl("k"), func(*menu.CallbackData) {
-		runtime.WindowExecJS(ctx(), `window.dispatchEvent(new KeyboardEvent("keydown",{key:"k",metaKey:navigator.platform.includes("Mac"),ctrlKey:!navigator.platform.includes("Mac")}))`)
-	})
+	view.AddText("Command Palette", keys.CmdOrCtrl("k"), send("palette"))
+	view.AddText("Filter Objects", keys.CmdOrCtrl("p"), send("filter"))
+	view.AddText("Show or Hide Sidebar", keys.CmdOrCtrl("b"), send("rail"))
 	view.AddSeparator()
-	view.AddText("Toggle full screen", keys.Key("f11"), func(*menu.CallbackData) {
+	view.AddText("Next Tab", keys.Control("tab"), send("tab.next"))
+	view.AddText("Previous Tab", keys.Combo("tab", keys.ControlKey, keys.ShiftKey), send("tab.prev"))
+	view.AddSeparator()
+	view.AddText("Reload", keys.CmdOrCtrl("r"), func(*menu.CallbackData) { runtime.WindowReload(ctx()) })
+	view.AddText("Toggle Full Screen", keys.Key("f11"), func(*menu.CallbackData) {
 		if runtime.WindowIsFullscreen(ctx()) {
 			runtime.WindowUnfullscreen(ctx())
 		} else {
@@ -136,7 +154,9 @@ func appMenu(ctx func() context.Context, updates *updates) *menu.Menu {
 		}
 	})
 	help := m.AddSubmenu("Help")
-	help.AddText("Check for updates…", nil, func(*menu.CallbackData) { go updates.check(ctx(), true) })
+	help.AddText("Keyboard Shortcuts", keys.CmdOrCtrl("/"), send("help"))
+	help.AddSeparator()
+	help.AddText("Check for Updates…", nil, func(*menu.CallbackData) { go updates.check(ctx(), true) })
 	help.AddText("Mesa on GitHub", nil, func(*menu.CallbackData) { runtime.BrowserOpenURL(ctx(), "https://github.com/felipemalacarne/mesa") })
 	return m
 }

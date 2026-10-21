@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/ui/Button";
 import { Kbd } from "@/ui/controls";
 import { hasChanges, tableKey, useChanges } from "@/features/table/changes.store";
+import { command, usableKeys } from "@/app/commands";
+import { label } from "@/app/keys";
+import { useIsDesktop } from "@/app/shortcuts";
 
 import { useWorkspace } from "../workspace/context";
 import { tabLink, useActiveTab, useConnectionTabs, useTabs, type Tab } from "./tabs.store";
@@ -35,6 +38,11 @@ export function TabStrip() {
   const active = useActiveTab(connectionId);
   const staged = useChanges((s) => s.tables);
   const navigate = useNavigate();
+  const desktop = useIsDesktop();
+  const keyFor = (id: string) => {
+    const k = usableKeys(command(id)!, desktop)[0];
+    return k ? label(k) : "";
+  };
 
   const close = (tab: Tab) => {
     const next = useTabs.getState().close(connectionId, tab.id);
@@ -74,6 +82,7 @@ export function TabStrip() {
               tabIndex={-1}
               className="m-tab__close"
               aria-label={`Close ${tab.title}`}
+              title={`Close (${keyFor("tab.close")})`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -86,10 +95,10 @@ export function TabStrip() {
         );
       })}
       <div className="m-tabs__end">
-        <Button variant="ghost" size="xs" icon aria-label="New query" onClick={newQuery}>
+        <Button variant="ghost" size="xs" icon aria-label="New query" title={`New query (${keyFor("tab.new")})`} onClick={newQuery}>
           <Plus className="m-icon m-icon--sm" aria-hidden="true" />
         </Button>
-        <Kbd>⌘T</Kbd>
+        <Kbd>{keyFor("tab.new")}</Kbd>
       </div>
     </nav>
   );

@@ -5,14 +5,17 @@
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Activity, Database, Eye, History, LayoutGrid, Moon, SquareTerminal, Table2, Users } from "lucide-react";
+import { Activity, Command as CommandIcon, Database, Eye, History, LayoutGrid, Moon, SquareTerminal, Table2, Users } from "lucide-react";
 
 import { useListConnections } from "@/lib/api/connections/connections";
 import type { Database as DatabaseModel } from "@/lib/api/mesaAPI.schemas";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/ui/primitives/command";
-import { EnvTag } from "@/ui/controls";
+import { EnvTag, Kbd } from "@/ui/controls";
 import { tabLink, useTabs } from "@/features/explorer/tabs.store";
 
+import { commands, runCommand, usableKeys } from "./commands";
+import { label } from "./keys";
+import { useIsDesktop } from "./shortcuts";
 import { useTheme } from "./theme";
 import { useUi } from "./ui.store";
 
@@ -25,6 +28,7 @@ export function CommandPalette() {
   const connectionId = params.connectionId;
   const connections = useListConnections({ query: { enabled: open } });
   const toggleTheme = useTheme((s) => s.toggle);
+  const desktop = useIsDesktop();
 
   const tables = React.useMemo(() => {
     if (!open || !connectionId) return [];
@@ -128,6 +132,20 @@ export function CommandPalette() {
             All connections
           </CommandItem>
         </CommandGroup>
+        <CommandGroup heading="Commands">
+          {commands
+            .filter((c) => !c.hidden && c.id !== "palette" && (!c.inConnection || connectionId))
+            .map((c) => {
+              const key = usableKeys(c, desktop)[0];
+              return (
+                <CommandItem key={c.id} value={`${c.title} command`} onSelect={() => run(() => void runCommand(c.id, { navigate, connectionId }))}>
+                  <CommandIcon className="m-icon m-icon--sm" aria-hidden="true" />
+                  {c.title}
+                  {key ? <Kbd>{label(key)}</Kbd> : null}
+                </CommandItem>
+              );
+            })}
+        </CommandGroup>
         <CommandGroup heading="Appearance">
           <CommandItem value="toggle theme dark light" onSelect={() => run(toggleTheme)}>
             <Moon className="m-icon m-icon--sm" aria-hidden="true" />
@@ -137,33 +155,4 @@ export function CommandPalette() {
       </CommandList>
     </CommandDialog>
   );
-}
-
-/** App-wide shortcuts. Views add their own (⌘S in a table, ⌘↵ in the SQL editor). */
-export function useGlobalShortcuts() {
-  const navigate = useNavigate();
-  const params = useParams({ strict: false }) as { connectionId?: string };
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const mod = navigator.platform.includes("Mac") ? e.metaKey : e.ctrlKey;
-      if (!mod) return;
-      const k = e.key.toLowerCase();
-      if (k === "k") {
-        e.preventDefault();
-        useUi.getState().setPaletteOpen(!useUi.getState().paletteOpen);
-      } else if (k === "b") {
-        e.preventDefault();
-        useUi.getState().toggleRail();
-      } else if (k === "p" && params.connectionId) {
-        e.preventDefault();
-        window.dispatchEvent(new Event("mesa:focus-filter"));
-      } else if ((k === "t" || (e.altKey && k === "n")) && params.connectionId) {
-        e.preventDefault();
-        const tab = useTabs.getState().newQuery(params.connectionId);
-        void navigate(tabLink(params.connectionId, tab));
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [navigate, params.connectionId]);
 }
