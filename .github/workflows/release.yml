@@ -176,6 +176,9 @@ jobs:
       - name: Build a universal binary
         env:
           LDFLAGS: ${{ needs.meta.outputs.ldflags }}
+          # Wails' file dialogs use UTType; `wails build` links this itself.
+          CGO_LDFLAGS: -framework UniformTypeIdentifiers
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
         run: |
           for arch in arm64 amd64; do
             CGO_ENABLED=1 GOARCH=$arch go build -tags desktop,production -trimpath -ldflags "$LDFLAGS" -o build/mesa-desktop-$arch ./cmd/desktop

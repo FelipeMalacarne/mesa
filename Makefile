@@ -13,6 +13,10 @@ build: ## Build every binary (mesa-server expects web/dist; run `make web` first
 	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa ./cmd/cli
 	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-mcp ./cmd/mcp
 
+ifeq ($(shell uname -s),Darwin)
+desktop: export CGO_LDFLAGS := -framework UniformTypeIdentifiers
+desktop: export MACOSX_DEPLOYMENT_TARGET := 11.0
+endif
 desktop: ## Build bin/mesa-desktop (Linux: needs libwebkit2gtk-4.1-dev and libgtk-3-dev)
 	CGO_ENABLED=1 $(GO) build -tags desktop,production,webkit2_41 -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-desktop ./cmd/desktop
 
