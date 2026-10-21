@@ -44,15 +44,19 @@ export function SqlPage({ tabId }: { tabId?: string }) {
   const navigate = useNavigate();
   const tab = useTabs((s) => s.byConnection[connectionId]?.tabs.find((t) => t.id === tabId && t.kind === "query") as QueryTab | undefined);
 
-  // /sql without a known tab opens a fresh one.
+  // /sql without a known tab opens a fresh one. A tab that was here and is gone was just
+  // closed: the close already navigates to the next tab, so do not replace it.
+  const seen = React.useRef<string | undefined>(undefined);
   React.useEffect(() => {
     if (tab) {
+      seen.current = tab.id;
       useTabs.getState().activate(connectionId, tab.id);
       return;
     }
+    if (tabId && seen.current === tabId) return;
     const fresh = useTabs.getState().newQuery(connectionId);
     void navigate({ ...tabLink(connectionId, fresh), replace: true });
-  }, [tab, connectionId, navigate]);
+  }, [tab, tabId, connectionId, navigate]);
 
   if (!tab) return null;
   return <QueryTabView key={tab.id} tab={tab} connectionName={connection.name} />;
