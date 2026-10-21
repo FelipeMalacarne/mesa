@@ -51,11 +51,11 @@ type Input struct {
 // Item is a connection with its runtime state.
 type Item struct {
 	connection.Connection
-	LastOpenedAt  *time.Time
-	UnlockedUntil *time.Time
+	LastOpenedAt  *time.Time `json:"lastOpenedAt,omitempty"`
+	UnlockedUntil *time.Time `json:"unlockedUntil,omitempty"`
 	// DefinedIn names the project file that defines the connection
 	// (".mesa/mesa.toml"); empty for the person's own connections.
-	DefinedIn string
+	DefinedIn string `json:"definedIn,omitempty"`
 }
 
 // TestResult is the outcome of reaching a server.

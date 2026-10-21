@@ -67,18 +67,18 @@ const (
 // Connection is a server Mesa can reach. Database is the default database to
 // open; the explorer can open any database the role can see.
 type Connection struct {
-	ID          uuid.UUID
-	Name        string
-	Engine      Engine
-	Environment Environment
-	Host        string
-	Port        int
-	Database    string
-	User        string
-	TLS         TLSMode
-	ReadOnly    bool // true forces read-only regardless of environment
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          uuid.UUID   `json:"id"`
+	Name        string      `json:"name"`
+	Engine      Engine      `json:"engine"`
+	Environment Environment `json:"environment"`
+	Host        string      `json:"host"`
+	Port        int         `json:"port"`
+	Database    string      `json:"database"`
+	User        string      `json:"user"`
+	TLS         TLSMode     `json:"tls"`
+	ReadOnly    bool        `json:"readOnly"` // true forces read-only regardless of environment
+	CreatedAt   time.Time   `json:"createdAt"`
+	UpdatedAt   time.Time   `json:"updatedAt"`
 }
 
 // Input is what a person fills in; New validates it into a Connection.
