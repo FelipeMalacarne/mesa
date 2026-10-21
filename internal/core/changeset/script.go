@@ -48,7 +48,7 @@ func SplitScript(src string) []string {
 	for i := 0; i < len(src); i++ {
 		c := src[i]
 		switch {
-		case c == '\'' || c == '"':
+		case c == '\'' || c == '"' || c == '`':
 			j := endOfQuoted(src, i, c)
 			b.WriteString(src[i:j])
 			i = j - 1

@@ -34,6 +34,16 @@ type Fixture struct {
 	Types  Types
 	// SelectOne is a query returning a single row with one column "one" = 1.
 	SelectOne string
+	// QuoteTable renders a table name in hand-written SQL; nil uses the
+	// standard double quotes.
+	QuoteTable func(ident.Qualified) string
+}
+
+func (f Fixture) quote(q ident.Qualified) string {
+	if f.QuoteTable != nil {
+		return f.QuoteTable(q)
+	}
+	return q.Quote()
 }
 
 // Run runs every conformance test.
@@ -417,14 +427,14 @@ func testReadOnly(t *testing.T, f Fixture) {
 	s := f.Open(t)
 	m := create(t, f, s)
 	seed(t, f, s, m)
-	_, err := s.Query(ctx(t), "DELETE FROM "+ident.Q(f.Schema, "books").Quote(), nil, engine.QueryOptions{ReadOnly: true})
+	_, err := s.Query(ctx(t), "DELETE FROM "+f.quote(ident.Q(f.Schema, "books")), nil, engine.QueryOptions{ReadOnly: true})
 	if !errs.Is(err, errs.Forbidden) {
 		t.Errorf("write in a read-only query: error = %v (kind %v), want Forbidden", err, errs.KindOf(err))
 	}
 	if n := countBooks(t, s, f); n != 4 {
 		t.Errorf("read-only query changed data: books = %d", n)
 	}
-	res, err := s.Query(ctx(t), "SELECT * FROM "+ident.Q(f.Schema, "books").Quote(), nil, engine.QueryOptions{MaxRows: 2})
+	res, err := s.Query(ctx(t), "SELECT * FROM "+f.quote(ident.Q(f.Schema, "books")), nil, engine.QueryOptions{MaxRows: 2})
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}

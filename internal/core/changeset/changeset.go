@@ -209,6 +209,7 @@ const (
 	RiskManyRows      RiskCode = "many_rows"      // DML touching many rows
 	RiskNoKey         RiskCode = "no_key"         // row change on a table without a primary key
 	RiskIrreversible  RiskCode = "irreversible"   // no down statement possible
+	RiskNoTransaction RiskCode = "no_transaction" // the engine commits DDL implicitly
 )
 
 // Risk is one thing the person should know before applying.
