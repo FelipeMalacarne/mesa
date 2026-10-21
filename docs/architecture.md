@@ -1,0 +1,86 @@
+# Mesa architecture
+
+Mesa is one Go binary (`mesa`) that exposes the same application layer through several surfaces: an HTTP API with an embedded React UI (`mesa serve`), a CLI, an MCP server (`mesa mcp`) and, later, a desktop shell. The product design lives in the Mesa design system and screen canvas; this document describes how the code is organised to deliver it.
+
+## Principles
+
+1. **One application, many transports.** Transports translate; they never contain logic. A feature exists when it works from the HTTP API and the CLI.
+2. **Safe by default.** Every write is a reviewed change: staged → planned as SQL → checked by policy (environment, read-only, confirm-by-name) → applied in a transaction → audited. There is no other path.
+3. **One schema model.** Live catalog, DBML, the designer, the diff and the DDL generator all speak `core/schema`.
+4. **Engines are plug-ins with declared capabilities.** PostgreSQL is complete; other engines implement what they can, and the UI shows only what is supported.
+5. **Mesa works with nothing but itself.** Connections, history and models live in Mesa's store (SQLite on desktop/CLI, PostgreSQL in server mode). A `.mesa/` project folder is an optional overlay.
+
+## Packages
+
+### `internal/core` — pure, no I/O
+
+| Package | Holds |
+| --- | --- |
+| `ident` | Identifiers and qualified names, quoting rules, validation |
+| `schema` | Engine-neutral model (`Database`, `Schema`, `Table`, `Column`, `Index`, `ForeignKey`, `Enum`) and `Diff(from, to) → []Change` |
+| `value` | Typed cell values (`Null`, `Bool`, `Int`, `Float`, `Decimal`, `Text`, `Bytes`, `UUID`, `JSON`, `Time`, `Array`) and their JSON wire form |
+| `changeset` | `ChangeSet` (row inserts/updates/deletes + schema changes) and `Plan` (ordered statements, down statements, risks) |
+| `policy` | `Environment`, read-only rules, confirmation rules → `Decision` |
+| `connection` | The `Connection` entity (never holds secrets) |
+| `errs` | Error kinds: `NotFound`, `Invalid`, `Forbidden`, `Conflict`, `Unavailable`, `Unsupported` |
+
+### `internal/engine` — driver ports
+
+```go
+type Engine interface {
+    Name() string
+    Capabilities() Capabilities
+    Open(ctx, Target) (Session, error)   // Target = host, port, database, user, secret, TLS
+}
+type Session interface {
+    Catalog  // Database(ctx) (schema.Database, error); Databases(ctx); TableStats…
+    Exec     // Query(ctx, sql, args) (Rows, error); Rows paged; Tx(ctx, func(Tx) error)
+    Monitor  // Overview, Metrics, Sessions, Kill, EngineMetrics (engine-specific panel)
+    Dialect  // Compile(changeset.ChangeSet) (changeset.Plan, error)
+    Ping(ctx) error; Close()
+}
+```
+
+`engine/postgres` implements all four on `pgxpool`; catalog SQL is embedded. `engine/enginetest` is a conformance suite every engine must pass.
+
+### `internal/session`
+
+`Manager` turns a `connection.Connection` plus its secret into a pooled `engine.Session` per (connection, database), evicts idle sessions, and never exposes the secret to callers.
+
+### `internal/app` — use cases
+
+One package per feature: `connections`, `explore`, `changes`, `query`, `monitor`, `designer`. Inputs and outputs are plain structs. `changes` is the single write path; `designer` builds on `schema.Diff`, `dbml` and `Dialect.Compile`.
+
+### `internal/store`
+
+Mesa's own data behind ports: `Connections`, `Secrets`, `Audit`, `Layouts` (diagram positions), `History` (queries). `store/sqlite` for desktop and CLI (`~/.config/mesa/mesa.db`), `store/postgres` for server mode, `store/project` reads an optional `.mesa/` folder.
+
+### `internal/transport`
+
+- `http`: OpenAPI strict server (oapi-codegen) on chi, SSE for streamed results, embedded `web/dist`.
+- `cli`: cobra commands sharing the app layer (`connections`, `query`, `model pull`, `diff`, `apply`, `serve`, `mcp`).
+- `mcp`: MCP tools over stdio, read-only unless `--allow-writes`; writes still go through review.
+
+## The write path
+
+```
+grid edit / designer / CLI / MCP
+        │ changeset.ChangeSet
+        ▼
+engine.Dialect.Compile  ──► changeset.Plan {Up, Down, Risks}
+        │
+policy.Evaluate(connection.Environment, plan) ──► Allow | NeedsConfirmation | Deny
+        │
+store.Audit.Begin ──► engine.Exec.Tx(plan.Up) ──► store.Audit.Finish
+```
+
+## Data flow for reads
+
+`transport` → `app/explore` → `session.Manager.Session(connID, db)` → `engine.Catalog/Exec` → `value.Row` → transport encodes with `value` JSON form.
+
+## Testing
+
+- Unit tests for every `core` package, golden files for `dbml`, `schema.Diff` and `Dialect.Compile`.
+- `enginetest` runs against a real PostgreSQL when `MESA_TEST_PG` is set; CI starts one.
+- HTTP handlers tested through the generated client; CLI through cobra with an in-memory store.
+- Web: Vitest for logic and components; typecheck and build in CI.

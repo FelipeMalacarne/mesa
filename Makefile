@@ -1,57 +1,45 @@
-MIGRATIONS_DIR := ./internal/infrastructure/postgres/migrations/
-SEEDS_DIR := ./internal/infrastructure/postgres/seeds/
-DATABASE_URL := postgres://mesa:mesa@localhost:5432/mesa?sslmode=disable
-MIGRATE ?= migrate
-SQLC ?= sqlc
-OPENAPI_PATH := ./openapi.yaml
+GO       ?= go
+PNPM     ?= pnpm
+BIN      := bin/mesa
+PG_DIR   ?= /tmp/mesa-pg
+PG_PORT  ?= 5499
 
-%:
-	@:
+.PHONY: all build web generate test test-integration lint fmt dev-db dev-db-stop clean docker-build
 
-.PHONY: migration
-migration:
-	@if [ -z "$(name)" ] && [ -z "$(filter-out $@,$(MAKECMDGOALS))" ]; then echo "Usage: make migration <name> (or make migration name=<name>)"; exit 1; fi
-	@migration_name="$(name)"; \
-	if [ -z "$$migration_name" ]; then migration_name="$(filter-out $@,$(MAKECMDGOALS))"; fi; \
-	$(MIGRATE) create -ext sql -dir $(MIGRATIONS_DIR) -seq "$$migration_name"
+all: generate web build
 
-.PHONY: migrate-up
-migrate-up:
-	$(MIGRATE) -path $(MIGRATIONS_DIR) -database $(DATABASE_URL) up
+build: ## Build the mesa binary (expects web/dist; run `make web` first)
+	$(GO) build -trimpath -ldflags="-s -w" -o $(BIN) ./cmd/mesa
 
-.PHONY: migrate-down
-migrate-down:
-	$(MIGRATE) -path $(MIGRATIONS_DIR) -database $(DATABASE_URL) down
+web: ## Build the web app into web/dist
+	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) run build
 
-.PHONY: sqlc-generate
-sqlc-generate:
-	$(SQLC) generate
+generate: ## Regenerate OpenAPI server/client, sqlc
+	$(GO) generate ./...
+	cd web && $(PNPM) run codegen
 
-.PHONY: generate-app-key
-generate-app-key:
-	@openssl rand -hex 32
+test: ## Unit tests (integration tests skip unless MESA_TEST_PG is set)
+	$(GO) test ./...
 
-.PHONY: codegen
-codegen:
-	@oapi-codegen -generate chi,types -package contract -o internal/transport/rest/contract/api.gen.go openapi.yaml
-	cd web && pnpm orval --config orval.config.ts
+test-integration: ## Run everything against the dev Postgres
+	MESA_TEST_PG="postgres://postgres@localhost:$(PG_PORT)/postgres?sslmode=disable" $(GO) test ./...
 
-IMAGE_NAME ?= mesa
-IMAGE_TAG  ?= latest
+lint:
+	golangci-lint run ./...
+	cd web && $(PNPM) run typecheck
 
-.PHONY: docker-build
+fmt:
+	gofmt -w ./cmd ./internal
+
+dev-db: ## Start a throwaway PostgreSQL on $(PG_PORT) (needs postgres binaries on PATH)
+	@mkdir -p $(PG_DIR) && [ -d $(PG_DIR)/data ] || initdb -D $(PG_DIR)/data -U postgres --auth=trust >/dev/null
+	@pg_ctl -D $(PG_DIR)/data -o "-p $(PG_PORT)" -l $(PG_DIR)/server.log start
+
+dev-db-stop:
+	@pg_ctl -D $(PG_DIR)/data stop
+
 docker-build:
-	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build -t mesa:latest .
 
-.PHONY: docker-push
-docker-push:
-	docker push $(IMAGE_NAME):$(IMAGE_TAG)
-
-.PHONY: seed
-seed:
-	@for f in $(SEEDS_DIR)*.sql; do \
-		[ -e "$$f" ] || exit 0; \
-		echo "Seeding $$f"; \
-		psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f "$$f"; \
-	done
-
+clean:
+	rm -rf bin web/dist

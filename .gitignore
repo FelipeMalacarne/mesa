@@ -1,2 +1,10 @@
 web/.pnpm-store/v10
-tmp/go-build
+tmp/
+bin/
+node_modules
+.DS_Store
+web/dist/*
+!web/dist/index.html
+*.local
+.env
+.tanstack
