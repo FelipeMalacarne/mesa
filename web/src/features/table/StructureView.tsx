@@ -343,7 +343,7 @@ function ColumnEditor({ database, schema, table, name, edits, editKey, onClose }
           <Switch aria-label="Not null" checked={notNull} onChange={(v) => setEdit({ nullable: !v })} disabled={dropped} />
         </div>
         <Field label="Comment" htmlFor="col-comment">
-          <input id="col-comment" className="m-input m-input--sm" value={edit.comment ?? col.comment ?? ""} onChange={(e) => setEdit({ comment: e.target.value })} disabled={dropped} />
+          <input id="col-comment" data-prose className="m-input m-input--sm" value={edit.comment ?? col.comment ?? ""} onChange={(e) => setEdit({ comment: e.target.value })} disabled={dropped} />
         </Field>
         {changes.length > 0 ? (
           <div className="m-field">

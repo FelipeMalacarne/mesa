@@ -106,6 +106,17 @@ Releases ship it as a macOS app (Apple Silicon and Intel), a Windows installer a
 archives. It opens `mesa://` links (`mesa://c/<connection>/sql`,
 `mesa://c/<connection>/db/<database>/t/<schema>/<table>`) and updates itself from signed
 releases (Help → Check for updates; `MESA_UPDATE_CHECK=off` stops the daily check).
+On macOS, install from a terminal; this checks the download against the release checksums,
+puts Mesa in Applications and clears the quarantine flag macOS sets on apps that are not
+notarized:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FelipeMalacarne/mesa/main/packaging/darwin/install.sh | sh
+```
+
+With the `.dmg` instead, drag Mesa to Applications, then Control-click it → Open the first
+time (or run `xattr -dr com.apple.quarantine /Applications/Mesa.app`).
+
 How releases are built and signed: [docs/releasing.md](docs/releasing.md).
 
 ### MCP

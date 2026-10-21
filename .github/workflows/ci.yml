@@ -102,3 +102,36 @@ jobs:
           context: .
           push: false
           build-args: VERSION=ci
+
+  macos-install:
+    # A real Mac: install the latest release with the script people use,
+    # start the app, and keep a screenshot of its window.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install with packaging/darwin/install.sh
+        env:
+          MESA_INSTALL_DIR: ${{ runner.temp }}/Applications
+          MESA_NO_OPEN: "1"
+        run: sh packaging/darwin/install.sh
+      - name: Start Mesa and capture its window
+        run: |
+          app="$RUNNER_TEMP/Applications/Mesa.app"
+          codesign --verify --deep --strict "$app"
+          lipo -archs "$app/Contents/MacOS/mesa-desktop"
+          MESA_HOME="$RUNNER_TEMP/mesa-home" MESA_UPDATE_CHECK=off "$app/Contents/MacOS/mesa-desktop" > "$RUNNER_TEMP/mesa.log" 2>&1 &
+          pid=$!
+          sleep 20
+          screencapture -x "$RUNNER_TEMP/mesa-macos.png" || true
+          if ! kill -0 "$pid" 2>/dev/null; then
+            echo "Mesa exited early:"; cat "$RUNNER_TEMP/mesa.log"; exit 1
+          fi
+          kill "$pid"
+          cat "$RUNNER_TEMP/mesa.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-install
+          path: |
+            ${{ runner.temp }}/mesa-macos.png
+            ${{ runner.temp }}/mesa.log
