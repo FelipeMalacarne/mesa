@@ -18,6 +18,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/core/changeset"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/core/ident"
+	"github.com/felipemalacarne/mesa/internal/core/value"
 	"github.com/felipemalacarne/mesa/internal/engine"
 	"github.com/felipemalacarne/mesa/internal/platform"
 )
@@ -157,7 +158,7 @@ type queryIn struct {
 	MaxRows int    `json:"maxRows,omitempty" jsonschema:"default 200, max 2000"`
 }
 
-func (t *tools) query(ctx context.Context, _ *mcp.CallToolRequest, in queryIn) (*mcp.CallToolResult, *engine.Result, error) {
+func (t *tools) query(ctx context.Context, _ *mcp.CallToolRequest, in queryIn) (*mcp.CallToolResult, *rowsOut, error) {
 	id, err := t.resolve(ctx, in.Connection)
 	if err != nil {
 		r, _, e := fail(err)
@@ -175,7 +176,7 @@ func (t *tools) query(ctx context.Context, _ *mcp.CallToolRequest, in queryIn) (
 		r, _, e := fail(err)
 		return r, nil, e
 	}
-	return nil, res, nil
+	return nil, toRows(res, -1), nil
 }
 
 type rowsIn struct {
@@ -188,7 +189,7 @@ type rowsIn struct {
 	Desc   bool   `json:"desc,omitempty"`
 }
 
-func (t *tools) tableRows(ctx context.Context, _ *mcp.CallToolRequest, in rowsIn) (*mcp.CallToolResult, *engine.RowsPage, error) {
+func (t *tools) tableRows(ctx context.Context, _ *mcp.CallToolRequest, in rowsIn) (*mcp.CallToolResult, *rowsOut, error) {
 	id, err := t.resolve(ctx, in.Connection)
 	if err != nil {
 		r, _, e := fail(err)
@@ -217,7 +218,7 @@ func (t *tools) tableRows(ctx context.Context, _ *mcp.CallToolRequest, in rowsIn
 		r, _, e := fail(err)
 		return r, nil, e
 	}
-	return nil, page, nil
+	return nil, toRows(page.Result, page.Total), nil
 }
 
 type explainIn struct {
@@ -302,7 +303,7 @@ func (t *tools) plan(ctx context.Context, in sqlIn, dryRun bool) (*planOut, erro
 	if err != nil {
 		return nil, err
 	}
-	p := &changeset.Plan{Database: ident.Name(in.Database), Statements: split(in.SQL)}
+	p := changeset.FromScript(ident.Name(in.Database), in.SQL)
 	if len(p.Statements) == 0 {
 		return nil, errs.New(errs.Invalid, "no statements")
 	}
@@ -341,15 +342,57 @@ func (t *tools) applySQL(ctx context.Context, _ *mcp.CallToolRequest, in sqlIn) 
 	return nil, out, nil
 }
 
-func split(src string) []changeset.Statement {
-	var out []changeset.Statement
-	for _, part := range strings.Split(src, ";") {
-		s := strings.TrimSpace(part)
-		if s == "" {
-			continue
+// rowsOut is a result shaped for agents: column names and plain JSON
+// values (null, bool, number, string, list).
+type rowsOut struct {
+	Columns      []string `json:"columns"`
+	Types        []string `json:"types"`
+	Rows         [][]any  `json:"rows"`
+	RowsAffected int64    `json:"rowsAffected,omitempty"`
+	Truncated    bool     `json:"truncated,omitempty"`
+	Total        *int64   `json:"total,omitempty" jsonschema:"rows matching the filter, for table_rows"`
+	Command      string   `json:"command,omitempty"`
+}
+
+func toRows(r *engine.Result, total int64) *rowsOut {
+	out := &rowsOut{Columns: []string{}, Types: []string{}, Rows: [][]any{}, RowsAffected: r.RowsAffected, Truncated: r.Truncated, Command: r.Command}
+	for _, c := range r.Columns {
+		out.Columns = append(out.Columns, c.Name)
+		out.Types = append(out.Types, c.Type)
+	}
+	for _, row := range r.Rows {
+		cells := make([]any, len(row))
+		for i, v := range row {
+			cells[i] = plain(v)
 		}
-		first, _, _ := strings.Cut(s, "\n")
-		out = append(out, changeset.Statement{Kind: changeset.DDL, SQL: s, Describe: first})
+		out.Rows = append(out.Rows, cells)
+	}
+	if total >= 0 {
+		out.Total = &total
 	}
 	return out
+}
+
+func plain(v value.Value) any {
+	switch v.Kind {
+	case value.KindNull:
+		return nil
+	case value.KindBool:
+		return v.AsBool()
+	case value.KindInt:
+		if t := v.Text(); len(t) < 16 {
+			return v.AsInt()
+		}
+		return v.Text()
+	case value.KindFloat:
+		return v.AsFloat()
+	case value.KindArray:
+		items := v.Items()
+		out := make([]any, len(items))
+		for i, it := range items {
+			out[i] = plain(it)
+		}
+		return out
+	}
+	return v.Text()
 }

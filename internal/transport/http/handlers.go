@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/felipemalacarne/mesa/internal/app"
 	"github.com/felipemalacarne/mesa/internal/app/changes"
@@ -57,7 +56,7 @@ func ptr[T any](v T) *T { return &v }
 
 func toConnection(it connections.Item) gen.Connection {
 	c := gen.Connection{
-		Id:          openapi_types.UUID(it.ID),
+		Id:          it.ID,
 		Name:        it.Name,
 		Engine:      gen.Engine(it.Engine),
 		Environment: gen.Environment(it.Environment),
@@ -101,8 +100,8 @@ func toTestResult(t *connections.TestResult) gen.TestResult {
 
 func toAudit(e store.AuditEntry) gen.AuditEntry {
 	out := gen.AuditEntry{
-		Id:           openapi_types.UUID(e.ID),
-		ConnectionId: openapi_types.UUID(e.ConnectionID),
+		Id:           e.ID,
+		ConnectionId: e.ConnectionID,
 		Database:     e.Database,
 		Environment:  gen.Environment(e.Environment),
 		Surface:      e.Surface,
@@ -133,7 +132,7 @@ func toApplyResult(r *changes.ApplyResult) gen.ApplyResult {
 		DownSql:  r.Plan.DownSQL(),
 	}
 	if r.AuditID != uuid.Nil {
-		out.AuditId = ptr(openapi_types.UUID(r.AuditID))
+		out.AuditId = ptr(r.AuditID)
 	}
 	if r.Duration > 0 {
 		out.DurationMs = ptr(float64(r.Duration) / float64(time.Millisecond))
@@ -147,8 +146,8 @@ func toPlanResult(r *changes.PlanResult) gen.PlanResult {
 
 func toQueryRun(r store.QueryRun) gen.QueryRun {
 	out := gen.QueryRun{
-		Id:           openapi_types.UUID(r.ID),
-		ConnectionId: openapi_types.UUID(r.ConnectionID),
+		Id:           r.ID,
+		ConnectionId: r.ConnectionID,
 		Database:     r.Database,
 		Sql:          r.SQL,
 		RowCount:     r.RowCount,
@@ -162,9 +161,9 @@ func toQueryRun(r store.QueryRun) gen.QueryRun {
 }
 
 func toSavedQuery(q store.SavedQuery) gen.SavedQuery {
-	out := gen.SavedQuery{Id: ptr(openapi_types.UUID(q.ID)), Name: q.Name, Sql: q.SQL, UpdatedAt: ptr(q.UpdatedAt)}
+	out := gen.SavedQuery{Id: ptr(q.ID), Name: q.Name, Sql: q.SQL, UpdatedAt: ptr(q.UpdatedAt)}
 	if q.ConnectionID != nil {
-		out.ConnectionId = ptr(openapi_types.UUID(*q.ConnectionID))
+		out.ConnectionId = ptr(*q.ConnectionID)
 	}
 	return out
 }
@@ -218,7 +217,7 @@ func fromLayout(l gen.Layout) map[string]store.Position {
 }
 
 func toDiff(d *designer.Diff) gen.DesignerDiff {
-	return gen.DesignerDiff{Changes: d.Changes, Plan: *d.Plan, Decision: d.Decision, UpSql: d.Plan.SQL(), DownSql: d.Plan.DownSQL()}
+	return gen.DesignerDiff{Changes: orEmpty(d.Changes), Plan: *d.Plan, Decision: d.Decision, UpSql: d.Plan.SQL(), DownSql: d.Plan.DownSQL()}
 }
 
 func qualified(q gen.Qualified) (ident.Qualified, error) {
@@ -277,7 +276,7 @@ func (h *handlers) TestConnection(ctx context.Context, r gen.TestConnectionReque
 }
 
 func (h *handlers) GetConnection(ctx context.Context, r gen.GetConnectionRequestObject) (gen.GetConnectionResponseObject, error) {
-	it, err := h.app.Connections.Get(ctx, uuid.UUID(r.ConnectionId))
+	it, err := h.app.Connections.Get(ctx, r.ConnectionId)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +284,7 @@ func (h *handlers) GetConnection(ctx context.Context, r gen.GetConnectionRequest
 }
 
 func (h *handlers) UpdateConnection(ctx context.Context, r gen.UpdateConnectionRequestObject) (gen.UpdateConnectionResponseObject, error) {
-	it, err := h.app.Connections.Update(ctx, uuid.UUID(r.ConnectionId), fromConnectionInput(*r.Body))
+	it, err := h.app.Connections.Update(ctx, r.ConnectionId, fromConnectionInput(*r.Body))
 	if err != nil {
 		return nil, err
 	}
@@ -293,18 +292,18 @@ func (h *handlers) UpdateConnection(ctx context.Context, r gen.UpdateConnectionR
 }
 
 func (h *handlers) DeleteConnection(ctx context.Context, r gen.DeleteConnectionRequestObject) (gen.DeleteConnectionResponseObject, error) {
-	if err := h.app.Connections.Delete(ctx, uuid.UUID(r.ConnectionId)); err != nil {
+	if err := h.app.Connections.Delete(ctx, r.ConnectionId); err != nil {
 		return nil, err
 	}
 	return gen.DeleteConnection204Response{}, nil
 }
 
 func (h *handlers) PingConnection(ctx context.Context, r gen.PingConnectionRequestObject) (gen.PingConnectionResponseObject, error) {
-	t, err := h.app.Connections.Ping(ctx, uuid.UUID(r.ConnectionId))
+	t, err := h.app.Connections.Ping(ctx, r.ConnectionId)
 	if err != nil {
 		return nil, err
 	}
-	_ = h.app.Connections.TouchOpened(ctx, uuid.UUID(r.ConnectionId))
+	_ = h.app.Connections.TouchOpened(ctx, r.ConnectionId)
 	return gen.PingConnection200JSONResponse(toTestResult(t)), nil
 }
 
@@ -313,7 +312,7 @@ func (h *handlers) UnlockConnection(ctx context.Context, r gen.UnlockConnectionR
 	if r.Body != nil && r.Body.TtlSeconds != nil {
 		ttl = time.Duration(*r.Body.TtlSeconds) * time.Second
 	}
-	it, err := h.app.Connections.Unlock(ctx, uuid.UUID(r.ConnectionId), ttl)
+	it, err := h.app.Connections.Unlock(ctx, r.ConnectionId, ttl)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +320,7 @@ func (h *handlers) UnlockConnection(ctx context.Context, r gen.UnlockConnectionR
 }
 
 func (h *handlers) LockConnection(ctx context.Context, r gen.LockConnectionRequestObject) (gen.LockConnectionResponseObject, error) {
-	it, err := h.app.Connections.Lock(ctx, uuid.UUID(r.ConnectionId))
+	it, err := h.app.Connections.Lock(ctx, r.ConnectionId)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +328,7 @@ func (h *handlers) LockConnection(ctx context.Context, r gen.LockConnectionReque
 }
 
 func (h *handlers) ListAudit(ctx context.Context, r gen.ListAuditRequestObject) (gen.ListAuditResponseObject, error) {
-	list, err := h.app.Changes.Audit(ctx, uuid.UUID(r.ConnectionId), deref(r.Params.Limit, 50))
+	list, err := h.app.Changes.Audit(ctx, r.ConnectionId, deref(r.Params.Limit, 50))
 	if err != nil {
 		return nil, err
 	}
@@ -343,11 +342,11 @@ func (h *handlers) ListAudit(ctx context.Context, r gen.ListAuditRequestObject) 
 // --- Explore --------------------------------------------------------------
 
 func (h *handlers) ListDatabases(ctx context.Context, r gen.ListDatabasesRequestObject) (gen.ListDatabasesResponseObject, error) {
-	dbs, err := h.app.Explore.Databases(ctx, uuid.UUID(r.ConnectionId))
+	dbs, err := h.app.Explore.Databases(ctx, r.ConnectionId)
 	if err != nil {
 		return nil, err
 	}
-	return gen.ListDatabases200JSONResponse(dbs), nil
+	return gen.ListDatabases200JSONResponse(orEmpty(dbs)), nil
 }
 
 func (h *handlers) CreateDatabase(ctx context.Context, r gen.CreateDatabaseRequestObject) (gen.CreateDatabaseResponseObject, error) {
@@ -361,7 +360,7 @@ func (h *handlers) CreateDatabase(ctx context.Context, r gen.CreateDatabaseReque
 			return nil, err
 		}
 	}
-	res, err := h.app.Roles.CreateDatabase(ctx, uuid.UUID(r.ConnectionId), name, owner, deref(r.Body.Confirmation, ""), deref(r.Body.DryRun, false), actor(ctx), surface)
+	res, err := h.app.Roles.CreateDatabase(ctx, r.ConnectionId, name, owner, deref(r.Body.Confirmation, ""), deref(r.Body.DryRun, false), actor(ctx), surface)
 	if err != nil {
 		return nil, err
 	}
@@ -369,11 +368,11 @@ func (h *handlers) CreateDatabase(ctx context.Context, r gen.CreateDatabaseReque
 }
 
 func (h *handlers) GetSchema(ctx context.Context, r gen.GetSchemaRequestObject) (gen.GetSchemaResponseObject, error) {
-	db, err := h.app.Explore.Schema(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName, deref(r.Params.Refresh, false))
+	db, err := h.app.Explore.Schema(ctx, r.ConnectionId, r.DatabaseName, deref(r.Params.Refresh, false))
 	if err != nil {
 		return nil, err
 	}
-	return gen.GetSchema200JSONResponse(*db), nil
+	return gen.GetSchema200JSONResponse(*db.Fill()), nil
 }
 
 func (h *handlers) GetTable(ctx context.Context, r gen.GetTableRequestObject) (gen.GetTableResponseObject, error) {
@@ -381,11 +380,11 @@ func (h *handlers) GetTable(ctx context.Context, r gen.GetTableRequestObject) (g
 	if err != nil {
 		return nil, err
 	}
-	t, err := h.app.Explore.Table(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName, q)
+	t, err := h.app.Explore.Table(ctx, r.ConnectionId, r.DatabaseName, q)
 	if err != nil {
 		return nil, err
 	}
-	return gen.GetTable200JSONResponse(*t), nil
+	return gen.GetTable200JSONResponse(*t.Fill()), nil
 }
 
 func (h *handlers) QueryRows(ctx context.Context, r gen.QueryRowsRequestObject) (gen.QueryRowsResponseObject, error) {
@@ -416,7 +415,7 @@ func (h *handlers) QueryRows(ctx context.Context, r gen.QueryRowsRequestObject) 
 			rq.Sort = append(rq.Sort, engine.Sort{Column: col, Desc: deref(s.Desc, false)})
 		}
 	}
-	page, err := h.app.Explore.Rows(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName, rq)
+	page, err := h.app.Explore.Rows(ctx, r.ConnectionId, r.DatabaseName, rq)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +429,7 @@ func (h *handlers) PlanChanges(ctx context.Context, r gen.PlanChangesRequestObje
 	if cs.Database == "" {
 		cs.Database = ident.Name(r.DatabaseName)
 	}
-	res, err := h.app.Changes.Plan(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName, &cs)
+	res, err := h.app.Changes.Plan(ctx, r.ConnectionId, r.DatabaseName, &cs)
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +442,7 @@ func (h *handlers) ApplyChanges(ctx context.Context, r gen.ApplyChangesRequestOb
 		cs.Database = ident.Name(r.DatabaseName)
 	}
 	res, err := h.app.Changes.Apply(ctx, changes.ApplyInput{
-		ConnectionID: uuid.UUID(r.ConnectionId),
+		ConnectionID: r.ConnectionId,
 		Database:     r.DatabaseName,
 		ChangeSet:    &cs,
 		Confirmation: deref(r.Body.Confirmation, ""),
@@ -461,7 +460,7 @@ func (h *handlers) ApplyChanges(ctx context.Context, r gen.ApplyChangesRequestOb
 
 func (h *handlers) RunQuery(ctx context.Context, r gen.RunQueryRequestObject) (gen.RunQueryResponseObject, error) {
 	res, err := h.app.Query.Run(ctx, query.RunInput{
-		ConnectionID: uuid.UUID(r.ConnectionId),
+		ConnectionID: r.ConnectionId,
 		Database:     r.DatabaseName,
 		SQL:          r.Body.Sql,
 		MaxRows:      deref(r.Body.MaxRows, 500),
@@ -474,7 +473,7 @@ func (h *handlers) RunQuery(ctx context.Context, r gen.RunQueryRequestObject) (g
 }
 
 func (h *handlers) ExplainQuery(ctx context.Context, r gen.ExplainQueryRequestObject) (gen.ExplainQueryResponseObject, error) {
-	lines, err := h.app.Query.Explain(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName, r.Body.Sql, deref(r.Body.Analyze, false))
+	lines, err := h.app.Query.Explain(ctx, r.ConnectionId, r.DatabaseName, r.Body.Sql, deref(r.Body.Analyze, false))
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +481,7 @@ func (h *handlers) ExplainQuery(ctx context.Context, r gen.ExplainQueryRequestOb
 }
 
 func (h *handlers) ListHistory(ctx context.Context, r gen.ListHistoryRequestObject) (gen.ListHistoryResponseObject, error) {
-	list, err := h.app.Query.History(ctx, uuid.UUID(r.ConnectionId), deref(r.Params.Limit, 50))
+	list, err := h.app.Query.History(ctx, r.ConnectionId, deref(r.Params.Limit, 50))
 	if err != nil {
 		return nil, err
 	}
@@ -508,10 +507,10 @@ func (h *handlers) ListSavedQueries(ctx context.Context, _ gen.ListSavedQueriesR
 func (h *handlers) SaveQuery(ctx context.Context, r gen.SaveQueryRequestObject) (gen.SaveQueryResponseObject, error) {
 	q := store.SavedQuery{Name: r.Body.Name, SQL: r.Body.Sql}
 	if r.Body.Id != nil {
-		q.ID = uuid.UUID(*r.Body.Id)
+		q.ID = *r.Body.Id
 	}
 	if r.Body.ConnectionId != nil {
-		id := uuid.UUID(*r.Body.ConnectionId)
+		id := *r.Body.ConnectionId
 		q.ConnectionID = &id
 	}
 	saved, err := h.app.Query.Save(ctx, q)
@@ -522,7 +521,7 @@ func (h *handlers) SaveQuery(ctx context.Context, r gen.SaveQueryRequestObject) 
 }
 
 func (h *handlers) DeleteSavedQuery(ctx context.Context, r gen.DeleteSavedQueryRequestObject) (gen.DeleteSavedQueryResponseObject, error) {
-	if err := h.app.Query.DeleteSaved(ctx, uuid.UUID(r.QueryId)); err != nil {
+	if err := h.app.Query.DeleteSaved(ctx, r.QueryId); err != nil {
 		return nil, err
 	}
 	return gen.DeleteSavedQuery204Response{}, nil
@@ -531,7 +530,7 @@ func (h *handlers) DeleteSavedQuery(ctx context.Context, r gen.DeleteSavedQueryR
 // --- Monitor --------------------------------------------------------------
 
 func (h *handlers) GetMonitorOverview(ctx context.Context, r gen.GetMonitorOverviewRequestObject) (gen.GetMonitorOverviewResponseObject, error) {
-	ov, err := h.app.Monitor.Overview(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName)
+	ov, err := h.app.Monitor.Overview(ctx, r.ConnectionId, r.DatabaseName)
 	if err != nil {
 		return nil, err
 	}
@@ -539,7 +538,7 @@ func (h *handlers) GetMonitorOverview(ctx context.Context, r gen.GetMonitorOverv
 }
 
 func (h *handlers) GetMonitorSnapshot(ctx context.Context, r gen.GetMonitorSnapshotRequestObject) (gen.GetMonitorSnapshotResponseObject, error) {
-	s, err := h.app.Monitor.Snapshot(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName)
+	s, err := h.app.Monitor.Snapshot(ctx, r.ConnectionId, r.DatabaseName)
 	if err != nil {
 		return nil, err
 	}
@@ -547,11 +546,11 @@ func (h *handlers) GetMonitorSnapshot(ctx context.Context, r gen.GetMonitorSnaps
 }
 
 func (h *handlers) ListSessions(ctx context.Context, r gen.ListSessionsRequestObject) (gen.ListSessionsResponseObject, error) {
-	list, err := h.app.Monitor.Sessions(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName)
+	list, err := h.app.Monitor.Sessions(ctx, r.ConnectionId, r.DatabaseName)
 	if err != nil {
 		return nil, err
 	}
-	return gen.ListSessions200JSONResponse(list), nil
+	return gen.ListSessions200JSONResponse(orEmpty(list)), nil
 }
 
 func (h *handlers) KillSession(ctx context.Context, r gen.KillSessionRequestObject) (gen.KillSessionResponseObject, error) {
@@ -559,14 +558,14 @@ func (h *handlers) KillSession(ctx context.Context, r gen.KillSessionRequestObje
 	if r.Body != nil {
 		terminate = deref(r.Body.Terminate, false)
 	}
-	if err := h.app.Monitor.Kill(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName, r.Pid, terminate); err != nil {
+	if err := h.app.Monitor.Kill(ctx, r.ConnectionId, r.DatabaseName, r.Pid, terminate); err != nil {
 		return nil, err
 	}
 	return gen.KillSession204Response{}, nil
 }
 
 func (h *handlers) GetEnginePanel(ctx context.Context, r gen.GetEnginePanelRequestObject) (gen.GetEnginePanelResponseObject, error) {
-	p, err := h.app.Monitor.Panel(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName)
+	p, err := h.app.Monitor.Panel(ctx, r.ConnectionId, r.DatabaseName)
 	if err != nil {
 		return nil, err
 	}
@@ -576,11 +575,11 @@ func (h *handlers) GetEnginePanel(ctx context.Context, r gen.GetEnginePanelReque
 // --- Roles ----------------------------------------------------------------
 
 func (h *handlers) ListRoles(ctx context.Context, r gen.ListRolesRequestObject) (gen.ListRolesResponseObject, error) {
-	list, err := h.app.Roles.List(ctx, uuid.UUID(r.ConnectionId))
+	list, err := h.app.Roles.List(ctx, r.ConnectionId)
 	if err != nil {
 		return nil, err
 	}
-	return gen.ListRoles200JSONResponse(list), nil
+	return gen.ListRoles200JSONResponse(orEmpty(list)), nil
 }
 
 func (h *handlers) CreateRole(ctx context.Context, r gen.CreateRoleRequestObject) (gen.CreateRoleResponseObject, error) {
@@ -589,7 +588,7 @@ func (h *handlers) CreateRole(ctx context.Context, r gen.CreateRoleRequestObject
 		return nil, err
 	}
 	in := roles.CreateInput{
-		ConnectionID: uuid.UUID(r.ConnectionId),
+		ConnectionID: r.ConnectionId,
 		Role: engine.RoleInput{
 			Name:       name,
 			Password:   deref(r.Body.Password, ""),
@@ -625,7 +624,7 @@ func (h *handlers) DropRole(ctx context.Context, r gen.DropRoleRequestObject) (g
 	if err != nil {
 		return nil, err
 	}
-	res, err := h.app.Roles.Drop(ctx, uuid.UUID(r.ConnectionId), name, deref(r.Params.Confirmation, ""), deref(r.Params.DryRun, false), actor(ctx), surface)
+	res, err := h.app.Roles.Drop(ctx, r.ConnectionId, name, deref(r.Params.Confirmation, ""), deref(r.Params.DryRun, false), actor(ctx), surface)
 	if err != nil {
 		return nil, err
 	}
@@ -635,16 +634,16 @@ func (h *handlers) DropRole(ctx context.Context, r gen.DropRoleRequestObject) (g
 // --- Designer -------------------------------------------------------------
 
 func (h *handlers) GetDesignerModel(ctx context.Context, r gen.GetDesignerModelRequestObject) (gen.GetDesignerModelResponseObject, error) {
-	m, err := h.app.Designer.Model(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName)
+	m, err := h.app.Designer.Model(ctx, r.ConnectionId, r.DatabaseName)
 	if err != nil {
 		return nil, err
 	}
-	return gen.GetDesignerModel200JSONResponse{Schema: *m.Schema, Dbml: m.DBML, Layout: toLayout(m.Layout), Problems: toProblems(m.Problems)}, nil
+	return gen.GetDesignerModel200JSONResponse{Schema: *m.Schema.Fill(), Dbml: m.DBML, Layout: toLayout(m.Layout), Problems: toProblems(m.Problems)}, nil
 }
 
 func (h *handlers) DiffDesignerModel(ctx context.Context, r gen.DiffDesignerModelRequestObject) (gen.DiffDesignerModelResponseObject, error) {
 	target := r.Body.Schema
-	d, err := h.app.Designer.Diff(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName, &target)
+	d, err := h.app.Designer.Diff(ctx, r.ConnectionId, r.DatabaseName, &target)
 	if err != nil {
 		return nil, err
 	}
@@ -652,7 +651,7 @@ func (h *handlers) DiffDesignerModel(ctx context.Context, r gen.DiffDesignerMode
 }
 
 func (h *handlers) SaveDesignerLayout(ctx context.Context, r gen.SaveDesignerLayoutRequestObject) (gen.SaveDesignerLayoutResponseObject, error) {
-	if err := h.app.Designer.SaveLayout(ctx, uuid.UUID(r.ConnectionId), r.DatabaseName, fromLayout(*r.Body)); err != nil {
+	if err := h.app.Designer.SaveLayout(ctx, r.ConnectionId, r.DatabaseName, fromLayout(*r.Body)); err != nil {
 		return nil, err
 	}
 	return gen.SaveDesignerLayout204Response{}, nil
@@ -662,7 +661,7 @@ func (h *handlers) ParseDbml(_ context.Context, r gen.ParseDbmlRequestObject) (g
 	db, problems := h.app.Designer.Parse(r.Body.Dbml)
 	out := gen.ParseResult{Problems: toProblems(problems)}
 	if db != nil {
-		out.Schema = db
+		out.Schema = db.Fill()
 	}
 	return gen.ParseDbml200JSONResponse(out), nil
 }
@@ -678,3 +677,11 @@ var (
 	_ = changeset.Plan{}
 	_ = errs.Unknown
 )
+
+// orEmpty turns a nil list into an empty one so JSON carries [] not null.
+func orEmpty[T any](list []T) []T {
+	if list == nil {
+		return []T{}
+	}
+	return list
+}

@@ -39,7 +39,6 @@ func New(a *app.App, o Options) http.Handler {
 		log = slog.Default()
 	}
 	r := chi.NewRouter()
-	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(requestLogger(log))
 	if len(o.CORSOrigins) > 0 {

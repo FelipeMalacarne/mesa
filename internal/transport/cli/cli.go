@@ -26,8 +26,7 @@ type Deps struct {
 	In   io.Reader
 }
 
-// Root builds the command tree.
-func Root(d Deps) *cobra.Command {
+func (d Deps) withDefaults() Deps {
 	if d.Out == nil {
 		d.Out = os.Stdout
 	}
@@ -37,6 +36,12 @@ func Root(d Deps) *cobra.Command {
 	if d.In == nil {
 		d.In = os.Stdin
 	}
+	return d
+}
+
+// Root builds the command tree.
+func Root(d Deps) *cobra.Command {
+	d = d.withDefaults()
 	root := &cobra.Command{
 		Use:           "mesa",
 		Short:         "Mesa: the SQL control plane, from the terminal",
@@ -51,6 +56,7 @@ func Root(d Deps) *cobra.Command {
 
 // Run executes the tree and maps errors to exit codes.
 func Run(ctx context.Context, d Deps, args []string) int {
+	d = d.withDefaults()
 	root := Root(d)
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {

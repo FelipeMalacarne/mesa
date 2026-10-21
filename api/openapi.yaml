@@ -1058,6 +1058,7 @@ components:
         args: { type: array, items: { $ref: "#/components/schemas/Value" } }
         describe: { type: string }
         display: { type: string, description: SQL with arguments inlined, for review only }
+        expectRows: { type: integer, format: int64, description: rows the statement must touch; the transaction rolls back otherwise }
     Risk:
       type: object
       required: [level, code, message]
@@ -1078,11 +1079,12 @@ components:
         risks: { type: array, items: { $ref: "#/components/schemas/Risk" } }
         summary:
           type: object
+          required: [inserted, updated, deleted, schemaChanges]
           properties:
-            Inserted: { type: integer }
-            Updated: { type: integer }
-            Deleted: { type: integer }
-            SchemaChanges: { type: integer }
+            inserted: { type: integer }
+            updated: { type: integer }
+            deleted: { type: integer }
+            schemaChanges: { type: integer }
     Decision:
       type: object
       x-go-type: policy.Decision

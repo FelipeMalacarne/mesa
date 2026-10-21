@@ -139,15 +139,3 @@ func printJSON(w io.Writer, v any) error {
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
 }
-
-func compact(n int64) string {
-	switch {
-	case n >= 1_000_000_000:
-		return strings.TrimSuffix(fmt.Sprintf("%.1fB", float64(n)/1e9), ".0B") + strings.Repeat("B", 0)
-	case n >= 1_000_000:
-		return strings.TrimSuffix(fmt.Sprintf("%.1fM", float64(n)/1e6), ".0M")
-	case n >= 1_000:
-		return strings.TrimSuffix(fmt.Sprintf("%.1fK", float64(n)/1e3), ".0K")
-	}
-	return fmt.Sprintf("%d", n)
-}

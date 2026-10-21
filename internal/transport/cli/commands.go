@@ -307,6 +307,12 @@ func applyCmd(d Deps) *cobra.Command {
 				database = it.Database
 			}
 
+			// Unlock first so the policy below sees the unlocked connection.
+			if unlock {
+				if _, err := a.Connections.Unlock(ctx, it.ID, time.Hour); err != nil {
+					return err
+				}
+			}
 			var p *changeset.Plan
 			var decision policy.Decision
 			switch {
@@ -330,7 +336,7 @@ func applyCmd(d Deps) *cobra.Command {
 				if err != nil {
 					return errs.Wrap(errs.Invalid, "cannot read SQL file", err)
 				}
-				p = &changeset.Plan{Database: ident.Name(database), Statements: splitStatements(string(src))}
+				p = changeset.FromScript(ident.Name(database), string(src))
 				printHeader(d, it, database, sqlPath)
 				res, err := a.Changes.Apply(ctx, changes.ApplyInput{ConnectionID: it.ID, Database: database, Plan: p, DryRun: true, Actor: actorName(), Surface: surface})
 				if err != nil {
@@ -342,11 +348,6 @@ func applyCmd(d Deps) *cobra.Command {
 			}
 
 			plan(d.Out, p)
-			if unlock {
-				if _, err := a.Connections.Unlock(ctx, it.ID, time.Hour); err != nil {
-					return err
-				}
-			}
 			if decision.Outcome == policy.Deny {
 				return errs.New(errs.Forbidden, decision.Reason+" (re-run with --unlock)")
 			}
@@ -393,53 +394,22 @@ func actorName() string {
 	return "cli"
 }
 
-// splitStatements cuts a SQL script on semicolons at line ends; good enough
-// for migration files, which the person reviews before running.
-func splitStatements(src string) []changeset.Statement {
-	var out []changeset.Statement
-	var buf strings.Builder
-	for _, line := range strings.Split(src, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "--") {
-			continue
-		}
-		buf.WriteString(line)
-		buf.WriteByte('\n')
-		if strings.HasSuffix(trimmed, ";") {
-			s := strings.TrimSpace(buf.String())
-			out = append(out, changeset.Statement{Kind: changeset.DDL, SQL: s, Describe: firstLine(s)})
-			buf.Reset()
-		}
-	}
-	if s := strings.TrimSpace(buf.String()); s != "" {
-		out = append(out, changeset.Statement{Kind: changeset.DDL, SQL: s, Describe: firstLine(s)})
-	}
-	return out
-}
-
-func firstLine(s string) string {
-	line, _, _ := strings.Cut(s, "\n")
-	if len(line) > 72 {
-		return line[:72] + "…"
-	}
-	return line
-}
-
 func saveMigration(dir string, p *changeset.Plan) (string, string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", "", err
 	}
-	name := strings.ToLower(strings.NewReplacer(" ", "_", ".", "_", "/", "_", "→", "to").Replace(p.Title()))
-	if len(name) > 40 {
-		name = name[:40]
-	}
+	name := slug(p.Title(), 48)
 	stamp := time.Now().UTC().Format("20060102150405")
 	up := filepath.Join(dir, stamp+"_"+name+".up.sql")
 	down := filepath.Join(dir, stamp+"_"+name+".down.sql")
 	if err := os.WriteFile(up, []byte(p.SQL()), 0o644); err != nil {
 		return "", "", err
 	}
-	if err := os.WriteFile(down, []byte(p.DownSQL()), 0o644); err != nil {
+	downSQL := p.DownSQL()
+	if downSQL == "" {
+		downSQL = "-- Mesa could not derive a rollback for this migration; write one by hand.\n"
+	}
+	if err := os.WriteFile(down, []byte(downSQL), 0o644); err != nil {
 		return "", "", err
 	}
 	return up, down, nil
@@ -499,3 +469,27 @@ func keyCmd(d Deps) *cobra.Command {
 }
 
 var _ = connection.Local
+
+// slug keeps a-z, 0-9 and single underscores, for file names.
+func slug(s string, max int) string {
+	var b strings.Builder
+	under := false
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			under = false
+		case !under && b.Len() > 0:
+			b.WriteByte('_')
+			under = true
+		}
+		if b.Len() >= max {
+			break
+		}
+	}
+	out := strings.TrimRight(b.String(), "_")
+	if out == "" {
+		return "migration"
+	}
+	return out
+}
