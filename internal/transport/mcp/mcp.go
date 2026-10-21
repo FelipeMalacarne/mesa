@@ -38,7 +38,7 @@ func NewServer(a *app.App, o Options) *mcp.Server {
 	mcp.AddTool(s, &mcp.Tool{Name: "list_connections", Description: "Connections Mesa knows: name, environment, engine, host, database, read-only state."}, t.listConnections)
 	mcp.AddTool(s, &mcp.Tool{Name: "list_databases", Description: "Databases on a connection's server."}, t.listDatabases)
 	mcp.AddTool(s, &mcp.Tool{Name: "get_schema", Description: "The schema of a database as DBML (tables, columns, keys, relations)."}, t.getSchema)
-	mcp.AddTool(s, &mcp.Tool{Name: "query", Description: "Run SQL and return rows. Read-only connections run in a read-only transaction. Results are capped."}, t.query)
+	mcp.AddTool(s, &mcp.Tool{Name: "query", Description: "Run SQL in a read-only transaction and return rows (capped). To change data or schema, use plan_sql and apply_sql."}, t.query)
 	mcp.AddTool(s, &mcp.Tool{Name: "table_rows", Description: "Page through a table with optional sort."}, t.tableRows)
 	mcp.AddTool(s, &mcp.Tool{Name: "explain", Description: "EXPLAIN a query (no ANALYZE)."}, t.explain)
 	mcp.AddTool(s, &mcp.Tool{Name: "monitor", Description: "Server overview and current metrics for a database."}, t.monitor)
@@ -171,7 +171,7 @@ func (t *tools) query(ctx context.Context, _ *mcp.CallToolRequest, in queryIn) (
 	if max > 2000 {
 		max = 2000
 	}
-	res, err := t.app.Query.Run(ctx, query.RunInput{ConnectionID: id, Database: in.Database, SQL: in.SQL, MaxRows: max, ReadOnly: !t.allowWrites})
+	res, err := t.app.Query.Run(ctx, query.RunInput{ConnectionID: id, Database: in.Database, SQL: in.SQL, MaxRows: max})
 	if err != nil {
 		r, _, e := fail(err)
 		return r, nil, e

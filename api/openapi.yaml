@@ -315,6 +315,58 @@ paths:
               schema: { $ref: "#/components/schemas/ApplyResult" }
         default: { $ref: "#/components/responses/Error" }
 
+  /connections/{connectionId}/databases/{database}/changes/script:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    post:
+      operationId: planScript
+      tags: [Changes]
+      summary: Plan a hand-written SQL script as a change (statements, risks, policy decision)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sql]
+              properties:
+                sql: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlanResult" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/changes/script/apply:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    post:
+      operationId: applyScript
+      tags: [Changes]
+      summary: Run a hand-written SQL script after policy approves it; audited like every write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sql]
+              properties:
+                sql: { type: string }
+                confirmation: { type: string }
+                transaction: { type: boolean, default: true }
+      responses:
+        "200":
+          description: Applied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplyResult" }
+        default: { $ref: "#/components/responses/Error" }
+
   /connections/{connectionId}/databases/{database}/query:
     parameters:
       - { $ref: "#/components/parameters/ConnectionId" }
@@ -322,7 +374,7 @@ paths:
     post:
       operationId: runQuery
       tags: [Query]
-      summary: Run SQL. Read-only connections run in a read-only transaction.
+      summary: Run SQL in a read-only transaction; writes go through changes/script
       requestBody:
         required: true
         content:
@@ -866,10 +918,10 @@ components:
         onUpdate: { type: string }
     Qualified:
       type: object
-      required: [Schema, Name]
+      required: [schema, name]
       properties:
-        Schema: { type: string }
-        Name: { type: string }
+        schema: { type: string }
+        name: { type: string }
     Check:
       type: object
       required: [expression]
@@ -923,11 +975,11 @@ components:
         t: { type: string }
     ResultColumn:
       type: object
-      required: [Name, Type, Kind]
+      required: [name, type, kind]
       properties:
-        Name: { type: string }
-        Type: { type: string }
-        Kind: { type: string }
+        name: { type: string }
+        type: { type: string }
+        kind: { type: string }
     QueryResult:
       type: object
       x-go-type: engine.Result
@@ -984,7 +1036,6 @@ components:
       properties:
         sql: { type: string }
         maxRows: { type: integer, default: 500, maximum: 10000 }
-        readOnly: { type: boolean, description: Force a read-only transaction even on a writable connection }
     QueryRun:
       type: object
       required: [id, connectionId, database, sql, rowCount, durationMs, ranAt]

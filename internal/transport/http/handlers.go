@@ -464,7 +464,6 @@ func (h *handlers) RunQuery(ctx context.Context, r gen.RunQueryRequestObject) (g
 		Database:     r.DatabaseName,
 		SQL:          r.Body.Sql,
 		MaxRows:      deref(r.Body.MaxRows, 500),
-		ReadOnly:     deref(r.Body.ReadOnly, false),
 	})
 	if err != nil {
 		return nil, err
@@ -684,4 +683,30 @@ func orEmpty[T any](list []T) []T {
 		return []T{}
 	}
 	return list
+}
+
+func (h *handlers) PlanScript(ctx context.Context, r gen.PlanScriptRequestObject) (gen.PlanScriptResponseObject, error) {
+	res, err := h.app.Changes.Apply(ctx, changes.ApplyInput{
+		ConnectionID: r.ConnectionId, Database: r.DatabaseName,
+		Plan:   changeset.FromScript(ident.Name(r.DatabaseName), r.Body.Sql),
+		DryRun: true, Actor: actor(ctx), Surface: surface,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return gen.PlanScript200JSONResponse(gen.PlanResult{Plan: *res.Plan, Decision: res.Decision, UpSql: res.Plan.SQL(), DownSql: res.Plan.DownSQL()}), nil
+}
+
+func (h *handlers) ApplyScript(ctx context.Context, r gen.ApplyScriptRequestObject) (gen.ApplyScriptResponseObject, error) {
+	res, err := h.app.Changes.Apply(ctx, changes.ApplyInput{
+		ConnectionID: r.ConnectionId, Database: r.DatabaseName,
+		Plan:         changeset.FromScript(ident.Name(r.DatabaseName), r.Body.Sql),
+		Confirmation: deref(r.Body.Confirmation, ""),
+		Transaction:  deref(r.Body.Transaction, true),
+		Actor:        actor(ctx), Surface: surface,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return gen.ApplyScript200JSONResponse(toApplyResult(res)), nil
 }

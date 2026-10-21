@@ -159,6 +159,12 @@ func cors(origins []string) func(http.Handler) http.Handler {
 }
 
 // spa serves static files and falls back to index.html for client routes.
+const notBuilt = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Mesa</title></head>
+<body style="font-family:system-ui,sans-serif;max-width:560px;margin:15vh auto;padding:0 16px;line-height:1.5">
+<h1 style="font-size:20px">Mesa is running without its web app</h1>
+<p>This binary was built before the web app. Run <code>make web</code>, then rebuild <code>mesa-server</code>. The API is available under <code>/api</code>.</p>
+</body></html>`
+
 func spa(assets fs.FS) http.Handler {
 	files := http.FS(assets)
 	fileServer := http.FileServer(files)
@@ -179,8 +185,8 @@ func spa(assets fs.FS) http.Handler {
 		}
 		index, err := fs.ReadFile(assets, "index.html")
 		if err != nil {
-			http.NotFound(w, r)
-			return
+			// Built without the web app (`make web` was not run): say so.
+			index = []byte(notBuilt)
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")

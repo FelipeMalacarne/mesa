@@ -162,7 +162,7 @@ func connectionsCmd(d Deps) *cobra.Command {
 func queryCmd(d Deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "query <name[@env]> <sql>",
-		Short: "Run SQL (read-only connections run in a read-only transaction)",
+		Short: "Run SQL in a read-only transaction (writes: mesa apply --sql)",
 		Args:  cobra.ExactArgs(2),
 		RunE: withApp(d, func(ctx context.Context, a *app.App, cmd *cobra.Command, args []string) error {
 			it, err := resolve(ctx, a, args[0])
@@ -171,6 +171,9 @@ func queryCmd(d Deps) *cobra.Command {
 			}
 			max, _ := cmd.Flags().GetInt("limit")
 			res, err := a.Query.Run(ctx, query.RunInput{ConnectionID: it.ID, Database: dbFlag(cmd), SQL: args[1], MaxRows: max})
+			if errs.Is(err, errs.Forbidden) {
+				return errs.Newf(errs.Forbidden, "%s; queries run read-only, writes go through review: mesa apply %s --sql <file>", errs.Message(err), args[0])
+			}
 			if err != nil {
 				return err
 			}

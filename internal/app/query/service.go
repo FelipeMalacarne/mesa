@@ -39,12 +39,12 @@ type RunInput struct {
 	Database     string
 	SQL          string
 	MaxRows      int
-	ReadOnly     bool
 	Timeout      time.Duration
 }
 
-// Run executes SQL. A read-only connection that is not unlocked runs inside a
-// read-only transaction, so the database itself refuses writes.
+// Run executes ad-hoc SQL inside a read-only transaction, so the database
+// itself refuses writes on every connection: a write is a change, and goes
+// through app/changes (review, policy, audit) as a script.
 func (s *Service) Run(ctx context.Context, in RunInput) (*engine.Result, error) {
 	if strings.TrimSpace(in.SQL) == "" {
 		return nil, errs.New(errs.Invalid, "query is empty")
@@ -60,7 +60,7 @@ func (s *Service) Run(ctx context.Context, in RunInput) (*engine.Result, error) 
 	if opts.MaxRows > 10000 {
 		opts.MaxRows = 10000
 	}
-	opts.ReadOnly = in.ReadOnly || (conn.ReadOnly && !s.unlocks.IsUnlocked(conn.ID))
+	opts.ReadOnly = true
 
 	res, runErr := sess.Query(ctx, in.SQL, nil, opts)
 	rec := store.QueryRun{

@@ -560,17 +560,14 @@ type ProblemLevel string
 
 // Qualified defines model for Qualified.
 type Qualified struct {
-	Name   string `json:"Name"`
-	Schema string `json:"Schema"`
+	Name   string `json:"name"`
+	Schema string `json:"schema"`
 }
 
 // QueryRequest defines model for QueryRequest.
 type QueryRequest struct {
-	MaxRows *int `json:"maxRows,omitempty"`
-
-	// ReadOnly Force a read-only transaction even on a writable connection
-	ReadOnly *bool  `json:"readOnly,omitempty"`
-	Sql      string `json:"sql"`
+	MaxRows *int   `json:"maxRows,omitempty"`
+	Sql     string `json:"sql"`
 }
 
 // QueryResult defines model for QueryResult.
@@ -590,9 +587,9 @@ type QueryRun struct {
 
 // ResultColumn defines model for ResultColumn.
 type ResultColumn struct {
-	Kind string `json:"Kind"`
-	Name string `json:"Name"`
-	Type string `json:"Type"`
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
 // Risk defines model for Risk.
@@ -782,6 +779,18 @@ type CreateDatabaseJSONBody struct {
 	Owner  *string `json:"owner,omitempty"`
 }
 
+// PlanScriptJSONBody defines parameters for PlanScript.
+type PlanScriptJSONBody struct {
+	Sql string `json:"sql"`
+}
+
+// ApplyScriptJSONBody defines parameters for ApplyScript.
+type ApplyScriptJSONBody struct {
+	Confirmation *string `json:"confirmation,omitempty"`
+	Sql          string  `json:"sql"`
+	Transaction  *bool   `json:"transaction,omitempty"`
+}
+
 // DiffDesignerModelJSONBody defines parameters for DiffDesignerModel.
 type DiffDesignerModelJSONBody struct {
 	Schema Database `json:"schema"`
@@ -847,6 +856,12 @@ type ApplyChangesJSONRequestBody = ApplyRequest
 
 // PlanChangesJSONRequestBody defines body for PlanChanges for application/json ContentType.
 type PlanChangesJSONRequestBody = ChangeSet
+
+// PlanScriptJSONRequestBody defines body for PlanScript for application/json ContentType.
+type PlanScriptJSONRequestBody PlanScriptJSONBody
+
+// ApplyScriptJSONRequestBody defines body for ApplyScript for application/json ContentType.
+type ApplyScriptJSONRequestBody ApplyScriptJSONBody
 
 // DiffDesignerModelJSONRequestBody defines body for DiffDesignerModel for application/json ContentType.
 type DiffDesignerModelJSONRequestBody DiffDesignerModelJSONBody
@@ -916,6 +931,12 @@ type ServerInterface interface {
 	// PlanChanges Compile a change set into SQL, risks and the policy decision
 	// (POST /connections/{connectionId}/databases/{database}/changes/plan)
 	PlanChanges(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName)
+	// PlanScript Plan a hand-written SQL script as a change (statements, risks, policy decision)
+	// (POST /connections/{connectionId}/databases/{database}/changes/script)
+	PlanScript(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName)
+	// ApplyScript Run a hand-written SQL script after policy approves it; audited like every write
+	// (POST /connections/{connectionId}/databases/{database}/changes/script/apply)
+	ApplyScript(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName)
 	// GetDesignerModel The live schema as a model, its DBML and the saved diagram layout
 	// (GET /connections/{connectionId}/databases/{database}/designer)
 	GetDesignerModel(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName)
@@ -943,7 +964,7 @@ type ServerInterface interface {
 	// GetMonitorSnapshot Current metrics, rates since the previous sample and the recent series
 	// (GET /connections/{connectionId}/databases/{database}/monitor/snapshot)
 	GetMonitorSnapshot(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName)
-	// RunQuery Run SQL. Read-only connections run in a read-only transaction.
+	// RunQuery Run SQL in a read-only transaction; writes go through changes/script
 	// (POST /connections/{connectionId}/databases/{database}/query)
 	RunQuery(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName)
 	// QueryRows Page through a table with filters and sort
@@ -1063,6 +1084,18 @@ func (_ Unimplemented) PlanChanges(w http.ResponseWriter, r *http.Request, conne
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// PlanScript Plan a hand-written SQL script as a change (statements, risks, policy decision)
+// (POST /connections/{connectionId}/databases/{database}/changes/script)
+func (_ Unimplemented) PlanScript(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ApplyScript Run a hand-written SQL script after policy approves it; audited like every write
+// (POST /connections/{connectionId}/databases/{database}/changes/script/apply)
+func (_ Unimplemented) ApplyScript(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // GetDesignerModel The live schema as a model, its DBML and the saved diagram layout
 // (GET /connections/{connectionId}/databases/{database}/designer)
 func (_ Unimplemented) GetDesignerModel(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName) {
@@ -1113,7 +1146,7 @@ func (_ Unimplemented) GetMonitorSnapshot(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// RunQuery Run SQL. Read-only connections run in a read-only transaction.
+// RunQuery Run SQL in a read-only transaction; writes go through changes/script
 // (POST /connections/{connectionId}/databases/{database}/query)
 func (_ Unimplemented) RunQuery(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -1495,6 +1528,76 @@ func (siw *ServerInterfaceWrapper) PlanChanges(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PlanChanges(w, r, connectionId, databaseName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanScript operation middleware
+func (siw *ServerInterfaceWrapper) PlanScript(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "connectionId" -------------
+	var connectionId ConnectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "database" -------------
+	var databaseName DatabaseName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "database", chi.URLParam(r, "database"), &databaseName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "database", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanScript(w, r, connectionId, databaseName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApplyScript operation middleware
+func (siw *ServerInterfaceWrapper) ApplyScript(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "connectionId" -------------
+	var connectionId ConnectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectionId", chi.URLParam(r, "connectionId"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectionId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "database" -------------
+	var databaseName DatabaseName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "database", chi.URLParam(r, "database"), &databaseName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "database", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplyScript(w, r, connectionId, databaseName)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2502,6 +2605,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/connections/{connectionId}/databases/{database}/changes/apply", wrapper.ApplyChanges)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/connections/{connectionId}/databases/{database}/changes/script", wrapper.PlanScript)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/connections/{connectionId}/databases/{database}/changes/script/apply", wrapper.ApplyScript)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/connections/{connectionId}/databases/{database}/query", wrapper.RunQuery)
 	})
 	r.Group(func(r chi.Router) {
@@ -2965,6 +3074,88 @@ type PlanChangesdefaultJSONResponse struct {
 }
 
 func (response PlanChangesdefaultJSONResponse) VisitPlanChangesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanScriptRequestObject struct {
+	ConnectionId ConnectionId `json:"connectionId"`
+	DatabaseName DatabaseName `json:"database"`
+	Body         *PlanScriptJSONRequestBody
+}
+
+type PlanScriptResponseObject interface {
+	VisitPlanScriptResponse(w http.ResponseWriter) error
+}
+
+type PlanScript200JSONResponse PlanResult
+
+func (response PlanScript200JSONResponse) VisitPlanScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanScriptdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response PlanScriptdefaultJSONResponse) VisitPlanScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplyScriptRequestObject struct {
+	ConnectionId ConnectionId `json:"connectionId"`
+	DatabaseName DatabaseName `json:"database"`
+	Body         *ApplyScriptJSONRequestBody
+}
+
+type ApplyScriptResponseObject interface {
+	VisitApplyScriptResponse(w http.ResponseWriter) error
+}
+
+type ApplyScript200JSONResponse ApplyResult
+
+func (response ApplyScript200JSONResponse) VisitApplyScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplyScriptdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response ApplyScriptdefaultJSONResponse) VisitApplyScriptResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -4003,6 +4194,12 @@ type StrictServerInterface interface {
 	// PlanChanges Compile a change set into SQL, risks and the policy decision
 	// (POST /connections/{connectionId}/databases/{database}/changes/plan)
 	PlanChanges(ctx context.Context, request PlanChangesRequestObject) (PlanChangesResponseObject, error)
+	// PlanScript Plan a hand-written SQL script as a change (statements, risks, policy decision)
+	// (POST /connections/{connectionId}/databases/{database}/changes/script)
+	PlanScript(ctx context.Context, request PlanScriptRequestObject) (PlanScriptResponseObject, error)
+	// ApplyScript Run a hand-written SQL script after policy approves it; audited like every write
+	// (POST /connections/{connectionId}/databases/{database}/changes/script/apply)
+	ApplyScript(ctx context.Context, request ApplyScriptRequestObject) (ApplyScriptResponseObject, error)
 	// GetDesignerModel The live schema as a model, its DBML and the saved diagram layout
 	// (GET /connections/{connectionId}/databases/{database}/designer)
 	GetDesignerModel(ctx context.Context, request GetDesignerModelRequestObject) (GetDesignerModelResponseObject, error)
@@ -4030,7 +4227,7 @@ type StrictServerInterface interface {
 	// GetMonitorSnapshot Current metrics, rates since the previous sample and the recent series
 	// (GET /connections/{connectionId}/databases/{database}/monitor/snapshot)
 	GetMonitorSnapshot(ctx context.Context, request GetMonitorSnapshotRequestObject) (GetMonitorSnapshotResponseObject, error)
-	// RunQuery Run SQL. Read-only connections run in a read-only transaction.
+	// RunQuery Run SQL in a read-only transaction; writes go through changes/script
 	// (POST /connections/{connectionId}/databases/{database}/query)
 	RunQuery(ctx context.Context, request RunQueryRequestObject) (RunQueryResponseObject, error)
 	// QueryRows Page through a table with filters and sort
@@ -4440,6 +4637,74 @@ func (sh *strictHandler) PlanChanges(w http.ResponseWriter, r *http.Request, con
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PlanChangesResponseObject); ok {
 		if err := validResponse.VisitPlanChangesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PlanScript operation middleware
+func (sh *strictHandler) PlanScript(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName) {
+	var request PlanScriptRequestObject
+
+	request.ConnectionId = connectionId
+	request.DatabaseName = databaseName
+
+	var body PlanScriptJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PlanScript(ctx, request.(PlanScriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PlanScript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PlanScriptResponseObject); ok {
+		if err := validResponse.VisitPlanScriptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApplyScript operation middleware
+func (sh *strictHandler) ApplyScript(w http.ResponseWriter, r *http.Request, connectionId ConnectionId, databaseName DatabaseName) {
+	var request ApplyScriptRequestObject
+
+	request.ConnectionId = connectionId
+	request.DatabaseName = databaseName
+
+	var body ApplyScriptJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApplyScript(ctx, request.(ApplyScriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApplyScript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApplyScriptResponseObject); ok {
+		if err := validResponse.VisitApplyScriptResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -5221,105 +5486,106 @@ func (sh *strictHandler) GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"HxqF6f3mZn//0/3/BgAA//8=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

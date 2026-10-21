@@ -74,8 +74,8 @@ func (n Name) Quote() string {
 
 // Qualified names an object inside a schema.
 type Qualified struct {
-	Schema Name
-	Name   Name
+	Schema Name `json:"schema"`
+	Name   Name `json:"name"`
 }
 
 // Q builds a qualified name from already-validated parts.
