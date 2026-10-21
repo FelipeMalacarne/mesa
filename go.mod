@@ -14,6 +14,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/wailsapp/wails/v2 v2.10.1
 	github.com/zalando/go-keyring v0.2.6
+	golang.org/x/sys v0.48.0
 	modernc.org/sqlite v1.60.1
 )
 
@@ -71,7 +72,6 @@ require (
 	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.50.0 // indirect
