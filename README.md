@@ -137,6 +137,7 @@ it still goes through policy and audit.
 | `MESA_HOME` | OS config dir + `/mesa` | CLI and MCP data directory |
 | `MESA_PROJECT` | working directory for `mesa` and `mesa-mcp`, none for the server | Where to look for a `.mesa/` folder; `off` disables it |
 | `MESA_UPDATE_CHECK` | on | Desktop: `off` stops the daily check for a new release |
+| `MESA_UPDATE_URL` | `https://api.github.com` | Desktop: a mirror of the GitHub releases API to check instead |
 | `MESA_REGISTER_SCHEME` | on | Desktop (Linux, Windows): `off` stops registering Mesa as the `mesa://` handler on start |
 
 Connection passwords can be stored encrypted or given as `env:NAME`, which

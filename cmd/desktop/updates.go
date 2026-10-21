@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,7 +30,12 @@ type updates struct {
 }
 
 func newUpdates(configDir string, log *slog.Logger) *updates {
-	return &updates{u: update.New(platform.Version), state: filepath.Join(configDir, "last-update-check"), log: log}
+	u := update.New(platform.Version)
+	// A mirror of the GitHub releases API, for networks that cannot reach it.
+	if base := os.Getenv("MESA_UPDATE_URL"); base != "" {
+		u.APIBase = strings.TrimRight(base, "/")
+	}
+	return &updates{u: u, state: filepath.Join(configDir, "last-update-check"), log: log}
 }
 
 func (up *updates) background(ctx context.Context) {
