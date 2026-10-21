@@ -10,7 +10,7 @@ Read `docs/architecture.md` before changing structure, and the ADRs in `docs/adr
 cmd/server          the service: HTTP API + embedded web UI + MCP over HTTP (the Docker image) → mesa-server
 cmd/cli             the CLI → mesa
 cmd/mcp             the MCP server on stdio → mesa-mcp
-cmd/desktop         the desktop shell (later; Wails) → mesa-desktop
+cmd/desktop         the desktop app (Wails; build tag desktop, `make desktop`) → mesa-desktop
                     each main is wiring only, over internal/platform/bootstrap
 api/openapi.yaml    the HTTP contract (generated code lives next to its adapter)
 internal/core       pure Go, no I/O: ident, schema, value, changeset, policy, connection, errs

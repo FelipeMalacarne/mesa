@@ -4,10 +4,14 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/zalando/go-keyring"
 
 	"github.com/felipemalacarne/mesa/internal/app"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
@@ -38,6 +42,11 @@ func OpenStore(ctx context.Context, c platform.Config) (store.Store, error) {
 	return nil, errs.Newf(errs.Invalid, "unknown store driver %q (sqlite or postgres)", c.StoreDriver)
 }
 
+const (
+	keychainService = "mesa"
+	keychainAccount = "app-key"
+)
+
 // AppKey returns the configured key. In server mode it must be set; for
 // desktop and CLI a key file is created under the config directory.
 func AppKey(c platform.Config, mode app.Mode, configDir string) (string, error) {
@@ -46,6 +55,17 @@ func AppKey(c platform.Config, mode app.Mode, configDir string) (string, error) 
 	}
 	if mode == app.ModeServer {
 		return "", errs.New(errs.Invalid, "MESA_APP_KEY is required in server mode (generate one with `mesa key`)")
+	}
+	// The desktop app keeps its key in the OS keychain when there is one.
+	if mode == app.ModeDesktop {
+		if k, err := keyring.Get(keychainService, keychainAccount); err == nil && k != "" {
+			return k, nil
+		}
+		if _, err := os.Stat(filepath.Join(configDir, "key")); errors.Is(err, fs.ErrNotExist) {
+			if k, err := secret.GenerateKey(); err == nil && keyring.Set(keychainService, keychainAccount, k) == nil {
+				return k, nil
+			}
+		}
 	}
 	path := filepath.Join(configDir, "key")
 	if b, err := os.ReadFile(path); err == nil && len(strings.TrimSpace(string(b))) > 0 {

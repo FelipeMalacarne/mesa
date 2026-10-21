@@ -14,4 +14,6 @@ The desktop app is a Wails shell: the Go application runs in-process, serves the
 
 - One UI, one API contract, one design system.
 - Large result grids are solved in the web app (virtualised rows, paged results), not by going native.
-- The desktop build is a build tag and an entry point, not a separate codebase. It is scheduled after the CLI and MCP surfaces.
+- The desktop build is a build tag and an entry point, not a separate codebase: `cmd/desktop`, built with `-tags desktop,production,webkit2_41` (`make desktop`). The webview's requests, the API included, go to the same `transport/http` handler in process.
+- The key that encrypts connection secrets is kept in the OS keychain (`mesa`/`app-key`); where no keychain is reachable it falls back to a key file in the config directory, as the CLI does.
+- Still to come: deep links, auto-update and signed installers.

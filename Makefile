@@ -4,7 +4,7 @@ BINDIR   := bin
 PG_DIR   ?= /tmp/mesa-pg
 PG_PORT  ?= 5499
 
-.PHONY: all build web generate test test-integration lint fmt dev-db dev-db-stop clean docker-build
+.PHONY: all build desktop web generate test test-integration lint fmt dev-db dev-db-stop clean docker-build
 
 all: generate web build
 
@@ -12,6 +12,9 @@ build: ## Build every binary (mesa-server expects web/dist; run `make web` first
 	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-server ./cmd/server
 	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa ./cmd/cli
 	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-mcp ./cmd/mcp
+
+desktop: ## Build bin/mesa-desktop (Linux: needs libwebkit2gtk-4.1-dev and libgtk-3-dev)
+	CGO_ENABLED=1 $(GO) build -tags desktop,production,webkit2_41 -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-desktop ./cmd/desktop
 
 web: ## Build the web app into web/dist
 	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) run build

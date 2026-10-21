@@ -31,7 +31,7 @@ the schema designer, the CLI and the MCP tools all go through that one path.
   database and start from an empty canvas. Review the diff, apply.
 - **Roles** and databases, created through the same reviewed path.
 - **Surfaces**: `mesa-server` (web app + HTTP API), `mesa` (CLI), `mesa-mcp`
-  (Model Context Protocol on stdio). A desktop shell is planned.
+  (Model Context Protocol on stdio), `mesa-desktop` (a native window).
 
 ## Run it
 
@@ -90,6 +90,16 @@ environment name is enough (`mesa diff staging`, `mesa apply staging`), models d
 `.mesa/models/<database>.dbml` and applied changes are saved as migrations. Connections in
 `mesa.toml` inherit unset fields from the default one. Set `MESA_PROJECT=/path` to give
 `mesa-server` a project too.
+
+### Desktop
+
+```bash
+make web && make desktop     # Linux needs libwebkit2gtk-4.1-dev and libgtk-3-dev
+./bin/mesa-desktop
+```
+
+The same app in a native window, with Mesa's data in the local config directory and the
+encryption key in the OS keychain. `MESA_PROJECT` links a `.mesa/` folder.
 
 ### MCP
 

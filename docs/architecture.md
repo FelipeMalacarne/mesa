@@ -1,6 +1,6 @@
 # Mesa architecture
 
-Mesa is one Go application layer shipped as one binary per surface, one directory each under `cmd/`: `cmd/server` builds `mesa-server` (HTTP API with the embedded React UI and the MCP tools over HTTP; the Docker/Kubernetes image), `cmd/cli` builds `mesa` (the CLI), `cmd/mcp` builds `mesa-mcp` (the MCP server on stdio for local agents) and, later, `cmd/desktop` builds `mesa-desktop` (a Wails shell). Every main is wiring over `internal/platform/bootstrap`. The product design lives in the Mesa design system and screen canvas; this document describes how the code is organised to deliver it.
+Mesa is one Go application layer shipped as one binary per surface, one directory each under `cmd/`: `cmd/server` builds `mesa-server` (HTTP API with the embedded React UI and the MCP tools over HTTP; the Docker/Kubernetes image), `cmd/cli` builds `mesa` (the CLI), `cmd/mcp` builds `mesa-mcp` (the MCP server on stdio for local agents) and `cmd/desktop` builds `mesa-desktop` (a Wails window serving the same handler in process; `make desktop`). Every main is wiring over `internal/platform/bootstrap`. The product design lives in the Mesa design system and screen canvas; this document describes how the code is organised to deliver it.
 
 ## Principles
 
