@@ -45,6 +45,20 @@ jobs:
           MESA_TEST_PG: postgres://postgres@localhost:5432/postgres?sslmode=disable
           MESA_TEST_MYSQL: root:mesa@tcp(127.0.0.1:3306)/
 
+  platform:
+    # The updater and deep-link code swap executables and app bundles, which
+    # behaves differently per OS: run its tests where it ships.
+    strategy:
+      matrix:
+        os: [macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./internal/platform/... ./internal/core/...
+
   desktop:
     runs-on: ubuntu-latest
     steps:
