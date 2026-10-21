@@ -3,7 +3,7 @@
 # unsigned app on their own machine:
 #   curl -fsSL https://raw.githubusercontent.com/FelipeMalacarne/mesa/main/packaging/darwin/install.sh | sh
 # MESA_VERSION picks a release (default: the latest); MESA_INSTALL_DIR
-# the destination (default: /Applications). The download is checked
+# the destination (default: /Applications); MESA_NO_OPEN=1 skips opening it. The download is checked
 # against the release's checksums.txt before anything is installed.
 set -eu
 repo=FelipeMalacarne/mesa
@@ -38,4 +38,4 @@ mv "$tmp/app/Mesa.app" "$dest/Mesa.app"
 # The app is not notarized; drop the quarantine flag so macOS opens it.
 xattr -dr com.apple.quarantine "$dest/Mesa.app" 2>/dev/null || true
 echo "Installed $dest/Mesa.app"
-open "$dest/Mesa.app"
+[ -n "${MESA_NO_OPEN:-}" ] || open "$dest/Mesa.app"
