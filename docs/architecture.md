@@ -64,8 +64,12 @@ Mesa's own data behind ports: `Connections`, `Secrets`, `Audit`, `Layouts` (diag
 
 ## The write path
 
+Ad-hoc queries (`app/query`) always run in a read-only transaction. Anything that writes is
+a change: row edits and schema changes arrive as a `ChangeSet`, hand-written SQL arrives as a
+script (`changeset.FromScript`, which splits it safely and reads risks from the text).
+
 ```
-grid edit / designer / CLI / MCP
+grid edit / structure / designer / SQL script / CLI / MCP
         │ changeset.ChangeSet
         ▼
 engine.Dialect.Compile  ──► changeset.Plan {Up, Down, Risks}

@@ -19,7 +19,9 @@ the schema designer, the CLI and the MCP tools all go through that one path.
   showing the exact SQL.
 - **Structure**: columns, indexes, foreign keys, checks, with changes planned
   as DDL and the matching rollback.
-- **SQL editor** with results, EXPLAIN, history and saved queries.
+- **SQL editor** with results, EXPLAIN (and ANALYZE, rolled back), history and saved
+  queries. Queries run in a read-only transaction; a statement that writes is reviewed
+  and audited like any other change.
 - **Monitor**: general metrics (connections, transactions per second, cache
   hit, locks, longest transaction) plus an engine panel; PostgreSQL shows
   replication, vacuum, bloat, slow queries. Active sessions, cancel or
@@ -57,7 +59,7 @@ Mesa's own data in PostgreSQL.
 
 ```bash
 mesa connections add --name shop --env production --host db.internal --user app --database shop
-mesa query shop "select count(*) from orders"
+mesa query shop "select count(*) from orders"   # read-only; writes: mesa apply --sql
 mesa model pull shop > shop.dbml           # the live schema as DBML
 mesa diff shop --model shop.dbml           # SQL + risks for the changes in the file
 mesa apply shop --model shop.dbml --confirm shop --save-migration ./migrations
