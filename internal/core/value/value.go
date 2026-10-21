@@ -329,9 +329,9 @@ type Row []Value
 
 // Column describes a result column.
 type Column struct {
-	Name string
-	Type string // engine type name
-	Kind Kind   // the kind values in this column decode to
+	Name string `json:"name"`
+	Type string `json:"type"` // engine type name
+	Kind Kind   `json:"kind"` // the kind values in this column decode to
 }
 
 // ParseText turns typed-in text into a value of the given kind, the inverse

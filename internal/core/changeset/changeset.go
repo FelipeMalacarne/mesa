@@ -43,8 +43,10 @@ func (cs *ChangeSet) IsEmpty() bool { return len(cs.Rows) == 0 && len(cs.Schema)
 
 // Summary counts the staged changes by kind for status lines.
 type Summary struct {
-	Inserted, Updated, Deleted int
-	SchemaChanges              int
+	Inserted      int `json:"inserted"`
+	Updated       int `json:"updated"`
+	Deleted       int `json:"deleted"`
+	SchemaChanges int `json:"schemaChanges"`
 }
 
 func (cs *ChangeSet) Summary() Summary {
@@ -107,20 +109,36 @@ type Statement struct {
 	SQL      string        `json:"sql"`
 	Args     []value.Value `json:"args,omitempty"`
 	Describe string        `json:"describe"` // one line a person reads
+	// ExpectRows, when above zero, is how many rows the statement must
+	// touch. A row edit expects exactly one: zero means the row changed or
+	// vanished since it was read, more means the key did not identify it.
+	// Either way the transaction is rolled back.
+	ExpectRows int64 `json:"expectRows,omitempty"`
+	// Redacted, when set, replaces SQL everywhere a person or a log can
+	// see it: review screens, JSON, the audit trail and migration files.
+	// Statements carrying a password set it; execution still uses SQL.
+	Redacted string `json:"-"`
 }
 
 // MarshalJSON adds the display form so review screens need no extra call.
 func (s Statement) MarshalJSON() ([]byte, error) {
 	type plain Statement
+	p := plain(s)
+	if s.Redacted != "" {
+		p.SQL, p.Args = s.Redacted, nil
+	}
 	return json.Marshal(struct {
 		plain
 		Display string `json:"display"`
-	}{plain(s), s.Display()})
+	}{p, s.Display()})
 }
 
 // Display renders the statement with its arguments inlined as SQL literals,
 // for review screens only; execution always uses SQL + Args.
 func (s Statement) Display() string {
+	if s.Redacted != "" {
+		return s.Redacted
+	}
 	if len(s.Args) == 0 {
 		return s.SQL
 	}
@@ -216,10 +234,10 @@ func (p *Plan) IsEmpty() bool { return len(p.Statements) == 0 }
 func (p *Plan) Worst() RiskLevel {
 	worst := Info
 	for _, r := range p.Risks {
-		switch {
-		case r.Level == Danger:
+		switch r.Level {
+		case Danger:
 			return Danger
-		case r.Level == Warning:
+		case Warning:
 			worst = Warning
 		}
 	}
@@ -266,7 +284,11 @@ func (p *Plan) Title() string {
 	s := p.Summary
 	switch {
 	case s.SchemaChanges > 0 && len(p.Statements) > 0:
-		return p.Statements[0].Describe
+		first := p.Statements[0].Describe
+		if s.SchemaChanges > 1 {
+			return fmt.Sprintf("%s and %d more changes", first, s.SchemaChanges-1)
+		}
+		return first
 	case s.Inserted+s.Updated+s.Deleted > 0:
 		return fmt.Sprintf("%d row changes", s.Inserted+s.Updated+s.Deleted)
 	}

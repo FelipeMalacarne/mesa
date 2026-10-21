@@ -115,10 +115,38 @@ func (c Change) Describe() string {
 	return string(c.Kind)
 }
 
-// Diff computes the changes that turn from into to. Statistics are ignored.
-// The result is ordered so it can run top to bottom: schemas and enums first,
-// drops of dependents before drops of their targets, foreign keys last.
-func Diff(from, to *Database) []Change {
+// DiffOptions let an engine say when two spellings mean the same thing, so
+// "varchar(20)" against "character varying(20)" is not a change.
+type DiffOptions struct {
+	// SameType reports whether two column type spellings name the same type.
+	SameType func(a, b string) bool
+	// SameDefault reports whether two default expressions are equivalent.
+	SameDefault func(a, b string) bool
+}
+
+func (o DiffOptions) sameType(a, b string) bool {
+	if o.SameType != nil {
+		return o.SameType(a, b)
+	}
+	return a == b
+}
+
+func (o DiffOptions) sameDefault(a, b string) bool {
+	if o.SameDefault != nil {
+		return o.SameDefault(a, b)
+	}
+	return a == b
+}
+
+// Diff computes the changes that turn from into to, comparing spellings
+// literally. Statistics are ignored.
+func Diff(from, to *Database) []Change { return DiffWith(from, to, DiffOptions{}) }
+
+// DiffWith computes the changes that turn from into to. Statistics are
+// ignored. The result is ordered so it can run top to bottom: schemas and
+// enums first, drops of dependents before drops of their targets, foreign
+// keys last.
+func DiffWith(from, to *Database, opts DiffOptions) []Change {
 	var pre, mid, fks, post []Change
 
 	// Schemas.
@@ -136,13 +164,10 @@ func Diff(from, to *Database) []Change {
 			if fs != nil {
 				fe = fs.Enum(te.Name)
 			}
-			switch {
-			case fe == nil:
+			if fe == nil {
 				pre = append(pre, Change{Kind: CreateEnum, Schema: ts.Name, Enum: &te})
-			default:
-				if added := missingValues(fe.Values, te.Values); len(added) > 0 {
-					pre = append(pre, Change{Kind: AddEnumValue, Schema: ts.Name, Name: te.Name, Values: added})
-				}
+			} else if added := missingValues(fe.Values, te.Values); len(added) > 0 {
+				pre = append(pre, Change{Kind: AddEnumValue, Schema: ts.Name, Name: te.Name, Values: added})
 			}
 		}
 	}
@@ -165,7 +190,7 @@ func Diff(from, to *Database) []Change {
 				}
 				continue
 			}
-			m, f := diffTable(q, ft, &tt)
+			m, f := diffTable(q, ft, &tt, opts)
 			mid = append(mid, m...)
 			fks = append(fks, f...)
 		}
@@ -204,7 +229,7 @@ func Diff(from, to *Database) []Change {
 	return out
 }
 
-func diffTable(q ident.Qualified, from, to *Table) (changes, fks []Change) {
+func diffTable(q ident.Qualified, from, to *Table, opts DiffOptions) (changes, fks []Change) {
 	// Foreign keys dropped first so columns they use can go.
 	for _, ffk := range from.ForeignKeys {
 		if findFK(to.ForeignKeys, ffk) == nil {
@@ -243,7 +268,7 @@ func diffTable(q ident.Qualified, from, to *Table) (changes, fks []Change) {
 			changes = append(changes, Change{Kind: AddColumn, Table: q, Column: &tc})
 			continue
 		}
-		if fc.Type != tc.Type {
+		if !opts.sameType(fc.Type, tc.Type) {
 			old := *fc
 			changes = append(changes, Change{Kind: AlterColumnType, Table: q, Column: &tc, OldColumn: &old})
 		}
@@ -256,7 +281,7 @@ func diffTable(q ident.Qualified, from, to *Table) (changes, fks []Change) {
 		switch {
 		case tc.Default == nil && fc.Default != nil:
 			changes = append(changes, Change{Kind: DropDefault, Table: q, Name: tc.Name})
-		case tc.Default != nil && (fc.Default == nil || *fc.Default != *tc.Default):
+		case tc.Default != nil && (fc.Default == nil || !opts.sameDefault(*fc.Default, *tc.Default)):
 			changes = append(changes, Change{Kind: SetDefault, Table: q, Column: &tc})
 		}
 		if fc.Comment != tc.Comment {

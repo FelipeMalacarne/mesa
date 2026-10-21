@@ -232,3 +232,48 @@ func (d *Database) Counts() Counts {
 	}
 	return c
 }
+
+// Fill replaces nil required lists with empty ones, so the model encodes
+// "tables": [] rather than null for an empty schema.
+func (d *Database) Fill() *Database {
+	if d.Schemas == nil {
+		d.Schemas = []Schema{}
+	}
+	for si := range d.Schemas {
+		s := &d.Schemas[si]
+		if s.Tables == nil {
+			s.Tables = []Table{}
+		}
+		for ti := range s.Tables {
+			s.Tables[ti].Fill()
+		}
+		for vi := range s.Views {
+			if s.Views[vi].Columns == nil {
+				s.Views[vi].Columns = []Column{}
+			}
+		}
+		for ei := range s.Enums {
+			if s.Enums[ei].Values == nil {
+				s.Enums[ei].Values = []string{}
+			}
+		}
+	}
+	return d
+}
+
+// Fill replaces nil required lists with empty ones.
+func (t *Table) Fill() *Table {
+	if t.Columns == nil {
+		t.Columns = []Column{}
+	}
+	for i := range t.ForeignKeys {
+		fk := &t.ForeignKeys[i]
+		if fk.Columns == nil {
+			fk.Columns = []ident.Name{}
+		}
+		if fk.RefColumns == nil {
+			fk.RefColumns = []ident.Name{}
+		}
+	}
+	return t
+}
