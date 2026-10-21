@@ -16,6 +16,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/app"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/engine"
+	"github.com/felipemalacarne/mesa/internal/engine/mysql"
 	"github.com/felipemalacarne/mesa/internal/engine/postgres"
 	"github.com/felipemalacarne/mesa/internal/platform"
 	"github.com/felipemalacarne/mesa/internal/secret"
@@ -28,7 +29,7 @@ import (
 
 // Engines returns every driver this build ships.
 func Engines() []engine.Engine {
-	return []engine.Engine{postgres.New()}
+	return []engine.Engine{postgres.New(), mysql.New()}
 }
 
 // OpenStore opens the configured store.

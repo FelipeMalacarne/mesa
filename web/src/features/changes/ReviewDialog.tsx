@@ -161,7 +161,11 @@ function ReviewBody({ title, target, connection, reviewKey, load, apply, onAppli
               <label className="m-row" style={{ cursor: "pointer", flexWrap: "nowrap" }}>
                 <input type="checkbox" checked={transaction} onChange={() => setTransaction(!transaction)} style={{ width: 16, height: 16, margin: 0, accentColor: "var(--primary)" }} />
                 <span>Run in a single transaction</span>
-                <span className="m-help">If one statement fails, none are applied.</span>
+                <span className="m-help">
+                  {(data.plan.risks ?? []).some((r) => r.code === "no_transaction")
+                    ? "Row changes roll back together; schema changes are committed as each one runs."
+                    : "If one statement fails, none are applied."}
+                </span>
               </label>
             ) : null}
             {denied ? (

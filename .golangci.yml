@@ -59,6 +59,8 @@ linters:
           deny:
             - pkg: github.com/felipemalacarne/mesa/internal/engine/postgres
               desc: transports talk to app, never to a driver
+            - pkg: github.com/felipemalacarne/mesa/internal/engine/mysql
+              desc: transports talk to app, never to a driver
             - pkg: github.com/felipemalacarne/mesa/internal/store/sqlite
               desc: transports talk to app, never to a store implementation
     revive:

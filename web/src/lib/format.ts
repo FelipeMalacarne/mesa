@@ -108,6 +108,11 @@ export function defaultPort(engine: Engine): number {
   return engine === "mysql" ? 3306 : 5432;
 }
 
+/** "db.schema.table", or "db.table" on engines whose one schema is the database (MySQL). */
+export function objectPath(database: string, schema: string, table: string): string {
+  return schema === database ? `${database}.${table}` : `${database}.${schema}.${table}`;
+}
+
 /** `{ Schema, Name }` → "schema.name" */
 export function qualifiedName(schema: string, name: string): string {
   return `${schema}.${name}`;

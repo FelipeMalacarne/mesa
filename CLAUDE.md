@@ -14,7 +14,7 @@ cmd/desktop         the desktop app (Wails; build tag desktop, `make desktop`) �
                     each main is wiring only, over internal/platform/bootstrap
 api/openapi.yaml    the HTTP contract (generated code lives next to its adapter)
 internal/core       pure Go, no I/O: ident, schema, value, changeset, policy, connection, errs
-internal/engine     driver ports (catalog, exec, monitor, dialect) + postgres implementation
+internal/engine     driver ports (catalog, exec, monitor, dialect) + postgres, mysql + enginetest
 internal/session    connection + secret → pooled Session per (connection, database)
 internal/secret     vault: local AES-GCM, env: references
 internal/dbml       DBML parse/print ↔ schema.Database
@@ -35,7 +35,7 @@ web/                React app: src/app (shell), src/features/*, src/ui (design s
 - `core/value` is the only cell representation. Never pass `any` from a driver to a transport.
 - Generated code stays beside its adapter (`transport/http/gen`, `store/sqlite/gen`) and is regenerated with `make generate`, never edited.
 - Errors: wrap with `errs.*` kinds; transports map kinds to status codes. Never leak driver errors to clients unwrapped.
-- Tests: `go test ./...` must pass offline. Postgres integration tests run when `MESA_TEST_PG` is set (a DSN), otherwise they skip. Keep both green.
+- Tests: `go test ./...` must pass offline. Engine integration tests run when `MESA_TEST_PG` (a Postgres URL) or `MESA_TEST_MYSQL` (a go-sql-driver DSN such as `root:mesa@tcp(127.0.0.1:3306)/`) is set, otherwise they skip. Keep all green.
 
 ## Conventions
 

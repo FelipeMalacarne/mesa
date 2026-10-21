@@ -2,8 +2,8 @@
 
 **The open-source SQL control plane.** One Go application you can run as a
 service (Docker, Kubernetes), from the terminal, or hand to an agent over MCP,
-for exploring, changing and watching your databases. PostgreSQL first; the
-engine layer is a port.
+for exploring, changing and watching your databases. PostgreSQL and MySQL
+(8.0+) today; the engine layer is a port with a shared conformance suite.
 
 Every write Mesa makes is a reviewed change: it is planned as SQL you can read,
 checked by policy (read-only connections, production needs the database name
@@ -24,8 +24,9 @@ the schema designer, the CLI and the MCP tools all go through that one path.
   and audited like any other change.
 - **Monitor**: general metrics (connections, transactions per second, cache
   hit, locks, longest transaction) plus an engine panel; PostgreSQL shows
-  replication, vacuum, bloat, slow queries. Active sessions, cancel or
-  terminate.
+  replication, vacuum, bloat, slow queries; MySQL shows the InnoDB buffer pool,
+  row-lock waits, statement digests and the largest tables. Active sessions,
+  cancel or terminate.
 - **Designer**: an ERD and DBML side by side, kept in sync. Open an existing
   database and the diagram is drawn from the live schema; create a new
   database and start from an empty canvas. Review the diff, apply.
@@ -137,13 +138,14 @@ Mesa resolves from its own environment at connect time.
 
 ```bash
 make dev-db            # throwaway PostgreSQL on :5499 (needs postgres binaries)
+MESA_TEST_MYSQL='root:pw@tcp(127.0.0.1:3306)/' go test ./internal/engine/mysql/   # MySQL conformance
 make generate          # OpenAPI server (Go) and client (TypeScript)
 make web && make build # web/dist, then bin/mesa-server, bin/mesa, bin/mesa-mcp
 make test-integration  # go test ./... against the dev database
 ```
 
 `cmd/server`, `cmd/cli` and `cmd/mcp` are the entry points (`cmd/desktop` comes later). `docs/architecture.md` explains the layout: `core` (pure model, diff, plans,
-policy) → `engine` (ports, PostgreSQL driver) → `session` → `app` (use cases)
+policy) → `engine` (ports, PostgreSQL and MySQL drivers) → `session` → `app` (use cases)
 → `transport` (HTTP, CLI, MCP). `docs/adr/` records the decisions. The product
 design lives in the Mesa design system and screen canvas linked from
 `CLAUDE.md`.

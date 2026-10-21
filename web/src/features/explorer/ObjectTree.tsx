@@ -98,7 +98,7 @@ function DatabaseChildren({ database, filter }: { database: string; filter: stri
         <span className="m-tree__name">{errorMessage(schema.error)}</span>
       </div>
     );
-  const schemas = schema.data.schemas.filter((s) => s.tables.length + (s.views?.length ?? 0) + (s.enums?.length ?? 0) + (s.functions?.length ?? 0) > 0 || s.name === "public");
+  const schemas = schema.data.schemas.filter((s) => s.tables.length + (s.views?.length ?? 0) + (s.enums?.length ?? 0) + (s.functions?.length ?? 0) > 0 || s.name === "public" || s.name === database);
   if (schemas.length === 0)
     return (
       <div className="m-tree__item m-muted" style={{ cursor: "default" }}>
@@ -132,15 +132,21 @@ function SchemaNode({ database, schema, filter, single }: { database: string; sc
   // A database with one schema shows it open unless the person closed it.
   const open = hit || (single ? !closed : stored);
   const onToggle = () => (single ? toggle(connectionId, `closed:${id}`, open) : toggle(connectionId, id));
+  // Engines without schemas (MySQL) report one schema named after the
+  // database; the tree skips that level.
+  const flat = single && schema.name === database;
+  const Group = flat ? React.Fragment : TreeGroup;
   return (
     <>
-      <button type="button" className="m-tree__item" role="treeitem" aria-expanded={open} onClick={onToggle}>
-        <Chevron open={open} />
-        <Folder className="m-icon m-icon--sm" aria-hidden="true" />
-        <span className="m-tree__name">{schema.name}</span>
-      </button>
-      {open ? (
-        <div className="m-tree__children" role="group">
+      {flat ? null : (
+        <button type="button" className="m-tree__item" role="treeitem" aria-expanded={open} onClick={onToggle}>
+          <Chevron open={open} />
+          <Folder className="m-icon m-icon--sm" aria-hidden="true" />
+          <span className="m-tree__name">{schema.name}</span>
+        </button>
+      )}
+      {open || flat ? (
+        <Group>
           <Folder_ id={`${id}/tables`} label="Tables" count={tables.length} forceOpen={hit} defaultOpen>
             {tables.length === 0 ? <Leaf label="No tables" muted /> : tables.map((t) => <TableNode key={t.name} database={database} schema={schema.name} table={t} />)}
           </Folder_>
@@ -172,9 +178,17 @@ function SchemaNode({ database, schema, filter, single }: { database: string; sc
               ))}
             </Folder_>
           ) : null}
-        </div>
+        </Group>
       ) : null}
     </>
+  );
+}
+
+function TreeGroup({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="m-tree__children" role="group">
+      {children}
+    </div>
   );
 }
 

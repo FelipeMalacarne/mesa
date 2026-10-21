@@ -24,18 +24,21 @@ const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export function AddTableDialog({ open, onOpenChange, model, onAdd }: { open: boolean; onOpenChange: (o: boolean) => void; model: Database; onAdd: (schema: string, table: Table) => void }) {
   const [name, setName] = React.useState("");
-  const [schema, setSchema] = React.useState("public");
+  // Engines without schemas (MySQL) have one schema named after the database.
+  const schemaless = model.schemas.length === 1 && model.schemas[0].name === model.name;
+  const defaultSchema = schemaless ? model.name : "public";
+  const [schema, setSchema] = React.useState(defaultSchema);
   const [cols, setCols] = React.useState<ColumnDraft[]>([]);
   React.useEffect(() => {
     if (open) {
       setName("");
-      setSchema("public");
+      setSchema(defaultSchema);
       setCols([
         { name: "id", type: "bigint", pk: true, notNull: true, unique: false, default: "" },
         { name: "created_at", type: "timestamptz", pk: false, notNull: true, unique: false, default: "now()" },
       ]);
     }
-  }, [open]);
+  }, [open, defaultSchema]);
   const taken = tablesOf(model).some((t) => t.schema === schema && t.table.name === name);
   const valid = NAME.test(name) && !taken && cols.length > 0 && cols.every((c) => NAME.test(c.name) && c.type.trim()) && new Set(cols.map((c) => c.name)).size === cols.length;
   const set = (i: number, p: Partial<ColumnDraft>) => setCols(cols.map((c, j) => (j === i ? { ...c, ...p } : c)));
@@ -58,7 +61,7 @@ export function AddTableDialog({ open, onOpenChange, model, onAdd }: { open: boo
     });
     onOpenChange(false);
   };
-  const schemas = [...new Set(["public", ...model.schemas.map((s) => s.name)])];
+  const schemas = schemaless ? [model.name] : [...new Set(["public", ...model.schemas.map((s) => s.name)])];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent width={640} aria-describedby={undefined}>

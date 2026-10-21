@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Activity, Eye, History, LayoutGrid, Plus, SquareTerminal, Table2, Users, X } from "lucide-react";
 
+import { objectPath } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/Button";
 import { Kbd } from "@/ui/controls";
@@ -58,7 +59,7 @@ export function TabStrip() {
             {...tabLink(connectionId, tab)}
             className={cn("m-tab", active?.id === tab.id && "is-active", dirty && "is-dirty")}
             aria-current={active?.id === tab.id ? "page" : undefined}
-            title={tab.kind === "table" ? `${tab.database}.${tab.schema}.${tab.table}` : tab.title}
+            title={tab.kind === "table" ? objectPath(tab.database ?? "", tab.schema ?? "", tab.table ?? "") : tab.title}
             onAuxClick={(e) => {
               if (e.button === 1) {
                 e.preventDefault();

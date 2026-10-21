@@ -10,7 +10,7 @@ import { useListAudit } from "@/lib/api/changes/changes";
 import { useListDatabases } from "@/lib/api/explore/explore";
 import { useGetMonitorOverview } from "@/lib/api/monitor/monitor";
 import { useListHistory } from "@/lib/api/query/query";
-import { bytes, relativeTime } from "@/lib/format";
+import { bytes, engineLabel, relativeTime } from "@/lib/format";
 import { useStatusFacts } from "@/app/status.store";
 import { EnvTag } from "@/ui/controls";
 import { useTabs, tabLink } from "@/features/explorer/tabs.store";
@@ -24,7 +24,7 @@ export function WorkspaceHome() {
   const dbs = useListDatabases(connectionId);
   const history = useListHistory(connectionId, { limit: 6 });
   const audit = useListAudit(connectionId, { limit: 6 });
-  useStatusFacts(overview.data ? [`${connection.engine === "postgres" ? "PostgreSQL" : connection.engine} ${overview.data.version}`, `as ${overview.data.role}`] : []);
+  useStatusFacts(overview.data ? [`${engineLabel(connection.engine)} ${overview.data.version}`, `as ${overview.data.role}`] : []);
 
   // Arriving on the workspace root with tabs open returns to the active one.
   React.useEffect(() => {

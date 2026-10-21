@@ -12,7 +12,7 @@ import { applyChanges, planChanges } from "@/lib/api/changes/changes";
 import { getGetSchemaQueryKey, getGetTableQueryKey, queryRows, useGetSchema, useGetTable } from "@/lib/api/explore/explore";
 import type { ChangeSet, RowsQueryFiltersItem } from "@/lib/api/mesaAPI.schemas";
 import { errorMessage } from "@/lib/api/fetch";
-import { bytes, duration, nsToMs, plural, thousands } from "@/lib/format";
+import { bytes, duration, nsToMs, objectPath, plural, thousands } from "@/lib/format";
 import { ValueInputError } from "@/lib/values";
 import { cn, isCmd } from "@/lib/utils";
 import { usePendingStatus, useStatusFacts } from "@/app/status.store";
@@ -217,7 +217,7 @@ export function TablePage({ database, schema, table, view, kind }: Props) {
         ) : (
           <>
             <span className="m-help m-mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {database}.{schema}.{table}
+              {objectPath(database, schema, table)}
               {tableModel?.rowEstimate !== undefined ? ` · ${thousands(Math.max(0, tableModel.rowEstimate))} rows` : ""}
               {tableModel?.sizeBytes ? ` · ${bytes(tableModel.sizeBytes)}` : ""}
             </span>
@@ -305,7 +305,7 @@ export function TablePage({ database, schema, table, view, kind }: Props) {
         open={review === "rows"}
         onOpenChange={(o) => !o && setReview(null)}
         title="Review changes"
-        target={`${database}.${schema}.${table}`}
+        target={objectPath(database, schema, table)}
         connection={connection}
         reviewKey={["rows", tk, JSON.stringify(changes)]}
         load={async () => {
@@ -322,7 +322,7 @@ export function TablePage({ database, schema, table, view, kind }: Props) {
         open={review === "schema"}
         onOpenChange={(o) => !o && setReview(null)}
         title="Apply schema changes"
-        target={`${database}.${schema}.${table}`}
+        target={objectPath(database, schema, table)}
         connection={connection}
         reviewKey={["schema", tk, JSON.stringify(edits)]}
         load={async () => {

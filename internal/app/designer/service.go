@@ -82,9 +82,12 @@ func (s *Service) Diff(ctx context.Context, connID uuid.UUID, database string, t
 	if err != nil {
 		return nil, err
 	}
-	sess, _, err := s.sessions.Session(ctx, connID, database)
+	sess, conn, err := s.sessions.Session(ctx, connID, database)
 	if err != nil {
 		return nil, err
+	}
+	if eng, err := s.sessions.Engine(conn.Engine); err == nil && !eng.Capabilities().Schemas {
+		Fold(target, ident.Name(database))
 	}
 	target.Normalize()
 	Preserve(live, target)
@@ -98,6 +101,29 @@ func (s *Service) Diff(ctx context.Context, connID uuid.UUID, database string, t
 		return nil, err
 	}
 	return &Diff{Changes: cs.Schema, Plan: pr.Plan, Decision: pr.Decision}, nil
+}
+
+// Fold merges every schema of target into one named after the database,
+// for engines without schemas inside a database (MySQL): a model drawn or
+// written with "public" tables, or none, then targets the database itself.
+func Fold(target *schema.Database, database ident.Name) {
+	if len(target.Schemas) == 1 && target.Schemas[0].Name == database {
+		return
+	}
+	merged := schema.Schema{Name: database}
+	for _, sc := range target.Schemas {
+		merged.Tables = append(merged.Tables, sc.Tables...)
+		merged.Views = append(merged.Views, sc.Views...)
+		merged.Enums = append(merged.Enums, sc.Enums...)
+		merged.Functions = append(merged.Functions, sc.Functions...)
+		merged.Sequences = append(merged.Sequences, sc.Sequences...)
+	}
+	for ti := range merged.Tables {
+		for fi := range merged.Tables[ti].ForeignKeys {
+			merged.Tables[ti].ForeignKeys[fi].References.Schema = database
+		}
+	}
+	target.Schemas = []schema.Schema{merged}
 }
 
 // SaveLayout stores diagram positions.

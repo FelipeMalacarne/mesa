@@ -89,7 +89,7 @@ export function ConnectionsPage() {
           <EmptyState
             icon={<Database className="m-icon" aria-hidden="true" />}
             title="No connections yet"
-            description="Add a PostgreSQL server to browse its databases, edit rows with a review step, watch its metrics and design its schema."
+            description="Add a PostgreSQL or MySQL server to browse its databases, edit rows with a review step, watch its metrics and design its schema."
             actions={
               <Button variant="primary" onClick={() => setDialog({ open: true })}>
                 <Plus className="m-icon m-icon--sm" aria-hidden="true" />

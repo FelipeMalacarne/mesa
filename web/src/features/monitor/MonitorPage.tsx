@@ -13,7 +13,7 @@ import { useListDatabases } from "@/lib/api/explore/explore";
 import type { ActiveSession, Panel, Snapshot } from "@/lib/api/mesaAPI.schemas";
 import { getListSessionsQueryKey, getMonitorSnapshot, killSession, useGetEnginePanel, useGetMonitorOverview, useListSessions } from "@/lib/api/monitor/monitor";
 import { errorMessage } from "@/lib/api/fetch";
-import { bytes, clockTime, compact, duration, nsToMs, plural, relativeTime } from "@/lib/format";
+import { bytes, clockTime, compact, duration, engineLabel, nsToMs, plural, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useStatusFacts } from "@/app/status.store";
 import { Button } from "@/ui/Button";
@@ -88,7 +88,7 @@ const RANGES: { value: Range; label: string }[] = [
 ];
 
 function Overview({ database, paused, range }: { database: string; paused: boolean; range: Range }) {
-  const { connectionId } = useWorkspace();
+  const { connectionId, connection } = useWorkspace();
   const overview = useGetMonitorOverview(connectionId, database);
   const snap = useQuery({
     queryKey: ["snapshot", connectionId, database, range],
@@ -98,7 +98,7 @@ function Overview({ database, paused, range }: { database: string; paused: boole
     placeholderData: (prev) => prev,
   });
   const panel = useGetEnginePanel(connectionId, database, { query: { refetchInterval: paused ? false : 15_000, retry: false } });
-  useStatusFacts(overview.data ? [`PostgreSQL ${overview.data.version}`, `up ${relativeTime(overview.data.startedAt).replace(" ago", "")}`] : []);
+  useStatusFacts(overview.data ? [`${engineLabel(connection.engine)} ${overview.data.version}`, `up ${relativeTime(overview.data.startedAt).replace(" ago", "")}`] : []);
 
   if (snap.isError) return <div style={{ padding: 24 }}><EmptyState title="Metrics unavailable" description={errorMessage(snap.error)} /></div>;
   const s = snap.data;

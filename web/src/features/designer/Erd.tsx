@@ -163,7 +163,7 @@ export function Erd({ model, positions, onMove, onMoveEnd, selected, onSelect, f
                 onPointerUp={onPointerUp}
               >
                 <Table2 className="m-icon" aria-hidden="true" />
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{schema === "public" ? table.name : `${schema}.${table.name}`}</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{schema === "public" || schema === model.name ? table.name : `${schema}.${table.name}`}</span>
                 <span className="m-erd-node__meta">{isNew ? "new" : table.rowEstimate !== undefined && table.rowEstimate > 0 ? compactRows(table.rowEstimate) : ""}</span>
               </div>
               {table.columns.length === 0 ? (

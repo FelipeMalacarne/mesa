@@ -7,7 +7,7 @@ Mesa is one Go application layer shipped as one binary per surface, one director
 1. **One application, many transports.** Transports translate; they never contain logic. A feature exists when it works from the HTTP API and the CLI.
 2. **Safe by default.** Every write is a reviewed change: staged → planned as SQL → checked by policy (environment, read-only, confirm-by-name) → applied in a transaction → audited. There is no other path.
 3. **One schema model.** Live catalog, DBML, the designer, the diff and the DDL generator all speak `core/schema`.
-4. **Engines are plug-ins with declared capabilities.** PostgreSQL is complete; other engines implement what they can, and the UI shows only what is supported.
+4. **Engines are plug-ins with declared capabilities.** PostgreSQL and MySQL pass the same conformance suite (`engine/enginetest`); an engine implements what it can, and the UI shows only what is supported. MySQL has no schemas inside a database, so its catalog reports one schema named after the database; the tree skips that level and the designer folds a model's schemas into it.
 5. **Mesa works with nothing but itself.** Connections, history and models live in Mesa's store (SQLite on desktop/CLI, PostgreSQL in server mode). A `.mesa/` project folder is an optional overlay.
 
 ## Packages

@@ -20,6 +20,16 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: mesa
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -pmesa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -33,6 +43,7 @@ jobs:
         run: go test ./...
         env:
           MESA_TEST_PG: postgres://postgres@localhost:5432/postgres?sslmode=disable
+          MESA_TEST_MYSQL: root:mesa@tcp(127.0.0.1:3306)/
 
   desktop:
     runs-on: ubuntu-latest

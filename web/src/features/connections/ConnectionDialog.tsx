@@ -87,6 +87,21 @@ function Form({ connection, onDone }: { connection?: Connection; onDone: () => v
     setF((prev) => ({ ...prev, [k]: v }));
     setTested(null);
   };
+  // Switching engines swaps in the other engine's defaults unless edited.
+  const chooseEngine = (engine: Engine) => {
+    const defaults: Record<string, { database: string; user: string }> = { postgres: { database: "postgres", user: "postgres" }, mysql: { database: "mysql", user: "root" } };
+    setF((prev) => {
+      const was = defaults[prev.engine];
+      const next = defaults[engine];
+      return {
+        ...prev,
+        engine,
+        database: was && prev.database === was.database ? next.database : prev.database,
+        user: was && prev.user === was.user ? next.user : prev.user,
+      };
+    });
+    setTested(null);
+  };
   const production = f.environment === "production";
 
   const input = (): ConnectionInput | null => {
@@ -162,7 +177,7 @@ function Form({ connection, onDone }: { connection?: Connection; onDone: () => v
             Engine
           </span>
           <div role="radiogroup" aria-labelledby="engine-l" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-            <Choice selected={f.engine === "postgres"} onClick={() => set("engine", "postgres")}>
+            <Choice selected={f.engine === "postgres"} onClick={() => chooseEngine("postgres")}>
               <Database className="m-icon" aria-hidden="true" />
               <span style={{ textAlign: "left" }}>
                 <span className="m-label" style={{ display: "block" }}>
@@ -171,13 +186,13 @@ function Form({ connection, onDone }: { connection?: Connection; onDone: () => v
                 <span className="m-choice__sub">12 – 17</span>
               </span>
             </Choice>
-            <Choice selected={false} disabled>
+            <Choice selected={f.engine === "mysql"} onClick={() => chooseEngine("mysql")}>
               <Database className="m-icon" aria-hidden="true" />
               <span style={{ textAlign: "left" }}>
                 <span className="m-label" style={{ display: "block" }}>
                   MySQL
                 </span>
-                <span className="m-choice__sub">Coming soon</span>
+                <span className="m-choice__sub">8.0 and later</span>
               </span>
             </Choice>
             <Choice selected={false} disabled>
