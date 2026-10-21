@@ -113,9 +113,10 @@ func parse(src string) (db *schema.Database, lines positions, serr *syntaxError)
 
 func (p *parser) peek() token { return p.toks[p.pos] }
 
-func (p *parser) peekN(n int) token {
-	if p.pos+n < len(p.toks) {
-		return p.toks[p.pos+n]
+// peek2 is the token after the next one.
+func (p *parser) peek2() token {
+	if p.pos+1 < len(p.toks) {
+		return p.toks[p.pos+1]
 	}
 	return p.toks[len(p.toks)-1]
 }
@@ -140,12 +141,11 @@ func (p *parser) expectSymbol(s string) token {
 	return t
 }
 
-func (p *parser) expectWord(w string) token {
+func (p *parser) expectWord(w string) {
 	t := p.next()
 	if !t.isWord(w) {
 		p.fail(t, "expected '%s', found %s", w, t.describe())
 	}
-	return t
 }
 
 // name reads an identifier: a bare word or a quoted string.
@@ -313,9 +313,9 @@ func (p *parser) table() {
 		switch {
 		case t.kind == tokEOF:
 			p.fail(kw, "expected '}' to close table %s", q)
-		case t.isWord("indexes") && p.peekN(1).isSymbol("{"):
+		case t.isWord("indexes") && p.peek2().isSymbol("{"):
 			p.indexes(ts)
-		case t.isWord("note") && (p.peekN(1).isSymbol(":") || p.peekN(1).isSymbol("{")):
+		case t.isWord("note") && (p.peek2().isSymbol(":") || p.peek2().isSymbol("{")):
 			ts.t.Comment = p.note()
 		default:
 			p.column(ts)
@@ -402,7 +402,7 @@ func (p *parser) columnType(col ident.Name) string {
 		p.fail(t, "expected a type for column %s, found %s", col, t.describe())
 	}
 	end := t.end
-	for p.peek().isSymbol(".") && p.peek().adjacent && p.peekN(1).kind == tokWord && p.peekN(1).adjacent {
+	for p.peek().isSymbol(".") && p.peek().adjacent && p.peek2().kind == tokWord && p.peek2().adjacent {
 		p.next()
 		end = p.next().end
 	}
@@ -422,7 +422,7 @@ func (p *parser) columnType(col ident.Name) string {
 			end = c.end
 		}
 	}
-	for p.peek().isSymbol("[") && p.peek().adjacent && p.peekN(1).isSymbol("]") && p.peekN(1).adjacent {
+	for p.peek().isSymbol("[") && p.peek().adjacent && p.peek2().isSymbol("]") && p.peek2().adjacent {
 		p.next()
 		end = p.next().end
 	}
