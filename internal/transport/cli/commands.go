@@ -54,7 +54,7 @@ func connectionsCmd(d Deps) *cobra.Command {
 				return printJSON(d.Out, items)
 			}
 			if len(items) == 0 {
-				fmt.Fprintln(d.Out, "  no connections yet · add one with `mesa connections add`")
+				fmt.Fprintln(d.Out, "  no connections yet · add one with `mesa connections add`, or `mesa init` a project")
 				return nil
 			}
 			rows := make([][]string, 0, len(items))
@@ -66,9 +66,18 @@ func connectionsCmd(d Deps) *cobra.Command {
 						ro = "unlocked"
 					}
 				}
-				rows = append(rows, []string{it.Name, envDot(d.Out, it.Environment), string(it.Engine), fmt.Sprintf("%s:%d/%s", it.Host, it.Port, it.Database), ro})
+				src := "mesa"
+				if it.DefinedIn != "" {
+					src = "project"
+				}
+				rows = append(rows, []string{it.Name, envDot(d.Out, it.Environment), string(it.Engine), fmt.Sprintf("%s:%d/%s", it.Host, it.Port, it.Database), src, ro})
 			}
-			table(d.Out, []string{"name", "environment", "engine", "target", ""}, rows, nil)
+			table(d.Out, []string{"name", "environment", "engine", "target", "from", ""}, rows, nil)
+			if a.Project != nil {
+				fmt.Fprintf(d.Out, "\n  project %s · %s\n", a.Project.Name, a.Project.Dir)
+			} else {
+				fmt.Fprintln(d.Out, "\n  no project here · `mesa init` keeps models and migrations in .mesa/")
+			}
 			return nil
 		}),
 	}
@@ -125,7 +134,7 @@ func connectionsCmd(d Deps) *cobra.Command {
 		Short: "Remove a connection",
 		Args:  cobra.ExactArgs(1),
 		RunE: withApp(d, func(ctx context.Context, a *app.App, _ *cobra.Command, args []string) error {
-			it, err := resolve(ctx, a, args[0])
+			it, err := resolve(ctx, a, args)
 			if err != nil {
 				return err
 			}
@@ -141,7 +150,7 @@ func connectionsCmd(d Deps) *cobra.Command {
 		Short: "Reach the server and print its version and latency",
 		Args:  cobra.ExactArgs(1),
 		RunE: withApp(d, func(ctx context.Context, a *app.App, _ *cobra.Command, args []string) error {
-			it, err := resolve(ctx, a, args[0])
+			it, err := resolve(ctx, a, args)
 			if err != nil {
 				return err
 			}
@@ -165,7 +174,7 @@ func queryCmd(d Deps) *cobra.Command {
 		Short: "Run SQL in a read-only transaction (writes: mesa apply --sql)",
 		Args:  cobra.ExactArgs(2),
 		RunE: withApp(d, func(ctx context.Context, a *app.App, cmd *cobra.Command, args []string) error {
-			it, err := resolve(ctx, a, args[0])
+			it, err := resolve(ctx, a, args)
 			if err != nil {
 				return err
 			}
@@ -194,11 +203,11 @@ func queryCmd(d Deps) *cobra.Command {
 func modelCmd(d Deps) *cobra.Command {
 	cmd := &cobra.Command{Use: "model", Short: "Schema models as DBML"}
 	pull := &cobra.Command{
-		Use:   "pull <name[@env]>",
-		Short: "Print the live schema as DBML",
-		Args:  cobra.ExactArgs(1),
+		Use:   "pull [name[@env]]",
+		Short: "The live schema as DBML: printed, or written to .mesa/models inside a project",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: withApp(d, func(ctx context.Context, a *app.App, cmd *cobra.Command, args []string) error {
-			it, err := resolve(ctx, a, args[0])
+			it, err := resolve(ctx, a, args)
 			if err != nil {
 				return err
 			}
@@ -209,13 +218,34 @@ func modelCmd(d Deps) *cobra.Command {
 			if jsonFlag(cmd) {
 				return printJSON(d.Out, m.Schema)
 			}
-			fmt.Fprint(d.Out, m.DBML)
 			c := m.Schema.Counts()
-			fmt.Fprintf(d.Err, "%s %d tables, %d relations\n", symbolOK, c.Tables, c.ForeignKeys)
+			out, _ := cmd.Flags().GetString("output")
+			stdout, _ := cmd.Flags().GetBool("stdout")
+			if out == "" && a.Project != nil && !stdout {
+				db := dbFlag(cmd)
+				if db == "" {
+					db = it.Database
+				}
+				out = a.Project.ModelPath(db)
+			}
+			if out == "" {
+				fmt.Fprint(d.Out, m.DBML)
+				fmt.Fprintf(d.Err, "%s %d tables, %d relations\n", symbolOK, c.Tables, c.ForeignKeys)
+				return nil
+			}
+			if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(out, []byte(m.DBML), 0o644); err != nil {
+				return errs.Wrap(errs.Unavailable, "cannot write the model", err)
+			}
+			fmt.Fprintf(d.Out, "%s %d tables, %d relations written to %s\n", symbolOK, c.Tables, c.ForeignKeys, shown(a, out))
 			return nil
 		}),
 	}
 	pull.Flags().String("db", "", "database (default: the connection's)")
+	pull.Flags().StringP("output", "o", "", "write to this file")
+	pull.Flags().Bool("stdout", false, "print even inside a project")
 	cmd.AddCommand(pull)
 	return cmd
 }
@@ -241,15 +271,18 @@ func loadModel(path string) (*schema.Database, error) {
 
 func diffCmd(d Deps) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "diff <name[@env]> --model file.dbml",
+		Use:   "diff [name[@env] | env] [--model file.dbml]",
 		Short: "Changes between a model and the live database, as SQL with risks",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: withApp(d, func(ctx context.Context, a *app.App, cmd *cobra.Command, args []string) error {
-			it, err := resolve(ctx, a, args[0])
+			it, err := resolve(ctx, a, args)
 			if err != nil {
 				return err
 			}
-			path, _ := cmd.Flags().GetString("model")
+			path, err := projectModelPath(a, cmd, it)
+			if err != nil {
+				return err
+			}
 			target, err := loadModel(path)
 			if err != nil {
 				return err
@@ -261,7 +294,7 @@ func diffCmd(d Deps) *cobra.Command {
 			if jsonFlag(cmd) {
 				return printJSON(d.Out, diff)
 			}
-			printHeader(d, it, dbFlag(cmd), path)
+			printHeader(d, it, dbFlag(cmd), shown(a, path))
 			if len(diff.Changes) == 0 {
 				fmt.Fprintf(d.Out, "  %s no changes\n", symbolOK)
 				return nil
@@ -274,10 +307,36 @@ func diffCmd(d Deps) *cobra.Command {
 			return nil
 		}),
 	}
-	cmd.Flags().String("model", "", "DBML file")
+	cmd.Flags().String("model", "", "DBML file (default inside a project: .mesa/models/<database>.dbml)")
 	cmd.Flags().String("db", "", "database (default: the connection's)")
-	_ = cmd.MarkFlagRequired("model")
 	return cmd
+}
+
+// modelPath is --model, or the project's model of the database.
+func projectModelPath(a *app.App, cmd *cobra.Command, it *connections.Item) (string, error) {
+	if p, _ := cmd.Flags().GetString("model"); p != "" {
+		return p, nil
+	}
+	if a.Project == nil {
+		return "", errs.New(errs.Invalid, "give --model file.dbml, or run inside a folder with .mesa/ (mesa init)")
+	}
+	db := dbFlag(cmd)
+	if db == "" {
+		db = it.Database
+	}
+	path := a.Project.ModelPath(db)
+	if _, err := os.Stat(path); err != nil {
+		return "", errs.Newf(errs.NotFound, "no model at %s; write one or run `mesa model pull`", a.Project.Rel(path))
+	}
+	return path, nil
+}
+
+// shown prints a path relative to the project root when there is one.
+func shown(a *app.App, path string) string {
+	if a.Project != nil {
+		return a.Project.Rel(path)
+	}
+	return path
 }
 
 func printHeader(d Deps, it *connections.Item, db, model string) {
@@ -291,11 +350,11 @@ func printHeader(d Deps, it *connections.Item, db, model string) {
 
 func applyCmd(d Deps) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "apply <name[@env]> (--model file.dbml | --sql file.sql)",
+		Use:   "apply [name[@env] | env] [--model file.dbml | --sql file.sql]",
 		Short: "Review and run a migration from a model, or a SQL file, through policy and audit",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: withApp(d, func(ctx context.Context, a *app.App, cmd *cobra.Command, args []string) error {
-			it, err := resolve(ctx, a, args[0])
+			it, err := resolve(ctx, a, args)
 			if err != nil {
 				return err
 			}
@@ -305,6 +364,15 @@ func applyCmd(d Deps) *cobra.Command {
 			unlock, _ := cmd.Flags().GetBool("unlock")
 			confirmation, _ := cmd.Flags().GetString("confirm")
 			saveDir, _ := cmd.Flags().GetString("save-migration")
+			noSave, _ := cmd.Flags().GetBool("no-save")
+			if saveDir == "" && a.Project != nil && !noSave {
+				saveDir = a.Project.MigrationsDir()
+			}
+			if modelPath == "" && sqlPath == "" && a.Project != nil {
+				if modelPath, err = projectModelPath(a, cmd, it); err != nil {
+					return err
+				}
+			}
 			database := dbFlag(cmd)
 			if database == "" {
 				database = it.Database
@@ -328,7 +396,7 @@ func applyCmd(d Deps) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				printHeader(d, it, database, modelPath)
+				printHeader(d, it, database, shown(a, modelPath))
 				if len(diff.Changes) == 0 {
 					fmt.Fprintf(d.Out, "  %s nothing to apply\n", symbolOK)
 					return nil
@@ -375,7 +443,7 @@ func applyCmd(d Deps) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				fmt.Fprintf(d.Out, "%s saved %s and %s\n", symbolOK, up, filepath.Base(down))
+				fmt.Fprintf(d.Out, "%s saved %s and %s\n", symbolOK, shown(a, up), filepath.Base(down))
 			}
 			return nil
 		}),
@@ -386,7 +454,8 @@ func applyCmd(d Deps) *cobra.Command {
 	cmd.Flags().BoolP("yes", "y", false, "do not ask before applying")
 	cmd.Flags().Bool("unlock", false, "unlock a read-only connection for this run")
 	cmd.Flags().String("confirm", "", "the database name, when policy asks for it")
-	cmd.Flags().String("save-migration", "", "directory to write <timestamp>_<name>.up.sql and .down.sql")
+	cmd.Flags().String("save-migration", "", "directory to write <timestamp>_<name>.up.sql and .down.sql (default inside a project: .mesa/migrations)")
+	cmd.Flags().Bool("no-save", false, "do not write migration files inside a project")
 	return cmd
 }
 
@@ -426,7 +495,7 @@ func auditCmd(d Deps) *cobra.Command {
 		Short: "Writes Mesa ran on a connection, newest first",
 		Args:  cobra.ExactArgs(1),
 		RunE: withApp(d, func(ctx context.Context, a *app.App, cmd *cobra.Command, args []string) error {
-			it, err := resolve(ctx, a, args[0])
+			it, err := resolve(ctx, a, args)
 			if err != nil {
 				return err
 			}

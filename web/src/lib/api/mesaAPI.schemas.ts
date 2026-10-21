@@ -123,6 +123,8 @@ export interface Connection {
   lastOpenedAt?: string;
   createdAt: string;
   updatedAt: string;
+  /** The project file that defines this connection (.mesa/mesa.toml); it cannot be edited through the API */
+  definedIn?: string;
 }
 
 export interface Overview {

@@ -35,6 +35,9 @@ type Config struct {
 	CORSOrigins []string
 	// MCPWrites exposes apply_sql on the server's /mcp endpoint.
 	MCPWrites bool
+	// Project is where to look for a .mesa/ folder ("off" disables it). The
+	// CLI and MCP binaries default it to the working directory.
+	Project string
 }
 
 // FromEnv reads MESA_* variables over defaults for the given config directory.
@@ -48,6 +51,7 @@ func FromEnv(configDir string) Config {
 		LogFormat:   env("MESA_LOG_FORMAT", "text"),
 		SessionIdle: 10 * time.Minute,
 		MCPWrites:   env("MESA_MCP_WRITES", "false") == "true",
+		Project:     env("MESA_PROJECT", ""),
 	}
 	if v := env("MESA_SESSION_IDLE", ""); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {

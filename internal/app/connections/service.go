@@ -30,7 +30,12 @@ type Service struct {
 	sessions *session.Manager
 	unlocks  Unlocks
 	now      func() time.Time
+	// definedIn reports the project file of project connections.
+	definedIn func(uuid.UUID) string
 }
+
+// SetDefinedIn tells the service which connections come from a project file.
+func (s *Service) SetDefinedIn(fn func(uuid.UUID) string) { s.definedIn = fn }
 
 // New wires the service.
 func New(conns store.Connections, vault secret.Vault, sessions *session.Manager, unlocks Unlocks) *Service {
@@ -48,6 +53,9 @@ type Item struct {
 	connection.Connection
 	LastOpenedAt  *time.Time
 	UnlockedUntil *time.Time
+	// DefinedIn names the project file that defines the connection
+	// (".mesa/mesa.toml"); empty for the person's own connections.
+	DefinedIn string
 }
 
 // TestResult is the outcome of reaching a server.
@@ -58,6 +66,9 @@ type TestResult struct {
 
 func (s *Service) item(c connection.Connection, opened map[uuid.UUID]time.Time) Item {
 	it := Item{Connection: c}
+	if s.definedIn != nil {
+		it.DefinedIn = s.definedIn(c.ID)
+	}
 	if t, ok := opened[c.ID]; ok && !t.IsZero() {
 		t := t
 		it.LastOpenedAt = &t

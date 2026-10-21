@@ -53,7 +53,7 @@ One package per feature: `connections`, `explore`, `changes`, `query`, `monitor`
 
 ### `internal/store`
 
-Mesa's own data behind ports: `Connections`, `Secrets`, `Audit`, `Layouts` (diagram positions), `History` (queries). `store/sqlite` for desktop and CLI (`~/.config/mesa/mesa.db`), `store/postgres` for server mode, `store/project` reads an optional `.mesa/` folder.
+Mesa's own data behind ports: `Connections`, `Secrets`, `Audit`, `Layouts` (diagram positions), `History` (queries). `store/sqlite` for desktop and CLI (`~/.config/mesa/mesa.db`), `store/postgres` for server mode, `store/project` reads an optional `.mesa/` folder and overlays it on the store and vault: its connections (secrets only as `env:`/`keychain:` references, stable IDs from project name and environment), layouts as `models/*.layout.json`, saved queries as `queries/*.sql`. The CLI finds it from the working directory; the server takes `MESA_PROJECT`.
 
 ### `internal/transport`
 

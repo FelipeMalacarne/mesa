@@ -32,6 +32,10 @@ func run(allowWrites bool) error {
 	}
 	cfg := platform.FromEnv(configDir)
 	cfg.LogLevel = "warn"
+	if cfg.Project == "" {
+		// Inside a folder with .mesa/, its project is picked up too.
+		cfg.Project = "."
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	a, err := bootstrap.Build(ctx, cfg, app.ModeCLI, configDir)

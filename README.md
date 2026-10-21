@@ -70,6 +70,27 @@ The CLI keeps its data in `$MESA_HOME` or the OS config directory. The
 `MESA_PASSWORD` variable or `--secret env:NAME` keeps passwords out of shell
 history.
 
+### Optional project folder
+
+Mesa never needs a repository or a folder. When you want schema files next to your code,
+`mesa init --from shop@staging` creates `.mesa/`:
+
+```
+.mesa/
+├─ mesa.toml          project and connections per environment; passwords are env:NAME or
+│                     keychain:service/account references, never secrets
+├─ models/shop.dbml   the schema model (mesa model pull writes it)
+├─ models/shop.layout.json   diagram positions from the designer
+├─ migrations/        <timestamp>_<name>.up.sql / .down.sql, written by mesa apply
+└─ queries/*.sql      saved queries
+```
+
+Inside that folder (or any subfolder) the project's connections appear next to yours, an
+environment name is enough (`mesa diff staging`, `mesa apply staging`), models default to
+`.mesa/models/<database>.dbml` and applied changes are saved as migrations. Connections in
+`mesa.toml` inherit unset fields from the default one. Set `MESA_PROJECT=/path` to give
+`mesa-server` a project too.
+
 ### MCP
 
 Local agents talk to the stdio binary; agents that reach the service use the
@@ -97,6 +118,7 @@ it still goes through policy and audit.
 | `MESA_SESSION_IDLE` | `10m` | Idle database sessions are closed after this |
 | `MESA_MCP_WRITES` | `false` | Expose `apply_sql` on the server's `/mcp` endpoint |
 | `MESA_HOME` | OS config dir + `/mesa` | CLI and MCP data directory |
+| `MESA_PROJECT` | working directory for `mesa` and `mesa-mcp`, none for the server | Where to look for a `.mesa/` folder; `off` disables it |
 
 Connection passwords can be stored encrypted or given as `env:NAME`, which
 Mesa resolves from its own environment at connect time.

@@ -822,6 +822,7 @@ components:
         lastOpenedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        definedIn: { type: string, description: "The project file that defines this connection (.mesa/mesa.toml); it cannot be edited through the API" }
 
     TestResult:
       type: object

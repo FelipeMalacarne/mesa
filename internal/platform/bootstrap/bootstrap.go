@@ -18,6 +18,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/session"
 	"github.com/felipemalacarne/mesa/internal/store"
 	storepg "github.com/felipemalacarne/mesa/internal/store/postgres"
+	"github.com/felipemalacarne/mesa/internal/store/project"
 	"github.com/felipemalacarne/mesa/internal/store/sqlite"
 )
 
@@ -78,7 +79,15 @@ func Build(ctx context.Context, c platform.Config, mode app.Mode, configDir stri
 		_ = st.Close()
 		return nil, err
 	}
+	var proj *project.Project
+	if c.Project != "" && c.Project != "off" {
+		if proj, err = project.Find(c.Project); err != nil {
+			_ = st.Close()
+			return nil, err
+		}
+	}
 	return app.New(app.Options{
+		Project: proj,
 		Version: platform.Version,
 		Mode:    mode,
 		Engines: Engines(),

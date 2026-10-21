@@ -50,7 +50,7 @@ func Root(d Deps) *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.PersistentFlags().Bool("json", false, "machine-readable output")
-	root.AddCommand(connectionsCmd(d), queryCmd(d), modelCmd(d), diffCmd(d), applyCmd(d), auditCmd(d), keyCmd(d))
+	root.AddCommand(initCmd(d), connectionsCmd(d), queryCmd(d), modelCmd(d), diffCmd(d), applyCmd(d), auditCmd(d), keyCmd(d))
 	return root
 }
 
@@ -81,8 +81,20 @@ const (
 	symbolErr  = "✗"
 )
 
-// resolve finds a connection by "name" or "name@environment".
-func resolve(ctx context.Context, a *app.App, ref string) (*connections.Item, error) {
+// resolve finds a connection by "name" or "name@environment". Inside a
+// project, an environment name ("staging") picks the project's connection
+// for it, and no argument at all picks the project's default.
+func resolve(ctx context.Context, a *app.App, args []string) (*connections.Item, error) {
+	ref := ""
+	if len(args) > 0 {
+		ref = args[0]
+	}
+	if ref == "" {
+		if a.Project == nil || a.Project.Default == "" {
+			return nil, errs.New(errs.Invalid, "name a connection (run `mesa connections`), or run this inside a folder with .mesa/")
+		}
+		ref = a.Project.Name + "@" + a.Project.Default
+	}
 	name, env, _ := strings.Cut(ref, "@")
 	items, err := a.Connections.List(ctx)
 	if err != nil {
@@ -92,6 +104,27 @@ func resolve(ctx context.Context, a *app.App, ref string) (*connections.Item, er
 	for _, it := range items {
 		if it.Name == name && (env == "" || string(it.Environment) == strings.ToLower(env)) {
 			matches = append(matches, it)
+		}
+	}
+	if len(matches) == 0 && env == "" && a.Project != nil {
+		if c, err := a.Project.Connection(name); err == nil {
+			for _, it := range items {
+				if it.ID == c.ID {
+					matches = append(matches, it)
+				}
+			}
+		}
+	}
+	// Inside a project, its own connection wins over a same-named one of yours.
+	if len(matches) > 1 {
+		var fromProject []connections.Item
+		for _, m := range matches {
+			if m.DefinedIn != "" {
+				fromProject = append(fromProject, m)
+			}
+		}
+		if len(fromProject) == 1 {
+			matches = fromProject
 		}
 	}
 	switch len(matches) {

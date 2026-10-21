@@ -71,6 +71,9 @@ func toConnection(it connections.Item) gen.Connection {
 	}
 	c.LastOpenedAt = it.LastOpenedAt
 	c.UnlockedUntil = it.UnlockedUntil
+	if it.DefinedIn != "" {
+		c.DefinedIn = ptr(it.DefinedIn)
+	}
 	return c
 }
 

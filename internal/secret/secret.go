@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/zalando/go-keyring"
 
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 )
@@ -116,8 +117,8 @@ func (l *Local) open(blob []byte) (string, error) {
 }
 
 // Resolve turns a reference into a value: "env:NAME" reads the environment,
-// anything else is returned as is. Keychain references are reserved for the
-// desktop build.
+// "keychain:service/account" reads the OS keychain (macOS Keychain, Windows
+// Credential Manager, Secret Service on Linux), anything else is returned as is.
 func Resolve(s string) (string, error) {
 	switch {
 	case strings.HasPrefix(s, "env:"):
@@ -128,7 +129,16 @@ func Resolve(s string) (string, error) {
 		}
 		return v, nil
 	case strings.HasPrefix(s, "keychain:"):
-		return "", errs.New(errs.Unsupported, "keychain references need the desktop build")
+		ref := strings.TrimPrefix(s, "keychain:")
+		service, account, ok := strings.Cut(ref, "/")
+		if !ok || service == "" || account == "" {
+			return "", errs.Newf(errs.Invalid, "keychain reference %q must be keychain:service/account", s)
+		}
+		v, err := keyring.Get(service, account)
+		if err != nil {
+			return "", errs.Wrap(errs.Unavailable, "cannot read "+s+" from the OS keychain", err)
+		}
+		return v, nil
 	}
 	return s, nil
 }

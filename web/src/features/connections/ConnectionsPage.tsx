@@ -5,7 +5,7 @@
 import * as React from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Database, Info, Lock, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Database, FolderGit2, Info, Lock, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { deleteConnection, getListConnectionsQueryKey, pingConnection, useListConnections } from "@/lib/api/connections/connections";
@@ -123,6 +123,12 @@ export function ConnectionsPage() {
                           <Database className="m-icon m-icon--sm m-muted" aria-hidden="true" />
                           {c.name}
                           {c.readOnly ? <Lock className="m-icon m-icon--sm m-muted" aria-label="Read-only" /> : null}
+                          {c.definedIn ? (
+                            <span className="m-badge m-badge--outline" title={`Defined in ${c.definedIn}; edit that file to change it`} style={{ fontWeight: 400 }}>
+                              <FolderGit2 className="m-icon m-icon--sm" aria-hidden="true" />
+                              project
+                            </span>
+                          ) : null}
                         </Link>
                       </td>
                       <td>
@@ -147,7 +153,7 @@ export function ConnectionsPage() {
                       </td>
                       <td className="m-muted">{relativeTime(c.lastOpenedAt)}</td>
                       <td onClick={(e) => e.stopPropagation()}>
-                        <RowMenu onEdit={() => setDialog({ open: true, connection: c })} onDelete={() => setRemoving(c)} />
+                        {c.definedIn ? null : <RowMenu onEdit={() => setDialog({ open: true, connection: c })} onDelete={() => setRemoving(c)} />}
                       </td>
                     </tr>
                   );

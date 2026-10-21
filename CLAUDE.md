@@ -19,7 +19,7 @@ internal/session    connection + secret → pooled Session per (connection, data
 internal/secret     vault: local AES-GCM, env: references
 internal/dbml       DBML parse/print ↔ schema.Database
 internal/app        use cases, one package per feature; plain structs in and out
-internal/store      Mesa's own data: ports + sqlite (desktop/CLI) + postgres (server)
+internal/store      Mesa's own data: ports + sqlite (desktop/CLI) + postgres (server) + project (optional .mesa/ overlay)
 internal/transport  thin adapters: http, cli, mcp
 internal/platform   config, logging, paths, version
 web/                React app: src/app (shell), src/features/*, src/ui (design system), src/lib
