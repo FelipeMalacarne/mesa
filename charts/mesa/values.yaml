@@ -1,18 +1,29 @@
 image:
-  repository: mesa
+  repository: ghcr.io/felipemalacarne/mesa
   tag: latest
   pullPolicy: IfNotPresent
 
 config:
-  port: "8080"
-  dbDriver: "sqlite"
-  databaseUrl: "/data/mesa.db"
-  appKey: ""  # REQUIRED — set via --set config.appKey=... or existing secret
+  # Encrypts connection secrets at rest. Generate one with `mesa key` or
+  # `openssl rand -base64 32`. Give it here, or name an existing Secret with
+  # a MESA_APP_KEY key in existingSecret.
+  appKey: ""
+  existingSecret: ""
+  # Mesa's own data: "sqlite" (one replica, needs persistence) or "postgres"
+  # (set storeDSN to a URL; replicas may then be > 1).
+  store: sqlite
+  storeDSN: /data/mesa.db
+  logLevel: info
+  logFormat: json
+  # Extra MESA_* variables.
+  extraEnv: []
+
+replicaCount: 1
 
 persistence:
   enabled: true
   size: 1Gi
-  storageClass: "local-path"  # k3s default
+  storageClass: ""
   accessMode: ReadWriteOnce
 
 service:
@@ -21,8 +32,9 @@ service:
 
 ingress:
   enabled: false
-  className: "traefik"
-  host: "mesa.local"
+  className: ""
+  annotations: {}
+  host: mesa.local
   tls: false
 
 resources:
@@ -30,5 +42,14 @@ resources:
     cpu: 50m
     memory: 64Mi
   limits:
-    cpu: 500m
-    memory: 256Mi
+    cpu: "1"
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 100
+  fsGroup: 101
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

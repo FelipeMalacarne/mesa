@@ -1,0 +1,36 @@
+Project billing {
+}
+
+Enum subscription_status {
+  active
+  past_due
+  canceled
+}
+
+Table customers {
+  id int8 [pk, increment]
+  email text [unique, not null]
+  plan text [not null, default: 'free']
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Paying and trial customers'
+}
+
+Table plans {
+  id text [pk]
+  name text [not null]
+  price_cents int4 [not null, default: 0]
+}
+
+Table subscriptions {
+  id int8 [pk, increment]
+  customer_id int8 [not null]
+  plan_id text [ref: > plans.id]
+  status subscription_status [not null]
+
+  indexes {
+    (customer_id, status) [name: 'subscriptions_customer_status_idx']
+  }
+}
+
+Ref: subscriptions.customer_id > customers.id [delete: cascade]

@@ -48,6 +48,9 @@ type Error struct {
 	Kind    Kind
 	Message string
 	Cause   error
+	// Hint carries extra text a client needs to act: for NeedsConfirmation,
+	// the text the person must type.
+	Hint string
 }
 
 func (e *Error) Error() string {
@@ -86,6 +89,15 @@ func KindOf(err error) Kind {
 
 // Is reports whether err carries the given kind.
 func Is(err error, kind Kind) bool { return KindOf(err) == kind }
+
+// Hint returns the hint attached to err, if any.
+func Hint(err error) string {
+	var e *Error
+	if errors.As(err, &e) {
+		return e.Hint
+	}
+	return ""
+}
 
 // Message returns the person-facing message of err.
 func Message(err error) string {

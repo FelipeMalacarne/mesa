@@ -4,6 +4,7 @@
 package changeset
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/felipemalacarne/mesa/internal/core/errs"
@@ -106,6 +107,15 @@ type Statement struct {
 	SQL      string        `json:"sql"`
 	Args     []value.Value `json:"args,omitempty"`
 	Describe string        `json:"describe"` // one line a person reads
+}
+
+// MarshalJSON adds the display form so review screens need no extra call.
+func (s Statement) MarshalJSON() ([]byte, error) {
+	type plain Statement
+	return json.Marshal(struct {
+		plain
+		Display string `json:"display"`
+	}{plain(s), s.Display()})
 }
 
 // Display renders the statement with its arguments inlined as SQL literals,

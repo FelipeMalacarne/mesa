@@ -1,10 +1,10 @@
-# ADR 0002: One binary, many surfaces, one application layer
+# ADR 0002: One application layer, one binary per surface
 
 Status: accepted · 2026-10-21
 
 ## Decision
 
-`mesa` is a single binary with subcommands: `serve` (HTTP API + embedded web UI), the CLI commands (`connections`, `query`, `model`, `diff`, `apply`), and `mcp`. A desktop build wraps the same web UI (ADR 0003). All of them call `internal/app`; no surface contains business logic.
+Each surface is its own binary with its own entry point under `cmd/`, named after the surface: `cmd/server` → `mesa-server` (HTTP API + embedded web UI + the MCP tools over HTTP, the container image), `cmd/cli` → `mesa` (the CLI: `connections`, `query`, `model`, `diff`, `apply`, `audit`), `cmd/mcp` → `mesa-mcp` (MCP over stdio for agents on the same machine) and `cmd/desktop` → `mesa-desktop` (ADR 0003). All of them call `internal/app` through `internal/platform/bootstrap`; no surface contains business logic. Separate binaries keep each image and install small (the server never ships cobra, the CLI never embeds the web app) and let each surface be released and packaged on its own.
 
 ## Rules
 
@@ -14,5 +14,5 @@ Status: accepted · 2026-10-21
 
 ## Consequences
 
-- `cmd/mesa` is wiring only.
+- Every `cmd/*` main is wiring only; shared setup lives in `platform/bootstrap`.
 - `transport/*` packages are thin and tested through their public contract.

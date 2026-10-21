@@ -1,13 +1,17 @@
 # Mesa — working notes for agents
 
-Mesa is an open-source SQL control plane: one Go binary that runs as a web service (Docker, Kubernetes), a desktop app, a CLI and an MCP server, with a React web UI. PostgreSQL first; other engines behind the same model.
+Mesa is an open-source SQL control plane: one Go application layer shipped as one binary per surface (web service for Docker/Kubernetes, desktop app, CLI, MCP server), with a React web UI. PostgreSQL first; other engines behind the same model.
 
 Read `docs/architecture.md` before changing structure, and the ADRs in `docs/adr/` before revisiting a decision.
 
 ## Layout
 
 ```
-cmd/mesa            one binary: serve · cli commands · mcp (wiring only)
+cmd/server          the service: HTTP API + embedded web UI + MCP over HTTP (the Docker image) → mesa-server
+cmd/cli             the CLI → mesa
+cmd/mcp             the MCP server on stdio → mesa-mcp
+cmd/desktop         the desktop shell (later; Wails) → mesa-desktop
+                    each main is wiring only, over internal/platform/bootstrap
 api/openapi.yaml    the HTTP contract (generated code lives next to its adapter)
 internal/core       pure Go, no I/O: ident, schema, value, changeset, policy, connection, errs
 internal/engine     driver ports (catalog, exec, monitor, dialect) + postgres implementation
@@ -23,7 +27,7 @@ web/                React app: src/app (shell), src/features/*, src/ui (design s
 
 ## Rules
 
-- Dependencies point inward: `core` imports nothing internal; `engine`, `dbml`, `secret` import only `core`; `app` imports those and `session`/`store`; `transport` imports only `app` (and `core` for types). `golangci-lint` (depguard) enforces this; do not loosen it.
+- Dependencies point inward: `core` imports nothing internal; `engine`, `dbml`, `secret` import only `core`; `app` imports those and `session`/`store`; `transport` imports only `app` (and `core` for types); `cmd/*` imports `platform/bootstrap` and one transport. `golangci-lint` (depguard) enforces this; do not loosen it.
 - Packages are named for what they provide, never by layer. Keep them small.
 - Secrets never reach a use case or a transport. `session.Manager` hands out a ready `engine.Session`.
 - Every write goes through `app/changes`: ChangeSet → Plan → policy → apply → audit. No transport runs SQL on its own.
@@ -48,7 +52,8 @@ make dev-db        # local Postgres for development/tests (see Makefile)
 make generate      # openapi → Go + TS
 make test          # go test ./... (+ integration if MESA_TEST_PG)
 make lint
-make web           # build the web app into web/dist (embedded by `mesa serve`)
-go run ./cmd/mesa serve
-go run ./cmd/mesa --help
+make web           # build the web app into web/dist (embedded by mesa-server)
+go run ./cmd/server
+go run ./cmd/cli --help
+go run ./cmd/mcp
 ```

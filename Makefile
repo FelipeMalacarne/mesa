@@ -1,6 +1,6 @@
 GO       ?= go
 PNPM     ?= pnpm
-BIN      := bin/mesa
+BINDIR   := bin
 PG_DIR   ?= /tmp/mesa-pg
 PG_PORT  ?= 5499
 
@@ -8,8 +8,10 @@ PG_PORT  ?= 5499
 
 all: generate web build
 
-build: ## Build the mesa binary (expects web/dist; run `make web` first)
-	$(GO) build -trimpath -ldflags="-s -w" -o $(BIN) ./cmd/mesa
+build: ## Build every binary (mesa-server expects web/dist; run `make web` first)
+	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-server ./cmd/server
+	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa ./cmd/cli
+	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-mcp ./cmd/mcp
 
 web: ## Build the web app into web/dist
 	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) run build

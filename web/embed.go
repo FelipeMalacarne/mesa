@@ -1,4 +1,4 @@
-// Package web implements the embedded static file server for the web application.
+// Package web embeds the built web app (web/dist) into the server binary.
 package web
 
 import (
@@ -7,12 +7,13 @@ import (
 )
 
 //go:embed all:dist
-var assets embed.FS
+var dist embed.FS
 
-func GetPublicFS() fs.FS {
-	public, err := fs.Sub(assets, "dist") // Mudou de .output/public para dist
+// Assets returns the built web app with index.html at its root.
+func Assets() fs.FS {
+	sub, err := fs.Sub(dist, "dist")
 	if err != nil {
 		panic(err)
 	}
-	return public
+	return sub
 }

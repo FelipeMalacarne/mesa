@@ -1,4 +1,25 @@
+# Runs Mesa as a service next to a PostgreSQL you can point it at.
+#   MESA_APP_KEY=$(openssl rand -base64 32) docker compose up --build
+# Then open http://localhost:8080 and add a connection to host "postgres",
+# user "mesa", password "mesa", database "mesa".
 services:
+  mesa:
+    build: .
+    image: mesa:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      MESA_APP_KEY: ${MESA_APP_KEY:?set MESA_APP_KEY (mesa key, or openssl rand -base64 32)}
+      MESA_STORE: sqlite
+      MESA_STORE_DSN: /data/mesa.db
+      MESA_LOG_LEVEL: info
+    volumes:
+      - mesa_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:17
     restart: unless-stopped
@@ -10,49 +31,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./internal/infrastructure/postgres/migrations:/migrations:ro
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "mesa"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  frontend:
-    build:
-      context: .
-      dockerfile: docker/node/Dockerfile
-    environment:
-      VITE_API_BASE: http://localhost:8080/api
-      CI: "true"
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./web:/app
-      - pnpm_store:/root/.pnpm-store
-      - node_modules_store:/app/node_modules
-    command: ["sh", "-c", "pnpm install --frozen-lockfile && pnpm run dev"]
-
-  api:
-    image: cosmtrek/air
-    working_dir: /app
-    command: ["-c", ".air.toml"]
-    ports:
-      - 8080:8080
-    environment:
-      APP_KEY: default_app_key_please_change_me
-      PORT: 8080
-      DATABASE_URL: /data/mesa.db
-      DB_DRIVER: sqlite
-    volumes:
-      - ./:/app/
-      - mesa_data:/data
-      - go_pkg_mod:/go/pkg/mod
-      - go_build_cache:/root/.cache/go-build
-
 volumes:
   mesa_data:
   postgres_data:
-  pnpm_store:
-  node_modules_store:
-  go_pkg_mod:
-  go_build_cache:

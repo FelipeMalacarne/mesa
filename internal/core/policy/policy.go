@@ -44,7 +44,7 @@ func (d Decision) Err() error {
 	case Deny:
 		return errs.New(errs.Forbidden, d.Reason)
 	case NeedsConfirmation:
-		return errs.New(errs.NeedsConfirmation, d.Reason)
+		return &errs.Error{Kind: errs.NeedsConfirmation, Message: d.Reason, Hint: d.ConfirmWith}
 	}
 	return nil
 }

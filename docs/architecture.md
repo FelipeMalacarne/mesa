@@ -1,6 +1,6 @@
 # Mesa architecture
 
-Mesa is one Go binary (`mesa`) that exposes the same application layer through several surfaces: an HTTP API with an embedded React UI (`mesa serve`), a CLI, an MCP server (`mesa mcp`) and, later, a desktop shell. The product design lives in the Mesa design system and screen canvas; this document describes how the code is organised to deliver it.
+Mesa is one Go application layer shipped as one binary per surface, one directory each under `cmd/`: `cmd/server` builds `mesa-server` (HTTP API with the embedded React UI and the MCP tools over HTTP; the Docker/Kubernetes image), `cmd/cli` builds `mesa` (the CLI), `cmd/mcp` builds `mesa-mcp` (the MCP server on stdio for local agents) and, later, `cmd/desktop` builds `mesa-desktop` (a Wails shell). Every main is wiring over `internal/platform/bootstrap`. The product design lives in the Mesa design system and screen canvas; this document describes how the code is organised to deliver it.
 
 ## Principles
 
@@ -58,7 +58,8 @@ Mesa's own data behind ports: `Connections`, `Secrets`, `Audit`, `Layouts` (diag
 ### `internal/transport`
 
 - `http`: OpenAPI strict server (oapi-codegen) on chi, SSE for streamed results, embedded `web/dist`.
-- `cli`: cobra commands sharing the app layer (`connections`, `query`, `model pull`, `diff`, `apply`, `serve`, `mcp`).
+- `cli`: cobra commands sharing the app layer (`connections`, `query`, `model pull`, `diff`, `apply`, `init`).
+- `platform/bootstrap` (not a transport): loads config, opens the store and vault, builds the `app.App`; every `cmd/*` main calls it.
 - `mcp`: MCP tools over stdio, read-only unless `--allow-writes`; writes still go through review.
 
 ## The write path

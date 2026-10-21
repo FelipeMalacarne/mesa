@@ -1,677 +1,1322 @@
 openapi: 3.0.3
 info:
   title: Mesa API
-  version: 0.1.0
+  version: 1.0.0
+  description: |
+    The HTTP contract of Mesa, the SQL control plane. Every write goes through
+    a plan: the client stages a change set, asks for the plan (SQL, risks,
+    policy decision), then applies it with the confirmation the policy asks for.
 servers:
-  - url: https://api.example.com
+  - url: /api
+tags:
+  - name: Connections
+  - name: Explore
+  - name: Changes
+  - name: Query
+  - name: Monitor
+  - name: Roles
+  - name: Designer
+  - name: System
+
 paths:
+  /system/info:
+    get:
+      operationId: getSystemInfo
+      tags: [System]
+      summary: Version, mode and capabilities of this Mesa
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SystemInfo" }
+
   /connections:
     get:
-      operationId: ListConnections
-      tags:
-        - Connections
-      summary: List Connections
+      operationId: listConnections
+      tags: [Connections]
+      summary: Every connection with its last-opened time and unlock state
       responses:
         "200":
-          description: Connections
+          description: OK
           content:
             application/json:
               schema:
                 type: array
-                items:
-                  $ref: "#/components/schemas/Connection"
+                items: { $ref: "#/components/schemas/Connection" }
     post:
-      operationId: CreateConnection
-      tags:
-        - Connections
-      summary: Create Connection
+      operationId: createConnection
+      tags: [Connections]
+      summary: Create a connection and store its secret
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/CreateConnectionRequest"
+            schema: { $ref: "#/components/schemas/ConnectionInput" }
       responses:
         "201":
           description: Created
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/Connection"
+              schema: { $ref: "#/components/schemas/Connection" }
+        default: { $ref: "#/components/responses/Error" }
 
-  /connections/{connectionID}:
-    get:
-      operationId: FindConnection
-      summary: Retrieves a connection by ID
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-      responses:
-        "200":
-          description: Connection
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Connection"
-        "404":
-          description: Not Found
-
-  /connections/{connectionID}/ping:
-    get:
-      operationId: PingConnection
-      summary: Checks the connection status
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-      responses:
-        "204":
-          description: OK (No Content)
-        "502":
-          description: Bad Gateway (Connection Failed)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /connections/{connectionID}/databases:
-    get:
-      operationId: ListDatabases
-      summary: List databases from a connection
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-      responses:
-        "200":
-          description: Databases
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Database"
-        "500":
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+  /connections/test:
     post:
-      operationId: CreateDatabase
-      summary: Create a new database
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
+      operationId: testConnection
+      tags: [Connections]
+      summary: Open a short-lived session with the given settings and report the server
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/CreateDatabaseRequest"
-      responses:
-        "201":
-          description: Created
-  /connections/{connectionID}/overview:
-    get:
-      operationId: GetConnectionOverview
-      summary: Get Server Health & Overview
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
+            schema: { $ref: "#/components/schemas/ConnectionInput" }
       responses:
         "200":
-          description: Overview
+          description: Reachable
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/OverviewResponse"
+              schema: { $ref: "#/components/schemas/TestResult" }
+        default: { $ref: "#/components/responses/Error" }
 
-  /connections/{connectionID}/databases/{databaseName}/tables:
+  /connections/{connectionId}:
+    parameters: [{ $ref: "#/components/parameters/ConnectionId" }]
     get:
-      operationId: ListTables
-      summary: List tables from a database
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-        - $ref: "#/components/parameters/DatabaseName"
+      operationId: getConnection
+      tags: [Connections]
       responses:
         "200":
-          description: Tables
+          description: OK
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Table"
-        "500":
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-    post:
-      operationId: CreateTable
-      summary: Create a table in a database
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-        - $ref: "#/components/parameters/DatabaseName"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateTableRequest"
-      responses:
-        "201":
-          description: Created
-  /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/columns:
-    get:
-      operationId: ListColumns
-      summary: ListColumns
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-        - $ref: "#/components/parameters/DatabaseName"
-        - $ref: "#/components/parameters/TableName"
-      responses:
-        "200":
-          description: Columns
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Column"
-
-  /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/indexes:
-    get:
-      operationId: ListIndexes
-      summary: ListIndexes
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-        - $ref: "#/components/parameters/DatabaseName"
-        - $ref: "#/components/parameters/TableName"
-      responses:
-        "200":
-          description: Indexes
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Index"
-
-  /connections/{connectionID}/databases/{databaseName}/tables/{tableName}/rows:
-    get:
-      operationId: QueryTableRows
-      summary: QueryTableRows
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-        - $ref: "#/components/parameters/DatabaseName"
-        - $ref: "#/components/parameters/TableName"
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-            minimum: 1
-            maximum: 500
-        - name: offset
-          in: query
-          schema:
-            type: integer
-            default: 0
-            minimum: 0
-        - name: sort_by
-          in: query
-          schema:
-            type: string
-        - name: sort_order
-          in: query
-          schema:
-            type: string
-            enum: [asc, desc]
-            default: asc
-      responses:
-        "200":
-          description: Paginated table rows
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TableRowsResponse"
+              schema: { $ref: "#/components/schemas/Connection" }
+        default: { $ref: "#/components/responses/Error" }
     put:
-      operationId: UpdateTableRow
-      summary: Update a row in a table
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-        - $ref: "#/components/parameters/DatabaseName"
-        - $ref: "#/components/parameters/TableName"
+      operationId: updateConnection
+      tags: [Connections]
+      summary: Update settings; the secret changes only when given
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateTableRowRequest"
-      responses:
-        "204":
-          description: Updated (No Content)
-        "400":
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /connections/{connectionID}/users:
-    get:
-      operationId: ListUsers
-      summary: List database users (roles)
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
+            schema: { $ref: "#/components/schemas/ConnectionInput" }
       responses:
         "200":
-          description: Users
+          description: OK
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/DBUser"
-    post:
-      operationId: CreateUser
-      summary: Create a new database user
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateUserRequest"
-      responses:
-        "201":
-          description: Created
-  /connections/{connectionID}/sessions:
-    get:
-      operationId: ListSessions
-      summary: List active sessions
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-      responses:
-        "200":
-          description: Sessions
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Session"
-  /connections/{connectionID}/sessions/{pid}:
+              schema: { $ref: "#/components/schemas/Connection" }
+        default: { $ref: "#/components/responses/Error" }
     delete:
-      operationId: KillSession
-      summary: Kill a specific session
-      tags:
-        - Connections
-      parameters:
-        - $ref: "#/components/parameters/ConnectionId"
-        - in: path
-          name: pid
-          required: true
-          schema:
-            type: integer
+      operationId: deleteConnection
+      tags: [Connections]
       responses:
-        "204":
-          description: Terminated
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/ping:
+    parameters: [{ $ref: "#/components/parameters/ConnectionId" }]
+    post:
+      operationId: pingConnection
+      tags: [Connections]
+      summary: Round trip to the server with the stored secret
+      responses:
+        "200":
+          description: Reachable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TestResult" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/unlock:
+    parameters: [{ $ref: "#/components/parameters/ConnectionId" }]
+    post:
+      operationId: unlockConnection
+      tags: [Connections]
+      summary: Allow writes on a read-only connection for a while
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ttlSeconds: { type: integer, minimum: 60, maximum: 86400, default: 3600 }
+      responses:
+        "200":
+          description: Unlocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: lockConnection
+      tags: [Connections]
+      summary: End the unlock early
+      responses:
+        "200":
+          description: Locked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/audit:
+    parameters: [{ $ref: "#/components/parameters/ConnectionId" }]
+    get:
+      operationId: listAudit
+      tags: [Changes]
+      summary: Writes Mesa ran on this connection, newest first
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 500 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AuditEntry" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases:
+    parameters: [{ $ref: "#/components/parameters/ConnectionId" }]
+    get:
+      operationId: listDatabases
+      tags: [Explore]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DatabaseInfo" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createDatabase
+      tags: [Explore]
+      summary: Create an empty database (a reviewed write)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                owner: { type: string }
+                confirmation: { type: string, description: The database name, when policy asks for it }
+                dryRun: { type: boolean, description: Return the plan without running it }
+      responses:
+        "200":
+          description: Planned or applied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplyResult" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/schema:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    get:
+      operationId: getSchema
+      tags: [Explore]
+      summary: The full model of the database, with stats
+      parameters:
+        - { name: refresh, in: query, schema: { type: boolean }, description: Bypass the short cache }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Database" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/tables/{schema}/{table}:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+      - { name: schema, in: path, required: true, schema: { type: string } }
+      - { name: table, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getTable
+      tags: [Explore]
+      summary: One table with fresh stats
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Table" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/rows:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    post:
+      operationId: queryRows
+      tags: [Explore]
+      summary: Page through a table with filters and sort
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RowsQuery" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RowsPage" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/changes/plan:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    post:
+      operationId: planChanges
+      tags: [Changes]
+      summary: Compile a change set into SQL, risks and the policy decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeSet" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlanResult" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/changes/apply:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    post:
+      operationId: applyChanges
+      tags: [Changes]
+      summary: Run a change set after policy approves it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplyRequest" }
+      responses:
+        "200":
+          description: Applied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplyResult" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/query:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    post:
+      operationId: runQuery
+      tags: [Query]
+      summary: Run SQL. Read-only connections run in a read-only transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QueryRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueryResult" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/explain:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    post:
+      operationId: explainQuery
+      tags: [Query]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sql]
+              properties:
+                sql: { type: string }
+                analyze: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lines]
+                properties:
+                  lines: { type: array, items: { type: string } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/history:
+    parameters: [{ $ref: "#/components/parameters/ConnectionId" }]
+    get:
+      operationId: listHistory
+      tags: [Query]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 500 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/QueryRun" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /queries:
+    get:
+      operationId: listSavedQueries
+      tags: [Query]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SavedQuery" }
+    put:
+      operationId: saveQuery
+      tags: [Query]
+      summary: Create or update a saved query (by id)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SavedQuery" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedQuery" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /queries/{queryId}:
+    parameters:
+      - { name: queryId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      operationId: deleteSavedQuery
+      tags: [Query]
+      responses:
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/monitor/overview:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    get:
+      operationId: getMonitorOverview
+      tags: [Monitor]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Overview" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/monitor/snapshot:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    get:
+      operationId: getMonitorSnapshot
+      tags: [Monitor]
+      summary: Current metrics, rates since the previous sample and the recent series
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Snapshot" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/monitor/sessions:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    get:
+      operationId: listSessions
+      tags: [Monitor]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ActiveSession" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/monitor/sessions/{pid}/kill:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+      - { name: pid, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: killSession
+      tags: [Monitor]
+      summary: Cancel the running query, or terminate the backend
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                terminate: { type: boolean }
+      responses:
+        "204": { description: Done }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/monitor/panel:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    get:
+      operationId: getEnginePanel
+      tags: [Monitor]
+      summary: The engine-specific metrics panel
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Panel" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/roles:
+    parameters: [{ $ref: "#/components/parameters/ConnectionId" }]
+    get:
+      operationId: listRoles
+      tags: [Roles]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Role" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createRole
+      tags: [Roles]
+      summary: Create a role (a reviewed write)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoleRequest" }
+      responses:
+        "200":
+          description: Planned or applied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplyResult" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/roles/{role}:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { name: role, in: path, required: true, schema: { type: string } }
+    delete:
+      operationId: dropRole
+      tags: [Roles]
+      summary: Drop a role (a reviewed write)
+      parameters:
+        - { name: confirmation, in: query, schema: { type: string } }
+        - { name: dryRun, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: Planned or applied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplyResult" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/designer:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    get:
+      operationId: getDesignerModel
+      tags: [Designer]
+      summary: The live schema as a model, its DBML and the saved diagram layout
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesignerModel" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/designer/diff:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    post:
+      operationId: diffDesignerModel
+      tags: [Designer]
+      summary: Changes between the live schema and the edited model, planned as SQL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schema]
+              properties:
+                schema: { $ref: "#/components/schemas/Database" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesignerDiff" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/databases/{database}/designer/layout:
+    parameters:
+      - { $ref: "#/components/parameters/ConnectionId" }
+      - { $ref: "#/components/parameters/DatabaseName" }
+    put:
+      operationId: saveDesignerLayout
+      tags: [Designer]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Layout" }
+      responses:
+        "204": { description: Saved }
+        default: { $ref: "#/components/responses/Error" }
+
+  /designer/parse:
+    post:
+      operationId: parseDbml
+      tags: [Designer]
+      summary: Parse DBML into a model (stateless)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dbml]
+              properties:
+                dbml: { type: string }
+      responses:
+        "200":
+          description: Parsed (problems may still be listed)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ParseResult" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /designer/print:
+    post:
+      operationId: printDbml
+      tags: [Designer]
+      summary: Print a model as DBML (stateless)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schema]
+              properties:
+                schema: { $ref: "#/components/schemas/Database" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dbml]
+                properties:
+                  dbml: { type: string }
+        default: { $ref: "#/components/responses/Error" }
 
 components:
   parameters:
     ConnectionId:
+      name: connectionId
       in: path
-      name: connectionID
       required: true
-      schema:
-        type: string
-        format: uuid
-      description: The unique identifier for the connection
+      schema: { type: string, format: uuid }
     DatabaseName:
+      name: database
       in: path
-      name: databaseName
+      x-go-name: DatabaseName
       required: true
-      schema:
-        type: string
-      description: Database name
-    TableName:
-      in: path
-      name: tableName
-      required: true
-      schema:
-        type: string
-      description: Table Name
+      schema: { type: string }
+
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
   schemas:
+    Error:
+      type: object
+      required: [kind, message]
+      properties:
+        kind:
+          type: string
+          enum: [not_found, invalid, forbidden, conflict, unavailable, unsupported, needs_confirmation, unknown]
+        message: { type: string }
+        confirmWith: { type: string, description: Text to type when kind is needs_confirmation }
+
+    SystemInfo:
+      type: object
+      required: [version, mode, engines]
+      properties:
+        version: { type: string }
+        mode: { type: string, enum: [server, desktop, cli] }
+        engines:
+          type: array
+          items:
+            type: object
+            required: [name, capabilities]
+            properties:
+              name: { type: string }
+              capabilities: { $ref: "#/components/schemas/Capabilities" }
+
+    Capabilities:
+      type: object
+      x-go-type: engine.Capabilities
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/engine }
+      properties:
+        schemas: { type: boolean }
+        enums: { type: boolean }
+        views: { type: boolean }
+        functions: { type: boolean }
+        sequences: { type: boolean }
+        explain: { type: boolean }
+        killSession: { type: boolean }
+        enginePanel: { type: boolean }
+        ddl: { type: boolean }
+        transactionalDdl: { type: boolean }
+        databases: { type: boolean }
+        roles: { type: boolean }
+
+    Engine:
+      type: string
+      enum: [postgres, mysql]
+    Environment:
+      type: string
+      enum: [local, development, staging, production]
+    TLSMode:
+      type: string
+      enum: [disable, prefer, require, verify-ca, verify-full]
+
+    ConnectionInput:
+      type: object
+      required: [name, engine, host, user]
+      properties:
+        name: { type: string }
+        engine: { $ref: "#/components/schemas/Engine" }
+        environment: { $ref: "#/components/schemas/Environment" }
+        host: { type: string }
+        port: { type: integer }
+        database: { type: string }
+        user: { type: string }
+        tls: { $ref: "#/components/schemas/TLSMode" }
+        readOnly: { type: boolean }
+        secret:
+          type: string
+          description: The password, or a reference such as env:NAME. Omitted on update keeps the stored one.
+
     Connection:
       type: object
-      required: [id, name, driver, host, port, username, updated_at, created_at]
+      required: [id, name, engine, environment, host, port, database, user, tls, readOnly, createdAt, updatedAt]
       properties:
-        id:
-          type: string
-        name:
-          type: string
-          maxLength: 255
-          minLength: 3
-        driver:
-          type: string
-          enum: [postgres, mysql]
-        host:
-          type: string
-          maxLength: 255
-          minLength: 1
-        port:
-          type: integer
-          description: A port value between 0 and 65535
-          maximum: 65535
-          minimum: 0
-        username:
-          type: string
-          maxLength: 255
-          minLength: 1
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        status:
-          type: string
-          enum: [ok, error]
-        status_error:
-          type: string
+        id: { type: string, format: uuid }
+        name: { type: string }
+        engine: { $ref: "#/components/schemas/Engine" }
+        environment: { $ref: "#/components/schemas/Environment" }
+        host: { type: string }
+        port: { type: integer }
+        database: { type: string }
+        user: { type: string }
+        tls: { $ref: "#/components/schemas/TLSMode" }
+        readOnly: { type: boolean }
+        unlockedUntil: { type: string, format: date-time, description: Present while writes are allowed on a read-only connection }
+        lastOpenedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    TestResult:
+      type: object
+      required: [latencyMs, overview]
+      properties:
+        latencyMs: { type: number, format: double }
+        overview: { $ref: "#/components/schemas/Overview" }
+
+    DatabaseInfo:
+      type: object
+      x-go-type: engine.DatabaseInfo
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/engine }
+      required: [name]
+      properties:
+        name: { type: string }
+        owner: { type: string }
+        encoding: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+
+    # ---- schema model (mirrors internal/core/schema) ----
     Database:
       type: object
-      required: [name, owner, encoding, size_formatted]
+      x-go-type: schema.Database
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/core/schema }
+      required: [name, schemas]
       properties:
-        name:
-          type: string
-        owner:
-          type: string
-        encoding:
-          type: string
-        size_formatted:
-          type: string
+        name: { type: string }
+        schemas:
+          type: array
+          items: { $ref: "#/components/schemas/Schema" }
+    Schema:
+      type: object
+      required: [name, tables]
+      properties:
+        name: { type: string }
+        tables: { type: array, items: { $ref: "#/components/schemas/Table" } }
+        views: { type: array, items: { $ref: "#/components/schemas/View" } }
+        enums: { type: array, items: { $ref: "#/components/schemas/Enum" } }
+        functions: { type: array, items: { $ref: "#/components/schemas/Function" } }
+        sequences: { type: array, items: { $ref: "#/components/schemas/Sequence" } }
     Table:
       type: object
-      required: [name, type, row_count, size]
+      x-go-type: schema.Table
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/core/schema }
+      required: [name, columns]
       properties:
-        name:
-          type: string
-        type:
-          type: string
-        row_count:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int64
+        name: { type: string }
+        columns: { type: array, items: { $ref: "#/components/schemas/Column" } }
+        primaryKey: { $ref: "#/components/schemas/Key" }
+        uniques: { type: array, items: { $ref: "#/components/schemas/Key" } }
+        indexes: { type: array, items: { $ref: "#/components/schemas/Index" } }
+        foreignKeys: { type: array, items: { $ref: "#/components/schemas/ForeignKey" } }
+        checks: { type: array, items: { $ref: "#/components/schemas/Check" } }
+        comment: { type: string }
+        rowEstimate: { type: integer, format: int64 }
+        sizeBytes: { type: integer, format: int64 }
     Column:
       type: object
-      required: [name, type, nullable, primary]
+      required: [name, type, nullable]
       properties:
-        name:
-          type: string
-        type:
-          type: string
-        primary:
-          type: boolean
-        nullable:
-          type: boolean
-        default_value:
-          type: string
-
+        name: { type: string }
+        type: { type: string }
+        nullable: { type: boolean }
+        default: { type: string, nullable: true }
+        identity: { type: string, enum: ["", "by default", "always"] }
+        comment: { type: string }
+    Key:
+      type: object
+      required: [columns]
+      properties:
+        name: { type: string }
+        columns: { type: array, items: { type: string } }
     Index:
       type: object
-      required: [name, columns, method, unique, size]
+      required: [name]
       properties:
-        name:
-          type: string
-        columns:
-          type: array
-          items:
-            type: string
-        method:
-          type: string
-        unique:
-          type: boolean
-        size:
-          type: integer
-          format: int64
-
-    TableRowsResponse:
+        name: { type: string }
+        columns: { type: array, items: { type: string } }
+        expression: { type: string }
+        unique: { type: boolean }
+        method: { type: string }
+        predicate: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        scans: { type: integer, format: int64 }
+    ForeignKey:
       type: object
-      required: [columns, rows, total, limit, offset]
+      required: [columns, references, refColumns]
       properties:
-        columns:
-          type: array
-          items:
-            type: string
+        name: { type: string }
+        columns: { type: array, items: { type: string } }
+        references: { $ref: "#/components/schemas/Qualified" }
+        refColumns: { type: array, items: { type: string } }
+        onDelete: { type: string }
+        onUpdate: { type: string }
+    Qualified:
+      type: object
+      required: [Schema, Name]
+      properties:
+        Schema: { type: string }
+        Name: { type: string }
+    Check:
+      type: object
+      required: [expression]
+      properties:
+        name: { type: string }
+        expression: { type: string }
+    View:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        definition: { type: string }
+        columns: { type: array, items: { $ref: "#/components/schemas/Column" } }
+        materialized: { type: boolean }
+    Enum:
+      type: object
+      required: [name, values]
+      properties:
+        name: { type: string }
+        values: { type: array, items: { type: string } }
+    Function:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        signature: { type: string }
+        returns: { type: string }
+        language: { type: string }
+    Sequence:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+
+    # ---- values and results ----
+    Value:
+      type: object
+      x-go-type: value.Value
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/core/value }
+      description: |
+        A typed cell. k is the kind; v is the payload (absent for null): bool → boolean;
+        int → number, or a string when it does not fit a double exactly; float → number or
+        "NaN"/"Inf"; decimal, uuid, json (raw JSON text), text, other → string; bytes → base64;
+        time → RFC 3339 or the engine's text; array → list of values. t is the engine type.
+      required: [k]
+      properties:
+        k:
+          type: string
+          enum: [null, bool, int, float, decimal, text, bytes, uuid, json, time, array, other]
+        v: {}
+        t: { type: string }
+    ResultColumn:
+      type: object
+      required: [Name, Type, Kind]
+      properties:
+        Name: { type: string }
+        Type: { type: string }
+        Kind: { type: string }
+    QueryResult:
+      type: object
+      x-go-type: engine.Result
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/engine }
+      required: [columns, rows, rowsAffected, truncated, duration]
+      properties:
+        columns: { type: array, items: { $ref: "#/components/schemas/ResultColumn" } }
         rows:
           type: array
           items:
             type: array
-            items: {}
-        total:
-          type: integer
-          format: int64
-        limit:
-          type: integer
-        offset:
-          type: integer
+            items: { $ref: "#/components/schemas/Value" }
+        rowsAffected: { type: integer, format: int64 }
+        truncated: { type: boolean }
+        duration: { type: integer, format: int64, description: nanoseconds }
+        command: { type: string }
 
-    Error:
+    RowsQuery:
       type: object
-      required: [message]
+      required: [table]
       properties:
-        message:
-          type: string
-    CreateConnectionRequest:
-      type: object
-      required: [name, driver, host, port, username, password]
-      properties:
-        name:
-          type: string
-        driver:
-          type: string
-          enum: [postgres, mysql]
-        host:
-          type: string
-        port:
-          type: integer
-        username:
-          type: string
-        password:
-          type: string
-    OverviewResponse:
-      type: object
-      required: [status, latency_ms]
-      properties:
-        status:
-          type: string
-          enum: [ONLINE, UNREACHABLE]
-        version:
-          type: string
-        uptime:
-          type: string
-        sessions:
-          type: string
-          example: "45/100"
-        latency_ms:
-          type: integer
-    Session:
-      type: object
-      required: [pid, user, database, state, query, duration, is_slow]
-      properties:
-        pid:
-          type: integer
-        user:
-          type: string
-        database:
-          type: string
-        state:
-          type: string
-        query:
-          type: string
-        duration:
-          type: string
-        is_slow:
-          type: boolean
-    DBUser:
-      type: object
-      required: [name, is_superuser, can_login, conn_limit]
-      properties:
-        name:
-          type: string
-        is_superuser:
-          type: boolean
-        can_login:
-          type: boolean
-        conn_limit:
-          type: integer
-    CreateUserRequest:
-      type: object
-      required: [username, password]
-      properties:
-        username:
-          type: string
-        password:
-          type: string
-        is_superuser:
-          type: boolean
-        can_login:
-          type: boolean
-        conn_limit:
-          type: integer
-    CreateDatabaseRequest:
-      type: object
-      required: [name, owner]
-      properties:
-        name:
-          type: string
-        owner:
-          type: string
-    CreateTableRequest:
-      type: object
-      required: [name, columns]
-      properties:
-        name:
-          type: string
-        columns:
-          type: array
-          minItems: 1
-          items:
-            $ref: "#/components/schemas/CreateTableColumn"
-        indexes:
+        table: { $ref: "#/components/schemas/Qualified" }
+        filters:
           type: array
           items:
-            $ref: "#/components/schemas/CreateTableIndex"
-    CreateTableColumn:
-      type: object
-      required: [name, type]
-      properties:
-        name:
-          type: string
-        type:
-          $ref: "#/components/schemas/ColumnDataType"
-        length:
-          type: integer
-          minimum: 1
-        precision:
-          type: integer
-          minimum: 1
-        nullable:
-          type: boolean
-        primary_key:
-          type: boolean
-        default_value:
-          type: string
-    CreateTableIndex:
-      type: object
-      required: [name, columns]
-      properties:
-        name:
-          type: string
-        columns:
+            type: object
+            required: [column, op]
+            properties:
+              column: { type: string }
+              op:
+                type: string
+                enum: ["=", "!=", "<", "<=", ">", ">=", like, ilike, is null, is not null]
+              value: { $ref: "#/components/schemas/Value" }
+        sort:
           type: array
-          minItems: 1
           items:
-            type: string
-        unique:
-          type: boolean
-        method:
-          type: string
-          enum: [btree, hash, gin, gist, brin, spgist]
-    ColumnDataType:
-      type: string
-      enum:
-        - smallint
-        - integer
-        - bigint
-        - serial
-        - bigserial
-        - numeric
-        - decimal
-        - real
-        - double_precision
-        - boolean
-        - text
-        - varchar
-        - char
-        - uuid
-        - date
-        - time
-        - timestamp
-        - timestamptz
-        - json
-        - jsonb
-        - bytea
-    UpdateTableRowRequest:
+            type: object
+            required: [column]
+            properties:
+              column: { type: string }
+              desc: { type: boolean }
+        limit: { type: integer, default: 100, maximum: 1000 }
+        offset: { type: integer, default: 0 }
+    RowsPage:
       type: object
-      required: [where, set]
+      required: [result, total]
       properties:
-        where:
+        result: { $ref: "#/components/schemas/QueryResult" }
+        total: { type: integer, format: int64 }
+
+    QueryRequest:
+      type: object
+      required: [sql]
+      properties:
+        sql: { type: string }
+        maxRows: { type: integer, default: 500, maximum: 10000 }
+        readOnly: { type: boolean, description: Force a read-only transaction even on a writable connection }
+    QueryRun:
+      type: object
+      required: [id, connectionId, database, sql, rowCount, durationMs, ranAt]
+      properties:
+        id: { type: string, format: uuid }
+        connectionId: { type: string, format: uuid }
+        database: { type: string }
+        sql: { type: string }
+        rowCount: { type: integer, format: int64 }
+        durationMs: { type: number, format: double }
+        error: { type: string }
+        ranAt: { type: string, format: date-time }
+    SavedQuery:
+      type: object
+      required: [name, sql]
+      properties:
+        id: { type: string, format: uuid }
+        connectionId: { type: string, format: uuid }
+        name: { type: string }
+        sql: { type: string }
+        updatedAt: { type: string, format: date-time }
+
+    # ---- changes ----
+    ChangeSet:
+      type: object
+      x-go-type: changeset.ChangeSet
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/core/changeset }
+      required: [database]
+      properties:
+        database: { type: string }
+        rows: { type: array, items: { $ref: "#/components/schemas/RowChange" } }
+        schema: { type: array, items: { $ref: "#/components/schemas/SchemaChange" } }
+    RowChange:
+      type: object
+      required: [kind, table]
+      properties:
+        kind: { type: string, enum: [insert, update, delete] }
+        table: { $ref: "#/components/schemas/Qualified" }
+        key:
           type: object
-          additionalProperties: true
-          description: Primary key column(s) and their values to identify the row
-        set:
+          additionalProperties: { $ref: "#/components/schemas/Value" }
+        values:
           type: object
-          additionalProperties: true
-          description: Column(s) and new values to apply
+          additionalProperties: { $ref: "#/components/schemas/Value" }
+    SchemaChange:
+      type: object
+      x-go-type: schema.Change
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/core/schema }
+      required: [kind]
+      properties:
+        kind: { type: string }
+        schema: { type: string }
+        table: { $ref: "#/components/schemas/Qualified" }
+        newTable: { $ref: "#/components/schemas/Table" }
+        column: { $ref: "#/components/schemas/Column" }
+        oldColumn: { $ref: "#/components/schemas/Column" }
+        name: { type: string }
+        key: { $ref: "#/components/schemas/Key" }
+        index: { $ref: "#/components/schemas/Index" }
+        foreignKey: { $ref: "#/components/schemas/ForeignKey" }
+        check: { $ref: "#/components/schemas/Check" }
+        enum: { $ref: "#/components/schemas/Enum" }
+        values: { type: array, items: { type: string } }
+        comment: { type: string }
+    Statement:
+      type: object
+      required: [kind, sql, describe]
+      properties:
+        kind: { type: string, enum: [dml, ddl] }
+        sql: { type: string }
+        args: { type: array, items: { $ref: "#/components/schemas/Value" } }
+        describe: { type: string }
+        display: { type: string, description: SQL with arguments inlined, for review only }
+    Risk:
+      type: object
+      required: [level, code, message]
+      properties:
+        level: { type: string, enum: [info, warning, danger] }
+        code: { type: string }
+        message: { type: string }
+        object: { type: string }
+    Plan:
+      type: object
+      x-go-type: changeset.Plan
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/core/changeset }
+      required: [database, statements, summary]
+      properties:
+        database: { type: string }
+        statements: { type: array, items: { $ref: "#/components/schemas/Statement" } }
+        down: { type: array, items: { $ref: "#/components/schemas/Statement" } }
+        risks: { type: array, items: { $ref: "#/components/schemas/Risk" } }
+        summary:
+          type: object
+          properties:
+            Inserted: { type: integer }
+            Updated: { type: integer }
+            Deleted: { type: integer }
+            SchemaChanges: { type: integer }
+    Decision:
+      type: object
+      x-go-type: policy.Decision
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/core/policy }
+      required: [outcome]
+      properties:
+        outcome: { type: string, enum: [allow, needs_confirmation, deny] }
+        reason: { type: string }
+        confirmWith: { type: string }
+    PlanResult:
+      type: object
+      required: [plan, decision, upSql, downSql]
+      properties:
+        plan: { $ref: "#/components/schemas/Plan" }
+        decision: { $ref: "#/components/schemas/Decision" }
+        upSql: { type: string }
+        downSql: { type: string }
+    ApplyRequest:
+      type: object
+      required: [changeSet]
+      properties:
+        changeSet: { $ref: "#/components/schemas/ChangeSet" }
+        confirmation: { type: string }
+        transaction: { type: boolean, default: true }
+    ApplyResult:
+      type: object
+      required: [plan, decision, applied, upSql, downSql]
+      properties:
+        plan: { $ref: "#/components/schemas/Plan" }
+        decision: { $ref: "#/components/schemas/Decision" }
+        applied: { type: boolean }
+        auditId: { type: string, format: uuid }
+        durationMs: { type: number, format: double }
+        upSql: { type: string }
+        downSql: { type: string }
+    AuditEntry:
+      type: object
+      required: [id, connectionId, database, environment, surface, summary, sql, status, startedAt]
+      properties:
+        id: { type: string, format: uuid }
+        connectionId: { type: string, format: uuid }
+        database: { type: string }
+        environment: { $ref: "#/components/schemas/Environment" }
+        actor: { type: string }
+        surface: { type: string }
+        summary: { type: string }
+        sql: { type: string }
+        downSql: { type: string }
+        status: { type: string, enum: [started, applied, failed] }
+        error: { type: string }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+
+    # ---- monitor ----
+    Overview:
+      type: object
+      x-go-type: engine.Overview
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/engine }
+      required: [version, startedAt, database, role, readOnly]
+      properties:
+        version: { type: string }
+        versionFull: { type: string }
+        startedAt: { type: string, format: date-time }
+        database: { type: string }
+        role: { type: string }
+        readOnly: { type: boolean }
+    Metrics:
+      type: object
+      x-go-type: engine.Metrics
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/engine }
+      required: [sampledAt, commits, rollbacks, connectionsActive, connectionsIdle, connectionsIdleTx, connectionsMax, databaseSizeBytes, cacheHitRatio, locksWaiting, longestTxSeconds]
+      properties:
+        sampledAt: { type: string, format: date-time }
+        commits: { type: integer, format: int64 }
+        rollbacks: { type: integer, format: int64 }
+        connectionsActive: { type: integer }
+        connectionsIdle: { type: integer }
+        connectionsIdleTx: { type: integer }
+        connectionsMax: { type: integer }
+        databaseSizeBytes: { type: integer, format: int64 }
+        cacheHitRatio: { type: number, format: double }
+        locksWaiting: { type: integer }
+        longestTxSeconds: { type: number, format: double }
+    Point:
+      type: object
+      required: [at, tps, active, idle, idleTx, latencyMs]
+      properties:
+        at: { type: string, format: date-time }
+        tps: { type: number, format: double }
+        active: { type: integer }
+        idle: { type: integer }
+        idleTx: { type: integer }
+        latencyMs: { type: number, format: double }
+    Snapshot:
+      type: object
+      required: [metrics, tps, latencyMs, series]
+      properties:
+        metrics: { $ref: "#/components/schemas/Metrics" }
+        tps: { type: number, format: double, description: Transactions per second since the previous sample }
+        latencyMs: { type: number, format: double }
+        sizeDelta7d: { type: integer, format: int64, description: Growth in bytes over the series window when known }
+        series: { type: array, items: { $ref: "#/components/schemas/Point" } }
+    ActiveSession:
+      type: object
+      x-go-type: engine.ActiveSession
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/engine }
+      required: [pid, user, database, state, startedAt, duration, blocking]
+      properties:
+        pid: { type: integer }
+        user: { type: string }
+        database: { type: string }
+        application: { type: string }
+        clientAddr: { type: string }
+        state: { type: string }
+        waitEvent: { type: string }
+        query: { type: string }
+        startedAt: { type: string, format: date-time }
+        queryStart: { type: string, format: date-time }
+        duration: { type: integer, format: int64, description: nanoseconds }
+        blocking: { type: boolean }
+    Panel:
+      type: object
+      x-go-type: engine.Panel
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/engine }
+      required: [title]
+      properties:
+        title: { type: string }
+        tiles:
+          type: array
+          items:
+            type: object
+            required: [label, value]
+            properties:
+              label: { type: string }
+              value: { type: string }
+              unit: { type: string }
+              status: { type: string, enum: ["", ok, warning, critical] }
+              note: { type: string }
+        meters:
+          type: array
+          items:
+            type: object
+            required: [label, value, max, text]
+            properties:
+              label: { type: string }
+              value: { type: number, format: double }
+              max: { type: number, format: double }
+              text: { type: string }
+              status: { type: string, enum: ["", ok, warning, critical] }
+              note: { type: string }
+        tables:
+          type: array
+          items:
+            type: object
+            required: [title, columns, rows]
+            properties:
+              title: { type: string }
+              source: { type: string }
+              columns: { type: array, items: { type: string } }
+              numeric: { type: array, items: { type: boolean } }
+              rows: { type: array, items: { type: array, items: { type: string } } }
+              empty: { type: string }
+
+    # ---- roles ----
+    Role:
+      type: object
+      x-go-type: engine.Role
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/engine }
+      required: [name, superuser, canLogin, createDb, createRole, inherit, connLimit]
+      properties:
+        name: { type: string }
+        superuser: { type: boolean }
+        canLogin: { type: boolean }
+        createDb: { type: boolean }
+        createRole: { type: boolean }
+        inherit: { type: boolean }
+        connLimit: { type: integer }
+        validUntil: { type: string, format: date-time }
+        memberOf: { type: array, items: { type: string } }
+    RoleRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        password: { type: string }
+        canLogin: { type: boolean, default: true }
+        createDb: { type: boolean }
+        createRole: { type: boolean }
+        superuser: { type: boolean }
+        connLimit: { type: integer, default: -1 }
+        memberOf: { type: array, items: { type: string } }
+        confirmation: { type: string }
+        dryRun: { type: boolean }
+
+    # ---- designer ----
+    Layout:
+      type: object
+      required: [positions]
+      properties:
+        positions:
+          type: object
+          additionalProperties:
+            type: object
+            required: [x, y]
+            properties:
+              x: { type: number, format: double }
+              y: { type: number, format: double }
+    Problem:
+      type: object
+      required: [level, message]
+      properties:
+        level: { type: string, enum: [error, warning] }
+        line: { type: integer }
+        message: { type: string }
+    DesignerModel:
+      type: object
+      required: [schema, dbml, layout, problems]
+      properties:
+        schema: { $ref: "#/components/schemas/Database" }
+        dbml: { type: string }
+        layout: { $ref: "#/components/schemas/Layout" }
+        problems: { type: array, items: { $ref: "#/components/schemas/Problem" } }
+    ParseResult:
+      type: object
+      required: [problems]
+      properties:
+        schema: { $ref: "#/components/schemas/Database" }
+        problems: { type: array, items: { $ref: "#/components/schemas/Problem" } }
+    DesignerDiff:
+      type: object
+      required: [changes, plan, decision, upSql, downSql]
+      properties:
+        changes: { type: array, items: { $ref: "#/components/schemas/SchemaChange" } }
+        plan: { $ref: "#/components/schemas/Plan" }
+        decision: { $ref: "#/components/schemas/Decision" }
+        upSql: { type: string }
+        downSql: { type: string }
