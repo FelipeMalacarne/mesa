@@ -1,6 +1,7 @@
 apiVersion: v2
 name: mesa
-description: Mesa — SQL Control Plane
+description: Mesa, the open-source SQL control plane
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "latest"
+home: https://github.com/felipemalacarne/mesa

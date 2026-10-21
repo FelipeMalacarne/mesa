@@ -1,67 +1,79 @@
+// Command server runs the Mesa service: the HTTP API and the embedded
+// web app. It is the container image for Docker and Kubernetes.
 package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/felipemalacarne/mesa/internal/application"
-	"github.com/felipemalacarne/mesa/internal/config"
-	"github.com/felipemalacarne/mesa/internal/infrastructure/crypto"
-	"github.com/felipemalacarne/mesa/internal/infrastructure/gateway"
-	"github.com/felipemalacarne/mesa/internal/infrastructure/persistence"
-	"github.com/felipemalacarne/mesa/internal/transport/rest"
+	"github.com/felipemalacarne/mesa/internal/app"
+	"github.com/felipemalacarne/mesa/internal/platform"
+	"github.com/felipemalacarne/mesa/internal/platform/bootstrap"
+	httptransport "github.com/felipemalacarne/mesa/internal/transport/http"
+	mcptransport "github.com/felipemalacarne/mesa/internal/transport/mcp"
+	"github.com/felipemalacarne/mesa/web"
 )
 
 func main() {
-	cfg := config.Load()
-	ctx := context.Background()
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "mesa-server:", err)
+		os.Exit(1)
+	}
+}
 
-	store, err := persistence.New(ctx, cfg)
+func run() error {
+	configDir, err := platform.ConfigDir()
 	if err != nil {
-		log.Fatalf("Failed to initialize persistence: %v", err)
+		return err
 	}
-	defer store.Close()
+	cfg := platform.FromEnv(configDir)
+	log := platform.Logger(cfg)
 
-	repos := application.Repositories{
-		Connection: store.ConnectionRepo,
-		Gateways:   gateway.NewFactory(),
-	}
-	log.Println("Repositories initialized.")
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	crypto, err := crypto.NewAESManager(cfg.AppKey)
+	a, err := bootstrap.Build(ctx, cfg, app.ModeServer, configDir)
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to initialize crypto manager: %w", err))
+		return err
 	}
-	log.Println("Crypto manager initialized.")
+	defer func() { _ = a.Close() }()
 
-	app := application.NewApp(repos, crypto)
-	log.Println("Application initialized.")
+	// Databases opened in Monitor keep being sampled, so its ranges have history.
+	go a.Monitor.Run(ctx)
 
-	srv := rest.NewServer(*app)
-
+	handler := httptransport.New(a, httptransport.Options{
+		Assets:      web.Assets(),
+		CORSOrigins: cfg.CORSOrigins,
+		Logger:      log,
+		MCP:         mcptransport.Handler(a, mcptransport.Options{AllowWrites: cfg.MCPWrites}),
+	})
+	srv := &http.Server{
+		Addr:              cfg.Listen,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	errCh := make(chan error, 1)
 	go func() {
-		if err := srv.Start(cfg.Port); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
-		}
+		log.Info("mesa-server listening", "addr", cfg.Listen, "version", platform.Version, "store", cfg.StoreDriver)
+		errCh <- srv.ListenAndServe()
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	<-stop
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := srv.Stop(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+	select {
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
 	}
-
-	log.Println("Server exiting")
+	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	log.Info("shutting down")
+	return srv.Shutdown(shutdown)
 }

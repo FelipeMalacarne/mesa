@@ -1,57 +1,57 @@
-MIGRATIONS_DIR := ./internal/infrastructure/postgres/migrations/
-SEEDS_DIR := ./internal/infrastructure/postgres/seeds/
-DATABASE_URL := postgres://mesa:mesa@localhost:5432/mesa?sslmode=disable
-MIGRATE ?= migrate
-SQLC ?= sqlc
-OPENAPI_PATH := ./openapi.yaml
+GO       ?= go
+PNPM     ?= pnpm
+BINDIR   := bin
+PG_DIR   ?= /tmp/mesa-pg
+PG_PORT  ?= 5499
 
-%:
-	@:
+.PHONY: all build desktop web generate test test-integration lint fmt dev-db dev-db-stop clean docker-build package-linux
 
-.PHONY: migration
-migration:
-	@if [ -z "$(name)" ] && [ -z "$(filter-out $@,$(MAKECMDGOALS))" ]; then echo "Usage: make migration <name> (or make migration name=<name>)"; exit 1; fi
-	@migration_name="$(name)"; \
-	if [ -z "$$migration_name" ]; then migration_name="$(filter-out $@,$(MAKECMDGOALS))"; fi; \
-	$(MIGRATE) create -ext sql -dir $(MIGRATIONS_DIR) -seq "$$migration_name"
+all: generate web build
 
-.PHONY: migrate-up
-migrate-up:
-	$(MIGRATE) -path $(MIGRATIONS_DIR) -database $(DATABASE_URL) up
+build: ## Build every binary (mesa-server expects web/dist; run `make web` first)
+	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-server ./cmd/server
+	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa ./cmd/cli
+	$(GO) build -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-mcp ./cmd/mcp
 
-.PHONY: migrate-down
-migrate-down:
-	$(MIGRATE) -path $(MIGRATIONS_DIR) -database $(DATABASE_URL) down
+ifeq ($(shell uname -s),Darwin)
+desktop: export CGO_LDFLAGS := -framework UniformTypeIdentifiers
+desktop: export MACOSX_DEPLOYMENT_TARGET := 11.0
+endif
+desktop: ## Build bin/mesa-desktop (Linux: needs libwebkit2gtk-4.1-dev and libgtk-3-dev)
+	CGO_ENABLED=1 $(GO) build -tags desktop,production,webkit2_41 -trimpath -ldflags="-s -w" -o $(BINDIR)/mesa-desktop ./cmd/desktop
 
-.PHONY: sqlc-generate
-sqlc-generate:
-	$(SQLC) generate
+web: ## Build the web app into web/dist
+	cd web && $(PNPM) install --frozen-lockfile && $(PNPM) run build
 
-.PHONY: generate-app-key
-generate-app-key:
-	@openssl rand -hex 32
+generate: ## Regenerate OpenAPI server/client, sqlc
+	$(GO) generate ./...
+	cd web && $(PNPM) run codegen
 
-.PHONY: codegen
-codegen:
-	@oapi-codegen -generate chi,types -package contract -o internal/transport/rest/contract/api.gen.go openapi.yaml
-	cd web && pnpm orval --config orval.config.ts
+test: ## Unit tests (integration tests skip unless MESA_TEST_PG is set)
+	$(GO) test ./...
 
-IMAGE_NAME ?= mesa
-IMAGE_TAG  ?= latest
+test-integration: ## Run everything against the dev Postgres
+	MESA_TEST_PG="postgres://postgres@localhost:$(PG_PORT)/postgres?sslmode=disable" $(GO) test ./...
 
-.PHONY: docker-build
+lint:
+	golangci-lint run ./...
+	cd web && $(PNPM) run typecheck
+
+fmt:
+	gofmt -w ./cmd ./internal
+
+dev-db: ## Start a throwaway PostgreSQL on $(PG_PORT) (needs postgres binaries on PATH)
+	@mkdir -p $(PG_DIR) && [ -d $(PG_DIR)/data ] || initdb -D $(PG_DIR)/data -U postgres --auth=trust >/dev/null
+	@pg_ctl -D $(PG_DIR)/data -o "-p $(PG_PORT)" -l $(PG_DIR)/server.log start
+
+dev-db-stop:
+	@pg_ctl -D $(PG_DIR)/data stop
+
 docker-build:
-	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build -t mesa:latest .
 
-.PHONY: docker-push
-docker-push:
-	docker push $(IMAGE_NAME):$(IMAGE_TAG)
+package-linux: desktop ## Linux desktop archive in dist/ (VERSION=x.y.z)
+	packaging/linux/package.sh $(BINDIR)/mesa-desktop $$($(GO) env GOARCH) $(or $(VERSION),0.0.0-dev) dist
 
-.PHONY: seed
-seed:
-	@for f in $(SEEDS_DIR)*.sql; do \
-		[ -e "$$f" ] || exit 0; \
-		echo "Seeding $$f"; \
-		psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f "$$f"; \
-	done
-
+clean:
+	rm -rf bin web/dist

@@ -1,37 +1,31 @@
 import { defineConfig } from "orval";
 
+// The generated client lives in src/lib/api (one folder per OpenAPI tag).
+// Regenerate with `pnpm run codegen` whenever api/openapi.yaml changes; never edit the output.
 export default defineConfig({
-  mesaHooks: {
+  mesa: {
     input: {
-      target: "../openapi.yaml",
+      // Written by scripts/prepare-spec.mjs from ../api/openapi.yaml (see that file for why).
+      target: ".orval/openapi.yaml",
     },
     output: {
       mode: "tags-split",
-      target: "src/api",
+      target: "src/lib/api",
       client: "react-query",
+      httpClient: "fetch",
       override: {
+        mutator: {
+          path: "src/lib/api/fetch.ts",
+          name: "customFetch",
+        },
         fetch: {
           includeHttpResponseReturnType: false,
-        },
-        mutator: {
-          path: "src/lib/fetch-client.ts",
-          name: "customInstance",
         },
         query: {
           useQuery: true,
           useMutation: true,
         },
       },
-    },
-  },
-  mesaZod: {
-    input: {
-      target: "../openapi.yaml",
-    },
-    output: {
-      client: "zod",
-      target: "src/api/zod.gen.ts",
-      fileExtension: ".ts",
     },
   },
 });

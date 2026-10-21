@@ -1,0 +1,100 @@
+// Every construct the parser understands, in one document.
+/* Block comments
+   are skipped too. */
+Project "shop" {
+  database_type: 'PostgreSQL'
+  Note: 'the project note is not kept'
+}
+
+Enum billing.currency {
+  USD
+  EUR [note: 'notes on values are not kept']
+  "BRL "
+}
+
+Enum order_status { pending shipped "on hold" }
+
+Table billing.accounts as A [headercolor: #3498DB, note: 'Billing accounts'] {
+  id uuid [primary key, default: `gen_random_uuid()`]
+  "owner id" int8 [not null, ref: > users.id]
+  currency billing.currency [not null, default: 'USD']
+  balance numeric(12, 2) [not null, default: 0]
+  tags text[] [default: `'{}'::text[]`]
+  active boolean [default: true]
+  closed_at "timestamp with time zone" [null]
+  score float8 [default: -1.5]
+  parent_id uuid [ref: - billing.accounts.id]
+  Note {
+    'Accounts of the billing schema'
+  }
+}
+
+Table users {
+  id int8 [pk, increment, note: 'Surrogate key', ref: < orders.user_id]
+  email varchar(255) [unique, not null, default: '']
+  nick text [unique]
+  motto text [default: 'it\'s fine']
+  bio text [note: '''
+    Free text.
+      Indented line.
+
+    Last line.
+  ''']
+  indexes {
+    `lower(email)` [unique, name: 'users_email_lower_idx', type: btree]
+    (id, `lower(nick)`)
+    nick [type: hash]
+    `now()`
+    `now()`
+  }
+}
+
+Table orders {
+  id int8 [pk]
+  user_id int8 [not null]
+  account_id uuid [not null]
+  status order_status [not null, default: 'pending']
+  placed_at timestamptz [not null, default: `now()`]
+  indexes {
+    (user_id, status) [unique]
+    (account_id, status) [unique, name: 'orders_account_status_key']
+    (status, placed_at) [name: 'orders_status_placed_at_idx']
+  }
+}
+
+Table order_items {
+  order_id int8 [not null]
+  line int4 [not null]
+  sku text [not null]
+  qty int4 [not null, default: 1]
+  indexes {
+    (order_id, line) [pk, name: 'order_items_pk']
+  }
+}
+
+Table skus {
+  order_id int8
+  sku text
+  indexes {
+    (order_id, sku) [pk]
+  }
+}
+
+Ref billing_account: orders.account_id > A.id [delete: restrict, update: cascade, color: #ff0000]
+
+Ref order_items_skus_fkey {
+  order_items.(order_id, sku) > skus.(order_id, sku) [delete: set null, update: no action]
+}
+
+Ref: order_items.order_id > orders.id [delete: cascade]
+Ref: order_items.order_id > orders.id [update: cascade]
+
+TableGroup shop [color: #ffffff] {
+  users
+  orders
+  Note: 'groups are not kept'
+}
+
+Note sticky {
+  'sticky notes are not kept'
+}

@@ -1,0 +1,18 @@
+Project billing { database_type: 'PostgreSQL' }
+Table customers {
+  id int8 [pk, increment]
+  email text [unique, not null]
+  plan text [not null, default: 'free']
+  created_at timestamptz [default: `now()`]
+  Note: 'Paying and trial customers'
+}
+Table subscriptions {
+  id int8 [pk, increment]
+  customer_id int8 [ref: > customers.id, not null]
+  plan_id text [ref: > plans.id]
+  status subscription_status [not null]
+  indexes { (customer_id, status) [name: 'subscriptions_customer_status_idx'] }
+}
+Table plans { id text [pk]  name text [not null]  price_cents int4 [not null, default: 0] }
+Enum subscription_status { active  past_due  canceled [note: 'Ended by the customer'] }
+Ref: subscriptions.customer_id > customers.id [delete: cascade]

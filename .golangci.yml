@@ -1,0 +1,78 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - depguard
+    - errorlint
+    - gocritic
+    - misspell
+    - revive
+    - unconvert
+    - unparam
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    depguard:
+      rules:
+        core-imports-nothing-internal:
+          files: ["**/internal/core/**"]
+          deny:
+            - pkg: github.com/felipemalacarne/mesa/internal/engine
+              desc: core must not import engine
+            - pkg: github.com/felipemalacarne/mesa/internal/app
+              desc: core must not import app
+            - pkg: github.com/felipemalacarne/mesa/internal/store
+              desc: core must not import store
+            - pkg: github.com/felipemalacarne/mesa/internal/transport
+              desc: core must not import transport
+            - pkg: github.com/felipemalacarne/mesa/internal/session
+              desc: core must not import session
+            - pkg: github.com/felipemalacarne/mesa/internal/dbml
+              desc: core must not import dbml
+            - pkg: github.com/felipemalacarne/mesa/internal/secret
+              desc: core must not import secret
+        engine-imports-only-core:
+          files: ["**/internal/engine/**", "**/internal/dbml/**", "**/internal/secret/**"]
+          deny:
+            - pkg: github.com/felipemalacarne/mesa/internal/app
+              desc: only core may be imported here
+            - pkg: github.com/felipemalacarne/mesa/internal/store
+              desc: only core may be imported here
+            - pkg: github.com/felipemalacarne/mesa/internal/transport
+              desc: only core may be imported here
+            - pkg: github.com/felipemalacarne/mesa/internal/session
+              desc: only core may be imported here
+        app-never-imports-transport:
+          files: ["**/internal/app/**", "**/internal/session/**", "**/internal/store/**"]
+          deny:
+            - pkg: github.com/felipemalacarne/mesa/internal/transport
+              desc: app, session and store must not import transport
+        transport-imports-app-only:
+          files: ["**/internal/transport/**"]
+          deny:
+            - pkg: github.com/felipemalacarne/mesa/internal/engine/postgres
+              desc: transports talk to app, never to a driver
+            - pkg: github.com/felipemalacarne/mesa/internal/engine/mysql
+              desc: transports talk to app, never to a driver
+            - pkg: github.com/felipemalacarne/mesa/internal/store/sqlite
+              desc: transports talk to app, never to a store implementation
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+  exclusions:
+    paths:
+      - ".*/gen/.*"
+      - ".*\\.gen\\.go$"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

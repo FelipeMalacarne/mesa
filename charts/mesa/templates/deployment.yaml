@@ -4,47 +4,65 @@ metadata:
   name: {{ include "mesa.fullname" . }}
   labels: {{ include "mesa.labels" . | nindent 4 }}
 spec:
-  replicas: 1  # SQLite does not support concurrent writes; keep at 1
+  {{- if eq .Values.config.store "sqlite" }}
+  replicas: 1
+  strategy:
+    type: Recreate
+  {{- else }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels: {{ include "mesa.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels: {{ include "mesa.selectorLabels" . | nindent 8 }}
     spec:
+      securityContext: {{ toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: mesa
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
           env:
-            - name: APP_KEY
+            - name: MESA_APP_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mesa.fullname" . }}
-                  key: APP_KEY
-            - name: PORT
-              value: {{ .Values.config.port | quote }}
-            - name: DB_DRIVER
-              value: {{ .Values.config.dbDriver | quote }}
-            - name: DATABASE_URL
-              value: {{ .Values.config.databaseUrl | quote }}
+                  name: {{ .Values.config.existingSecret | default (include "mesa.fullname" .) }}
+                  key: MESA_APP_KEY
+            - name: MESA_LISTEN
+              value: ":8080"
+            - name: MESA_STORE
+              value: {{ .Values.config.store | quote }}
+            - name: MESA_STORE_DSN
+              value: {{ .Values.config.storeDSN | quote }}
+            - name: MESA_LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: MESA_LOG_FORMAT
+              value: {{ .Values.config.logFormat | quote }}
+            {{- with .Values.config.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           livenessProbe:
             httpGet:
-              path: /
-              port: 8080
+              path: /healthz
+              port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 3
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
             periodSeconds: 5
           resources: {{ toYaml .Values.resources | nindent 12 }}
+          {{- if eq .Values.config.store "sqlite" }}
           volumeMounts:
             - name: data
               mountPath: /data
+          {{- end }}
+      {{- if eq .Values.config.store "sqlite" }}
       volumes:
         - name: data
           {{- if .Values.persistence.enabled }}
@@ -53,3 +71,13 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{ toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,2 +1,12 @@
 web/.pnpm-store/v10
-tmp/go-build
+tmp/
+bin/
+node_modules
+.DS_Store
+web/dist/*
+!web/dist/.gitkeep
+*.local
+.env
+.tanstack
+/dist/
+cmd/desktop/rsrc_*.syso

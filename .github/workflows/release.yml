@@ -1,0 +1,336 @@
+name: release
+
+# A tag v1.2.3 builds every binary, the desktop installers and the image,
+# signs what there are keys for, and publishes a GitHub release. A branch
+# push that touches packaging, the desktop app or the updater, or a manual
+# run, builds everything as a dry run and keeps the files as an artifact.
+# Secrets and variables are described in docs/releasing.md.
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["**"]
+    paths:
+      - packaging/**
+      - cmd/desktop/**
+      - internal/platform/desktop/**
+      - internal/platform/update/**
+      - .github/workflows/release.yml
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version for a dry run (nothing is published), e.g. 0.0.0-test"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      ldflags: ${{ steps.v.outputs.ldflags }}
+      publish: ${{ steps.v.outputs.publish }}
+    steps:
+      - id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          PUBLIC_KEY: ${{ vars.MESA_UPDATE_PUBLIC_KEY }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            v="${GITHUB_REF_NAME#v}" publish=true
+          else
+            v="${INPUT_VERSION:-0.0.0-dryrun.$GITHUB_RUN_NUMBER}" publish=false
+          fi
+          case "$v" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "version $v is not x.y.z" >&2; exit 1 ;;
+          esac
+          pkg=github.com/felipemalacarne/mesa/internal/platform
+          {
+            echo "version=$v"
+            echo "publish=$publish"
+            echo "ldflags=-s -w -X $pkg.Version=$v -X $pkg/update.PublicKey=$PUBLIC_KEY"
+          } >> "$GITHUB_OUTPUT"
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile && pnpm run build
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+
+  cli:
+    needs: [meta, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      - name: Build mesa, mesa-server and mesa-mcp
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          LDFLAGS: ${{ needs.meta.outputs.ldflags }}
+        run: |
+          set -eu
+          mkdir -p dist build
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            os=${target%/*} arch=${target#*/} ext=
+            [ "$os" = windows ] && ext=.exe
+            dir="mesa_${VERSION}_${os}_${arch}"
+            mkdir -p "build/$dir"
+            for pair in server:mesa-server cli:mesa mcp:mesa-mcp; do
+              CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" \
+                -o "build/$dir/${pair#*:}$ext" "./cmd/${pair%%:*}"
+            done
+            cp README.md LICENSE "build/$dir/"
+            if [ "$os" = windows ]; then
+              (cd build && zip -qr "../dist/$dir.zip" "$dir")
+            else
+              tar -C build -czf "dist/$dir.tar.gz" "$dir"
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-cli
+          path: dist/*
+
+  desktop-linux:
+    needs: [meta, web]
+    strategy:
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, arch: amd64 }
+          - { runner: ubuntu-24.04-arm, arch: arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev
+      - name: Build and package
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          LDFLAGS: ${{ needs.meta.outputs.ldflags }}
+        run: |
+          CGO_ENABLED=1 go build -tags desktop,production,webkit2_41 -trimpath -ldflags "$LDFLAGS" -o build/mesa-desktop ./cmd/desktop
+          packaging/linux/package.sh build/mesa-desktop ${{ matrix.arch }} "$VERSION" dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-desktop-linux-${{ matrix.arch }}
+          path: dist/*
+
+  desktop-macos:
+    needs: [meta, web]
+    runs-on: macos-14
+    timeout-minutes: 45
+    env:
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      - name: Import the Developer ID certificate
+        if: env.MACOS_CERTIFICATE != ''
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(openssl rand -hex 16)
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$password" "$keychain" >/dev/null
+          existing=$(security list-keychains -d user | tr -d '"' | xargs)
+          # shellcheck disable=SC2086 # one argument per existing keychain
+          security list-keychains -d user -s "$keychain" $existing
+          rm "$RUNNER_TEMP/cert.p12"
+      - name: Build a universal binary
+        env:
+          LDFLAGS: ${{ needs.meta.outputs.ldflags }}
+          # Wails' file dialogs use UTType; `wails build` links this itself.
+          CGO_LDFLAGS: -framework UniformTypeIdentifiers
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          for arch in arm64 amd64; do
+            CGO_ENABLED=1 GOARCH=$arch go build -tags desktop,production -trimpath -ldflags "$LDFLAGS" -o build/mesa-desktop-$arch ./cmd/desktop
+          done
+          lipo -create -output build/mesa-desktop build/mesa-desktop-arm64 build/mesa-desktop-amd64
+      - name: Bundle, sign and notarize
+        timeout-minutes: 30
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: packaging/darwin/package.sh build/mesa-desktop "$VERSION" dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-desktop-macos
+          path: dist/*
+
+  desktop-windows:
+    needs: [meta, web]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      - name: Build
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          LDFLAGS: ${{ needs.meta.outputs.ldflags }}
+        run: |
+          numeric=${VERSION%%-*}
+          go run github.com/tc-hib/go-winres@v0.3.3 simply --icon packaging/icons/mesa.ico --manifest gui \
+            --product-name Mesa --file-description Mesa --product-version "$numeric" --file-version "$numeric" \
+            --arch amd64 --out cmd/desktop/rsrc
+          go build -tags desktop,production -trimpath -ldflags "$LDFLAGS -H windowsgui" -o build/mesa-desktop.exe ./cmd/desktop
+      - name: Sign the app
+        if: env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        run: |
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          & $signtool sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 build\mesa-desktop.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Installer and update archive
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          mkdir -p dist
+          command -v makensis >/dev/null || export PATH="$PATH:/c/Program Files (x86)/NSIS"
+          command -v makensis >/dev/null || { choco install nsis -y --no-progress && export PATH="$PATH:/c/Program Files (x86)/NSIS"; }
+          src=$(cygpath -w "$PWD/build/mesa-desktop.exe")
+          out=$(cygpath -w "$PWD/dist/Mesa_${VERSION}_windows_amd64_setup.exe")
+          (cd packaging/windows && makensis -V2 -DVERSION="$VERSION" -DSOURCE="$src" -DOUTFILE="$out" installer.nsi)
+          (cd build && 7z a -tzip ../dist/mesa-desktop_windows_amd64.zip mesa-desktop.exe >/dev/null)
+      - name: Sign the installer
+        if: env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        run: |
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          Get-ChildItem dist\*_setup.exe | ForEach-Object {
+            & $signtool sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          Remove-Item "$env:RUNNER_TEMP\cert.pfx"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-desktop-windows
+          path: dist/*
+
+  image:
+    needs: [meta]
+    if: needs.meta.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: tags
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          image=ghcr.io/${GITHUB_REPOSITORY,,}
+          tags="$image:$VERSION"
+          case "$VERSION" in *-*) ;; *) tags="$tags,$image:latest" ;; esac
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: VERSION=${{ needs.meta.outputs.version }}
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign the image (keyless)
+        run: cosign sign --yes "${{ steps.tags.outputs.image }}@${{ steps.build.outputs.digest }}"
+
+  publish:
+    needs: [meta, cli, desktop-linux, desktop-macos, desktop-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums, signed for the desktop updater
+        env:
+          MESA_UPDATE_SIGNING_KEY: ${{ secrets.MESA_UPDATE_SIGNING_KEY }}
+        run: packaging/checksums.sh dist
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign the checksums (keyless)
+        run: cosign sign-blob --yes --bundle dist/checksums.txt.sigstore.json dist/checksums.txt
+      - name: Keep the dry run
+        if: needs.meta.outputs.publish != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dry-run
+          path: dist/*
+      - name: Publish the release
+        if: needs.meta.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          flags=
+          case "$VERSION" in *-*) flags=--prerelease ;; esac
+          gh release create "v$VERSION" dist/* --title "Mesa $VERSION" --generate-notes $flags
