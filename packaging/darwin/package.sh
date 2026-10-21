@@ -7,6 +7,7 @@
 # Application identity already in the keychain; notarizing (optional):
 # APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD.
 set -eu
+[ -n "${CI:-}" ] && set -x
 bin=$1 version=$2 out=$3
 here=$(cd "$(dirname "$0")" && pwd)
 stage=$(mktemp -d)
@@ -43,9 +44,25 @@ if [ -n "${MACOS_SIGNING_IDENTITY:-}" ] && [ -n "${APPLE_ID:-}" ] && [ -n "${APP
   ditto -c -k --keepParent "$app" "$zip"
 fi
 
+# The disk image holds the app and a link to /Applications. hdiutil can
+# stall on busy build machines, so each attempt gets a watchdog.
 dmg="$out/Mesa_${version}_darwin_universal.dmg"
-ln -s /Applications "$stage/Applications"
-hdiutil create -volname "Mesa $version" -srcfolder "$app" -srcfolder "$stage/Applications" -ov -format UDZO "$dmg" >/dev/null
+mkdir "$stage/dmg"
+ditto "$app" "$stage/dmg/Mesa.app"
+ln -s /Applications "$stage/dmg/Applications"
+made=
+for attempt in 1 2 3; do
+  hdiutil create -volname "Mesa $version" -srcfolder "$stage/dmg" -fs HFS+ -format UDZO -ov "$dmg" &
+  pid=$!
+  ( sleep 300 && kill "$pid" 2>/dev/null ) &
+  watchdog=$!
+  if wait "$pid"; then made=1; fi
+  kill "$watchdog" 2>/dev/null || true
+  [ -n "$made" ] && break
+  echo "hdiutil attempt $attempt failed; retrying" >&2
+  sleep 5
+done
+[ -n "$made" ] || { echo "could not create $dmg" >&2; exit 1; }
 if [ -n "${MACOS_SIGNING_IDENTITY:-}" ]; then
   codesign --force --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$dmg"
 fi

@@ -146,6 +146,7 @@ jobs:
   desktop-macos:
     needs: [meta, web]
     runs-on: macos-14
+    timeout-minutes: 45
     env:
       MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
       MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -185,6 +186,7 @@ jobs:
           done
           lipo -create -output build/mesa-desktop build/mesa-desktop-arm64 build/mesa-desktop-amd64
       - name: Bundle, sign and notarize
+        timeout-minutes: 30
         env:
           VERSION: ${{ needs.meta.outputs.version }}
           MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
