@@ -4,7 +4,7 @@ bin/
 node_modules
 .DS_Store
 web/dist/*
-!web/dist/index.html
+!web/dist/.gitkeep
 *.local
 .env
 .tanstack

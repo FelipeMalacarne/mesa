@@ -1,62 +1,36 @@
-# Mesa Frontend
+# Mesa web app
 
-The web interface for Mesa, built with React, Vite, and the TanStack ecosystem.
+React 19 + Vite, TanStack Router (file routes) and Query, zustand for local state. Styling
+comes only from the design system: tokens in `src/styles.css`, components as `.m-*` classes
+in `src/ui/mesa.css`. No raw colours.
 
-## 🚀 Getting Started
-
-1.  **Install dependencies:**
-    ```bash
-    pnpm install
-    ```
-
-2.  **Setup Environment Variables:**
-    Ensure the backend URL is correctly pointed. By default, it expects:
-    ```env
-    VITE_API_BASE=http://localhost:8080/api
-    ```
-
-3.  **Run the development server:**
-    ```bash
-    pnpm dev
-    ```
-
-## 🛠 Tech Stack
-
--   **Framework:** [React](https://react.dev/) + [Vite](https://vitejs.dev/)
--   **Routing:** [TanStack Router](https://tanstack.com/router)
--   **Data Fetching:** [TanStack Query](https://tanstack.com/query)
--   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
--   **UI Components:** [Shadcn/UI](https://ui.shadcn.com/)
--   **API Client:** Generated via `openapi-typescript-codegen`
-
-## 📡 API Client Generation
-
-The frontend uses a generated API client to communicate with the backend. If the backend API definition (`openapi.yaml`) changes, you need to regenerate the client.
-
-From the project root, run:
 ```bash
-make codegen-client
+pnpm install
+pnpm dev                      # http://localhost:3000, proxies /api to $MESA_API or :8080
+pnpm run codegen              # regenerate src/lib/api from ../api/openapi.yaml (never edit it)
+pnpm run typecheck && pnpm test
+pnpm run build                # writes dist/, which mesa-server embeds
 ```
 
-This will update `src/api` with the latest types and service calls.
+## Layout
 
-## 🏗 Project Structure
-
--   `src/routes`: File-based routing configuration.
--   `src/components`: UI components (including Shadcn primitives).
--   `src/api`: Generated API client.
--   `src/hooks`: Custom React hooks.
-
-## 🧪 Testing
-
-Run unit tests with Vitest:
-```bash
-pnpm test
+```
+src/app            router, routes/ (file-based), providers, theme, palette, status bar store
+src/features       one folder per screen: connections, explorer (rail, tree, tabs, status bar),
+                   table (grid, edits, structure), sql, monitor, designer, roles, activity,
+                   changes (the review dialog every write goes through), workspace (layout)
+src/ui             design-system components: Button, Code (highlighter), charts, controls,
+                   primitives (dialog, popover, command palette)
+src/lib            generated API client (api/), value wire format (values.ts), formatting
 ```
 
-## 📦 Building for Production
+## Rules the screens follow
 
-To build the application for production:
-```bash
-pnpm build
-```
+- Every write is reviewed. Grid edits, structure edits, the designer, roles, new databases
+  and SQL that writes all open `ReviewDialog`, which shows the SQL, its rollback, the risks
+  and the policy decision (unlock a read-only connection, type the database name for
+  production or data loss). Nothing is applied before that.
+- The SQL editor runs queries in a read-only transaction. A statement that writes is sent to
+  the script review instead (`/changes/script`), so it is audited like any other write.
+- Views publish facts to the status bar with `useStatusFacts` and staged work with
+  `usePendingStatus`; the workspace layout renders them.
