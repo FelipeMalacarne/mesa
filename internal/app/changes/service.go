@@ -4,6 +4,7 @@ package changes
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -176,7 +177,7 @@ func (s *Service) Apply(ctx context.Context, in ApplyInput) (*ApplyResult, error
 	}
 	_ = s.audit.Finish(ctx, entry.ID, status, msg, s.now())
 	if runErr != nil {
-		return res, errs.Wrap(errs.Conflict, "the database rejected the change", runErr)
+		return res, runErr
 	}
 	res.Applied = true
 	if s.invalidate != nil && plan.Summary.SchemaChanges > 0 {
@@ -188,20 +189,48 @@ func (s *Service) Apply(ctx context.Context, in ApplyInput) (*ApplyResult, error
 func (s *Service) run(ctx context.Context, sess engine.Session, plan *changeset.Plan, tx bool) error {
 	if tx {
 		return sess.Tx(ctx, func(t engine.Tx) error {
-			for _, st := range plan.Statements {
-				if _, err := t.Exec(ctx, st.SQL, st.Args); err != nil {
+			for i, st := range plan.Statements {
+				n, err := t.Exec(ctx, st.SQL, st.Args)
+				if err != nil {
+					return statementError(i, st, err)
+				}
+				if err := expectRows(i, st, n); err != nil {
 					return err
 				}
 			}
 			return nil
 		})
 	}
-	for _, st := range plan.Statements {
-		if _, err := sess.Query(ctx, st.SQL, st.Args, engine.QueryOptions{}); err != nil {
+	for i, st := range plan.Statements {
+		res, err := sess.Query(ctx, st.SQL, st.Args, engine.QueryOptions{})
+		if err != nil {
+			return statementError(i, st, err)
+		}
+		if err := expectRows(i, st, res.RowsAffected); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// statementError names the failing statement and keeps the database's reason.
+func statementError(i int, st changeset.Statement, err error) error {
+	kind := errs.KindOf(err)
+	if kind == errs.Unknown {
+		kind = errs.Conflict
+	}
+	return &errs.Error{Kind: kind, Message: fmt.Sprintf("statement %d (%s) failed: %s; nothing was applied", i+1, st.Describe, errs.Message(err)), Cause: err}
+}
+
+// expectRows checks a row statement touched the rows it was written for.
+func expectRows(i int, st changeset.Statement, n int64) error {
+	if st.ExpectRows <= 0 || n == st.ExpectRows {
+		return nil
+	}
+	if n == 0 {
+		return errs.Newf(errs.Conflict, "statement %d (%s) matched no row: it changed or was deleted since it was loaded; reload and try again", i+1, st.Describe)
+	}
+	return errs.Newf(errs.Conflict, "statement %d (%s) matched %d rows instead of %d; nothing was applied", i+1, st.Describe, n, st.ExpectRows)
 }
 
 // Audit lists what Mesa ran on a connection, newest first.

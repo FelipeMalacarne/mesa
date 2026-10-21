@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/felipemalacarne/mesa/internal/core/connection"
-	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/engine"
 	"github.com/felipemalacarne/mesa/internal/secret"
 	"github.com/felipemalacarne/mesa/internal/session"
@@ -106,9 +105,7 @@ func (s *Service) Create(ctx context.Context, in Input) (*Item, error) {
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(in.Secret) == "" {
-		return nil, errs.New(errs.Invalid, "a password or secret reference is required")
-	}
+	// An empty secret is allowed: trust and peer authentication need none.
 	if err := s.conns.Put(ctx, c); err != nil {
 		return nil, err
 	}
@@ -159,11 +156,7 @@ func (s *Service) Test(ctx context.Context, in Input) (*TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	sec := in.Secret
-	if strings.TrimSpace(sec) == "" {
-		return nil, errs.New(errs.Invalid, "a password or secret reference is required to test")
-	}
-	ov, latency, err := s.sessions.Test(ctx, c, sec)
+	ov, latency, err := s.sessions.Test(ctx, c, in.Secret)
 	if err != nil {
 		return nil, err
 	}

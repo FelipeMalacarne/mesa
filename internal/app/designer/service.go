@@ -9,6 +9,7 @@ import (
 
 	"github.com/felipemalacarne/mesa/internal/app/changes"
 	"github.com/felipemalacarne/mesa/internal/core/changeset"
+	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/core/ident"
 	"github.com/felipemalacarne/mesa/internal/core/policy"
 	"github.com/felipemalacarne/mesa/internal/core/schema"
@@ -46,7 +47,7 @@ func (s *Service) Model(ctx context.Context, connID uuid.UUID, database string) 
 		return nil, err
 	}
 	layout, err := s.layouts.Get(ctx, connID, database)
-	if err != nil {
+	if err != nil && !errs.Is(err, errs.NotFound) {
 		return nil, err
 	}
 	if layout == nil {
@@ -57,11 +58,12 @@ func (s *Service) Model(ctx context.Context, connID uuid.UUID, database string) 
 
 // Parse turns DBML text into a model; parse errors come back as problems.
 func (s *Service) Parse(src string) (*schema.Database, []dbml.Problem) {
+	problems := dbml.Check(src) // carries source lines, syntax errors included
 	db, err := dbml.Parse(src)
 	if err != nil {
-		return nil, []dbml.Problem{{Level: "error", Message: err.Error()}}
+		return nil, problems
 	}
-	return db, dbml.Validate(db)
+	return db, problems
 }
 
 // Print renders a model as DBML.
@@ -80,8 +82,14 @@ func (s *Service) Diff(ctx context.Context, connID uuid.UUID, database string, t
 	if err != nil {
 		return nil, err
 	}
+	sess, _, err := s.sessions.Session(ctx, connID, database)
+	if err != nil {
+		return nil, err
+	}
 	target.Normalize()
-	cs := &changeset.ChangeSet{Database: ident.Name(database), Schema: schema.Diff(live, target)}
+	Preserve(live, target)
+	opts := schema.DiffOptions{SameType: sess.SameType, SameDefault: sess.SameDefault}
+	cs := &changeset.ChangeSet{Database: ident.Name(database), Schema: schema.DiffWith(live, target, opts)}
 	if len(cs.Schema) == 0 {
 		return &Diff{Changes: []schema.Change{}, Plan: &changeset.Plan{Database: cs.Database}, Decision: policy.Decision{Outcome: policy.Allow}}, nil
 	}
@@ -95,4 +103,58 @@ func (s *Service) Diff(ctx context.Context, connID uuid.UUID, database string, t
 // SaveLayout stores diagram positions.
 func (s *Service) SaveLayout(ctx context.Context, connID uuid.UUID, database string, positions map[string]store.Position) error {
 	return s.layouts.Put(ctx, connID, database, positions)
+}
+
+// Preserve copies into target what DBML cannot express, from the live
+// model, so a model edited as DBML never drops it by omission: check
+// constraints, partial-index predicates, index methods, ALWAYS identities,
+// and views, functions and sequences. A table or index that is gone from
+// target stays gone.
+func Preserve(live, target *schema.Database) {
+	for si := range target.Schemas {
+		ts := &target.Schemas[si]
+		ls := live.Schema(ts.Name)
+		if ls == nil {
+			continue
+		}
+		if len(ts.Views) == 0 {
+			ts.Views = ls.Views
+		}
+		if len(ts.Functions) == 0 {
+			ts.Functions = ls.Functions
+		}
+		if len(ts.Sequences) == 0 {
+			ts.Sequences = ls.Sequences
+		}
+		for ti := range ts.Tables {
+			tt := &ts.Tables[ti]
+			lt := ls.Table(tt.Name)
+			if lt == nil {
+				continue
+			}
+			if len(tt.Checks) == 0 {
+				tt.Checks = lt.Checks
+			}
+			for ci := range tt.Columns {
+				tc := &tt.Columns[ci]
+				if lc := lt.Column(tc.Name); lc != nil && lc.Identity == schema.IdentityAlways && tc.Identity == schema.IdentityByDefault {
+					tc.Identity = schema.IdentityAlways
+				}
+			}
+			for ii := range tt.Indexes {
+				ti := &tt.Indexes[ii]
+				for _, li := range lt.Indexes {
+					if li.Name != ti.Name {
+						continue
+					}
+					if ti.Predicate == "" {
+						ti.Predicate = li.Predicate
+					}
+					if ti.Method == "" {
+						ti.Method = li.Method
+					}
+				}
+			}
+		}
+	}
 }
