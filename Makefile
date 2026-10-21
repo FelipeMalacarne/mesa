@@ -4,7 +4,7 @@ BINDIR   := bin
 PG_DIR   ?= /tmp/mesa-pg
 PG_PORT  ?= 5499
 
-.PHONY: all build desktop web generate test test-integration lint fmt dev-db dev-db-stop clean docker-build
+.PHONY: all build desktop web generate test test-integration lint fmt dev-db dev-db-stop clean docker-build package-linux
 
 all: generate web build
 
@@ -45,6 +45,9 @@ dev-db-stop:
 
 docker-build:
 	docker build -t mesa:latest .
+
+package-linux: desktop ## Linux desktop archive in dist/ (VERSION=x.y.z)
+	packaging/linux/package.sh $(BINDIR)/mesa-desktop $$($(GO) env GOARCH) $(or $(VERSION),0.0.0-dev) dist
 
 clean:
 	rm -rf bin web/dist

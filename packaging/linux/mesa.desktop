@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Mesa
+GenericName=SQL client
+Comment=The open-source SQL control plane
+Exec=mesa-desktop %u
+Icon=mesa
+Terminal=false
+Categories=Development;Database;
+MimeType=x-scheme-handler/mesa;
+StartupWMClass=mesa-desktop

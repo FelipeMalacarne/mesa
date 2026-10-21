@@ -102,6 +102,12 @@ make web && make desktop     # Linux needs libwebkit2gtk-4.1-dev and libgtk-3-de
 The same app in a native window, with Mesa's data in the local config directory and the
 encryption key in the OS keychain. `MESA_PROJECT` links a `.mesa/` folder.
 
+Releases ship it as a macOS app (Apple Silicon and Intel), a Windows installer and Linux
+archives. It opens `mesa://` links (`mesa://c/<connection>/sql`,
+`mesa://c/<connection>/db/<database>/t/<schema>/<table>`) and updates itself from signed
+releases (Help → Check for updates; `MESA_UPDATE_CHECK=off` stops the daily check).
+How releases are built and signed: [docs/releasing.md](docs/releasing.md).
+
 ### MCP
 
 Local agents talk to the stdio binary; agents that reach the service use the
@@ -130,6 +136,8 @@ it still goes through policy and audit.
 | `MESA_MCP_WRITES` | `false` | Expose `apply_sql` on the server's `/mcp` endpoint |
 | `MESA_HOME` | OS config dir + `/mesa` | CLI and MCP data directory |
 | `MESA_PROJECT` | working directory for `mesa` and `mesa-mcp`, none for the server | Where to look for a `.mesa/` folder; `off` disables it |
+| `MESA_UPDATE_CHECK` | on | Desktop: `off` stops the daily check for a new release |
+| `MESA_REGISTER_SCHEME` | on | Desktop (Linux, Windows): `off` stops registering Mesa as the `mesa://` handler on start |
 
 Connection passwords can be stored encrypted or given as `env:NAME`, which
 Mesa resolves from its own environment at connect time.

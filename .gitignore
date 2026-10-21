@@ -8,3 +8,5 @@ web/dist/*
 *.local
 .env
 .tanstack
+/dist/
+cmd/desktop/rsrc_*.syso
