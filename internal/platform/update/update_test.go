@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -145,7 +146,8 @@ func TestCheckDownloadAndInstallABinary(t *testing.T) {
 	if b, _ := os.ReadFile(exe + ".old"); string(b) != "old build" {
 		t.Errorf("previous build kept as %q", b)
 	}
-	if info, _ := os.Stat(next); info.Mode().Perm()&0o100 == 0 {
+	// Windows has no execute bit; the .exe name is what makes it runnable.
+	if info, _ := os.Stat(next); runtime.GOOS != "windows" && info.Mode().Perm()&0o100 == 0 {
 		t.Error("installed build is not executable")
 	}
 }
