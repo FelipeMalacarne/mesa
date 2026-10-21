@@ -1,13 +1,21 @@
 name: release
 
 # A tag v1.2.3 builds every binary, the desktop installers and the image,
-# signs what there are keys for, and publishes a GitHub release. Running it
-# by hand builds everything as a dry run and keeps the files as an artifact.
+# signs what there are keys for, and publishes a GitHub release. A branch
+# push that touches packaging, the desktop app or the updater, or a manual
+# run, builds everything as a dry run and keeps the files as an artifact.
 # Secrets and variables are described in docs/releasing.md.
 
 on:
   push:
     tags: ["v*"]
+    branches: ["**"]
+    paths:
+      - packaging/**
+      - cmd/desktop/**
+      - internal/platform/desktop/**
+      - internal/platform/update/**
+      - .github/workflows/release.yml
   workflow_dispatch:
     inputs:
       version:
@@ -30,7 +38,11 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
           PUBLIC_KEY: ${{ vars.MESA_UPDATE_PUBLIC_KEY }}
         run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; publish=true; else v="$INPUT_VERSION"; publish=false; fi
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            v="${GITHUB_REF_NAME#v}" publish=true
+          else
+            v="${INPUT_VERSION:-0.0.0-dryrun.$GITHUB_RUN_NUMBER}" publish=false
+          fi
           case "$v" in
             [0-9]*.[0-9]*.[0-9]*) ;;
             *) echo "version $v is not x.y.z" >&2; exit 1 ;;
