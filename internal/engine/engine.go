@@ -304,4 +304,10 @@ type Admin interface {
 // counts, locks) and validate names.
 type Dialect interface {
 	Compile(ctx context.Context, current *schema.Database, cs *changeset.ChangeSet) (*changeset.Plan, error)
+	// SameType reports whether two type spellings name the same type
+	// ("varchar(20)" and "character varying(20)").
+	SameType(a, b string) bool
+	// SameDefault reports whether two default expressions are equivalent
+	// ("'new'" and "'new'::order_status").
+	SameDefault(a, b string) bool
 }
