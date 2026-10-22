@@ -23,6 +23,7 @@ import { EmptyState, Field, Kbd, Select } from "@/ui/controls";
 import { Dialog, DialogBody, DialogContent, DialogFoot, DialogHead, DialogTitle } from "@/ui/primitives/dialog";
 import { ReviewDialog } from "@/features/changes/ReviewDialog";
 import { tabLink, useTabs, type QueryTab } from "@/features/explorer/tabs.store";
+import { shortcut } from "@/app/keys";
 
 import { useWorkspace } from "../workspace/context";
 import { Editor } from "./Editor";
@@ -156,9 +157,9 @@ function QueryTabView({ tab }: { tab: QueryTab; connectionName: string }) {
       <div className="m-toolbar" style={{ height: "var(--size-toolbar)", flex: "none" }}>
         <Button variant="primary" size="sm" onClick={() => void run()} disabled={running}>
           <Play className="m-icon m-icon--sm" aria-hidden="true" />
-          Run <Kbd>⌘↵</Kbd>
+          Run <Kbd>{shortcut("Enter")}</Kbd>
         </Button>
-        <Button variant="outline" size="sm" onClick={() => void explain(false)} disabled={running} title="EXPLAIN (⇧⌘↵)">
+        <Button variant="outline" size="sm" onClick={() => void explain(false)} disabled={running} title={`EXPLAIN (${shortcut("Enter", { mod: true, shift: true })})`}>
           Explain
         </Button>
         <Button variant="ghost" size="sm" onClick={() => void explain(true)} disabled={running} title="Runs the query inside a transaction that is rolled back">
@@ -185,7 +186,7 @@ function QueryTabView({ tab }: { tab: QueryTab; connectionName: string }) {
           <ShieldCheck className="m-icon m-icon--sm" style={{ color: "var(--success)" }} aria-hidden="true" />
           Writes are reviewed
         </span>
-        <Button variant="ghost" size="sm" onClick={() => setSaving(true)} disabled={!sql.trim()} title="Save (⌘S)">
+        <Button variant="ghost" size="sm" onClick={() => setSaving(true)} disabled={!sql.trim()} title={`Save (${shortcut("KeyS")})`}>
           <Save className="m-icon m-icon--sm" aria-hidden="true" />
           Save
         </Button>
@@ -196,7 +197,7 @@ function QueryTabView({ tab }: { tab: QueryTab; connectionName: string }) {
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ flex: "0 0 40%", minHeight: 120, borderBottom: "1px solid var(--border)" }}>
-            <Editor value={sql} onChange={setSql} onKeyDown={onKeyDown} textareaRef={ta} ariaLabel="SQL" placeholder="select * from …   ⌘↵ runs the statement under the cursor" />
+            <Editor value={sql} onChange={setSql} onKeyDown={onKeyDown} textareaRef={ta} ariaLabel="SQL" placeholder={`select * from …   ${shortcut("Enter")} runs the statement under the cursor`} />
           </div>
           <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, height: 36, flex: "none", padding: "0 12px", borderBottom: "1px solid var(--border)", background: "var(--sidebar)" }}>
@@ -230,7 +231,7 @@ function QueryTabView({ tab }: { tab: QueryTab; connectionName: string }) {
                 )
               ) : (
                 <div style={{ padding: 24 }}>
-                  <EmptyState title="Run a query" description="⌘↵ runs the statement under the cursor, or the selection. ⇧⌘↵ explains it." />
+                  <EmptyState title="Run a query" description={`${shortcut("Enter")} runs the statement under the cursor, or the selection. ${shortcut("Enter", { mod: true, shift: true })} explains it.`} />
                 </div>
               )
             ) : pane === "explain" ? (
@@ -352,7 +353,7 @@ function Library({ onPick, onClose }: { onPick: (sql: string) => void; onClose: 
               </div>
             ))}
         {view === "history" && (history.data ?? []).length === 0 ? <p className="m-help">Queries you run on this connection appear here.</p> : null}
-        {view === "saved" && mine.length === 0 ? <p className="m-help">Save a query with ⌘S to keep it here.</p> : null}
+        {view === "saved" && mine.length === 0 ? <p className="m-help">Save a query with {shortcut("KeyS")} to keep it here.</p> : null}
       </div>
     </aside>
   );

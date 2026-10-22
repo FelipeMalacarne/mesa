@@ -17,6 +17,7 @@ import { Button } from "@/ui/Button";
 import { CodeBlock } from "@/ui/Code";
 import { EnvTag, Kbd } from "@/ui/controls";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFoot, DialogHead, DialogTitle } from "@/ui/primitives/dialog";
+import { shortcut } from "@/app/keys";
 
 export interface Review {
   plan: Plan;
@@ -223,7 +224,7 @@ function ReviewBody({ title, target, connection, reviewKey, load, apply, onAppli
           Cancel
         </Button>
         <Button variant={needsName && connection.environment === "production" ? "destructive" : "primary"} disabled={!canApply} onClick={doApply}>
-          {busy ? "Applying…" : (applyLabel ?? `Apply ${plural(count, "statement")}`)} <Kbd>⌘↵</Kbd>
+          {busy ? "Applying…" : (applyLabel ?? `Apply ${plural(count, "statement")}`)} <Kbd>{shortcut("Enter")}</Kbd>
         </Button>
       </DialogFoot>
     </div>
