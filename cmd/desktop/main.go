@@ -145,7 +145,8 @@ func appMenu(ctx func() context.Context, updates *updates) *menu.Menu {
 	view.AddText("Next Tab", keys.Control("tab"), send("tab.next"))
 	view.AddText("Previous Tab", keys.Combo("tab", keys.ControlKey, keys.ShiftKey), send("tab.prev"))
 	view.AddSeparator()
-	view.AddText("Reload", keys.CmdOrCtrl("r"), func(*menu.CallbackData) { runtime.WindowReload(ctx()) })
+	view.AddText("Refresh", keys.CmdOrCtrl("r"), send("refresh"))
+	view.AddText("Reload Window", keys.Combo("r", keys.CmdOrCtrlKey, keys.ShiftKey), func(*menu.CallbackData) { runtime.WindowReload(ctx()) })
 	view.AddText("Toggle Full Screen", keys.Key("f11"), func(*menu.CallbackData) {
 		if runtime.WindowIsFullscreen(ctx()) {
 			runtime.WindowUnfullscreen(ctx())

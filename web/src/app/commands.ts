@@ -48,6 +48,12 @@ export const commands: Command[] = [
     keys: [{ code: "KeyB", mod: true }],
   },
   {
+    id: "refresh",
+    title: "Refresh data",
+    group: "General",
+    keys: [{ code: "KeyR", mod: true }],
+  },
+  {
     id: "filter",
     title: "Filter objects",
     group: "General",
@@ -134,6 +140,8 @@ export function usableKeys(c: Command, desktop: boolean): Binding[] {
 export interface CommandContext {
   navigate: ReturnType<typeof useNavigate>;
   connectionId?: string;
+  /** Refetches what the page shows (rows, the tree, metrics); staged edits are kept. */
+  refresh?: () => void;
 }
 
 const lastRun = new Map<string, number>();
@@ -163,6 +171,9 @@ export function runCommand(id: string, ctx: CommandContext): boolean {
       return true;
     case "filter":
       window.dispatchEvent(new Event("mesa:focus-filter"));
+      return true;
+    case "refresh":
+      ctx.refresh?.();
       return true;
   }
   return runTabCommand(id, ctx.connectionId!, ctx.navigate);

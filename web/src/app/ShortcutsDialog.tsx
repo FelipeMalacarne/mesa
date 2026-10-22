@@ -1,9 +1,10 @@
 /** The keyboard shortcuts sheet (? or ⌘/): the app-wide commands, then each view's own keys. */
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHead, DialogTitle } from "@/ui/primitives/dialog";
 import { Kbd } from "@/ui/controls";
+import { isMac } from "@/lib/utils";
 
 import { commands, usableKeys, type CommandGroup } from "./commands";
-import { label, type Binding } from "./keys";
+import { label, shortcut, type Binding } from "./keys";
 import { useIsDesktop } from "./shortcuts";
 import { useUi } from "./ui.store";
 
@@ -17,13 +18,28 @@ const k = (code: string, mods: Omit<Binding, "code"> = {}) => label({ code, ...m
 /** Keys that belong to one view; they are handled there, not in commands.ts. */
 const viewKeys: { title: string; rows: Row[] }[] = [
   {
+    title: "Object tree",
+    rows: [
+      { title: "Move", keys: ["↑ ↓", "Home", "End"] },
+      { title: "Expand, or step into", keys: ["→"] },
+      { title: "Collapse, or step out", keys: ["←"] },
+      { title: "Open the table", keys: [k("Enter")] },
+      { title: "From the filter: into the tree, open the first match", keys: ["↓", k("Enter")] },
+    ],
+  },
+  {
     title: "Table data",
     rows: [
       {
         title: "Review & commit staged edits",
         keys: [k("KeyS", { mod: true })],
       },
+      { title: "Filter the rows (WHERE)", keys: [k("KeyF", { mod: true })] },
+      { title: "Show or hide the row inspector", keys: [k("KeyI", { mod: true })] },
       { title: "Move between cells", keys: ["↑ ↓ ← →", "Tab"] },
+      { title: "First or last cell of the row", keys: ["Home", "End"] },
+      { title: "First or last row", keys: [k("ArrowUp", { mod: true }), k("ArrowDown", { mod: true })] },
+      { title: "Up or down a page", keys: ["PgUp", "PgDn"] },
       { title: "Edit the cell", keys: [k("Enter"), "F2", "type"] },
       {
         title: "Delete or restore the row",
@@ -127,7 +143,7 @@ export function ShortcutsDialog() {
           <DialogDescription>
             {desktop
               ? "Every shortcut below works in the desktop app."
-              : "In a browser, ⌘W, ⌘T, ⌘1–9 and ⌃Tab belong to the browser, so tabs use ⌥ shortcuts here. The desktop app takes both. ⌥ shortcuts are off while you type in a field."}
+              : `In a browser, ${shortcut("KeyW")}, ${shortcut("KeyT")}, ${shortcut("Digit1")}–9 and ${shortcut("Tab", { ctrl: true })} belong to the browser, so tabs use ${isMac ? "⌥" : "Alt"} shortcuts here. The desktop app takes both. ${isMac ? "⌥" : "Alt"} shortcuts are off while you type in a field.`}
           </DialogDescription>
         </DialogHead>
         <DialogBody

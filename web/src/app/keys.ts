@@ -43,6 +43,11 @@ function keyName(code: string): string {
   return names[code] ?? code;
 }
 
+/** A shortcut as this platform prints it; ⌘ (Ctrl elsewhere) unless other modifiers are given. */
+export function shortcut(code: string, mods: Omit<Binding, "code"> = { mod: true }): string {
+  return label({ code, ...mods });
+}
+
 /** "⇧⌘T" on macOS, "Ctrl+Shift+T" elsewhere. */
 export function label(b: Binding): string {
   const key = keyName(b.code);

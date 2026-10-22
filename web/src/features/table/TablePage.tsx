@@ -23,6 +23,7 @@ import { EmptyState } from "@/ui/controls";
 import { Dialog, DialogBody, DialogContent, DialogFoot, DialogHead, DialogTitle } from "@/ui/primitives/dialog";
 import { ReviewDialog } from "@/features/changes/ReviewDialog";
 import { tableTabId, useTabs, type TableView } from "@/features/explorer/tabs.store";
+import { shortcut } from "@/app/keys";
 
 import { useWorkspace } from "../workspace/context";
 import { countsOf, rowKeyOf, summaryOf, tableKey as makeTableKey, toChangeSet, useChanges, useTableChanges } from "./changes.store";
@@ -128,6 +129,13 @@ export function TablePage({ database, schema, table, view, kind }: Props) {
       } else if (isCmd(e) && e.key.toLowerCase() === "i") {
         e.preventDefault();
         toggleInspector();
+      } else if (isCmd(e) && !e.shiftKey && e.key.toLowerCase() === "f") {
+        // The filter bar is the table's find: focus the first value (or column) of the WHERE.
+        const field = document.querySelector<HTMLElement>('.m-filter input[aria-label="Value"]') ?? document.querySelector<HTMLElement>('.m-filter [aria-label="Column"]');
+        if (field) {
+          e.preventDefault();
+          field.focus();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -196,7 +204,7 @@ export function TablePage({ database, schema, table, view, kind }: Props) {
               <Button
                 variant="ghost"
                 size="sm"
-                title="Mark the row for deletion (⌘⌫)"
+                title={`Mark the row for deletion (${shortcut("Backspace")})`}
                 onClick={() => {
                   if (selected.kind === "insert") removeInsert(tk, selected.insertId!);
                   else if (selected.key) toggleDelete(tk, selected.key);
@@ -210,7 +218,7 @@ export function TablePage({ database, schema, table, view, kind }: Props) {
               <Plus className="m-icon m-icon--sm" aria-hidden="true" />
               Row
             </Button>
-            <Button variant="ghost" size="sm" icon aria-label="Toggle inspector" aria-pressed={inspectorOpen} title="Inspector (⌘I)" onClick={toggleInspector}>
+            <Button variant="ghost" size="sm" icon aria-label="Toggle inspector" aria-pressed={inspectorOpen} title={`Inspector (${shortcut("KeyI")})`} onClick={toggleInspector}>
               <PanelRight className="m-icon m-icon--sm" aria-hidden="true" />
             </Button>
           </>

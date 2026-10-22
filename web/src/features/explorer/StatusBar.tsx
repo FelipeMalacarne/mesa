@@ -13,6 +13,7 @@ import { duration } from "@/lib/format";
 import { Button } from "@/ui/Button";
 import { Kbd, StatusLabel } from "@/ui/controls";
 import { useStatus } from "@/app/status.store";
+import { shortcut } from "@/app/keys";
 
 import { useWorkspace } from "../workspace/context";
 
@@ -111,7 +112,7 @@ export function StatusBar() {
             Discard
           </Button>
           <Button variant="primary" size="xs" onClick={pending.onReview}>
-            Review &amp; commit <Kbd>⌘S</Kbd>
+            Review &amp; commit <Kbd>{shortcut("KeyS")}</Kbd>
           </Button>
         </>
       ) : null}

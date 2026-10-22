@@ -8,10 +8,12 @@ import { cn } from "@/lib/utils";
 import { EnvTag, Kbd } from "@/ui/controls";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/primitives/popover";
 import { useUi } from "@/app/ui.store";
+import { shortcut } from "@/app/keys";
 
 import { useWorkspace } from "../workspace/context";
 import { NewDatabaseDialog } from "./NewDatabaseDialog";
 import { ObjectTree } from "./ObjectTree";
+import { focusFirstItem, openFirstObject } from "./treeKeys";
 
 export function Rail() {
   const { connection, connectionId } = useWorkspace();
@@ -52,9 +54,19 @@ export function Rail() {
                 aria-label="Filter objects"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                onKeyDown={(e) => e.key === "Escape" && setFilter("")}
+                onKeyDown={(e) => {
+                  const tree = e.currentTarget.closest(".m-rail")?.querySelector<HTMLElement>(".m-tree") ?? null;
+                  if (e.key === "Escape") setFilter("");
+                  else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    focusFirstItem(tree);
+                  } else if (e.key === "Enter" && filter.trim()) {
+                    e.preventDefault();
+                    openFirstObject(tree);
+                  }
+                }}
               />
-              <Kbd>⌘P</Kbd>
+              <Kbd>{shortcut("KeyP")}</Kbd>
             </div>
           </div>
           <ObjectTree filter={filter.trim()} onNewDatabase={() => setNewDb(true)} />

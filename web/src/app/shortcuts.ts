@@ -1,5 +1,6 @@
 /** Wires the commands in commands.ts to the keyboard and to desktop menu events. */
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { useGetSystemInfo } from "@/lib/api/system/system";
@@ -15,11 +16,12 @@ export function useIsDesktop(): boolean {
 
 export function useShortcuts() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const params = useParams({ strict: false }) as { connectionId?: string };
   const connectionId = params.connectionId;
 
   React.useEffect(() => {
-    const ctx = { navigate, connectionId };
+    const ctx = { navigate, connectionId, refresh: () => void queryClient.invalidateQueries({ refetchType: "active" }) };
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.isComposing) return;
       const inField = typing(e.target);
@@ -49,5 +51,5 @@ export function useShortcuts() {
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("mesa:command", onCommand);
     };
-  }, [navigate, connectionId]);
+  }, [navigate, connectionId, queryClient]);
 }

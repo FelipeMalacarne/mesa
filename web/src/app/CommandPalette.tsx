@@ -138,7 +138,7 @@ export function CommandPalette() {
             .map((c) => {
               const key = usableKeys(c, desktop)[0];
               return (
-                <CommandItem key={c.id} value={`${c.title} command`} onSelect={() => run(() => void runCommand(c.id, { navigate, connectionId }))}>
+                <CommandItem key={c.id} value={`${c.title} command`} onSelect={() => run(() => void runCommand(c.id, { navigate, connectionId, refresh: () => void qc.invalidateQueries({ refetchType: "active" }) }))}>
                   <CommandIcon className="m-icon m-icon--sm" aria-hidden="true" />
                   {c.title}
                   {key ? <Kbd>{label(key)}</Kbd> : null}

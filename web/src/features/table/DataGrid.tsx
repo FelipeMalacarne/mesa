@@ -164,20 +164,40 @@ export function DataGrid({ columns, rows, offset, meta, tableKey, changes, edita
     }
     if (!active) return;
     const row = list[active.row];
+    const page = 20;
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        move(1, 0);
+        move(isCmd(e) ? list.length : 1, 0);
         return;
       case "ArrowUp":
         e.preventDefault();
-        move(-1, 0);
+        move(isCmd(e) ? -list.length : -1, 0);
         return;
       case "ArrowLeft":
         e.preventDefault();
-        move(0, -1);
+        move(0, isCmd(e) ? -columns.length : -1);
+        return;
+      case "Home":
+        e.preventDefault();
+        move(isCmd(e) ? -list.length : 0, -columns.length);
+        return;
+      case "End":
+        e.preventDefault();
+        move(isCmd(e) ? list.length : 0, columns.length);
+        return;
+      case "PageDown":
+        e.preventDefault();
+        move(page, 0);
+        return;
+      case "PageUp":
+        e.preventDefault();
+        move(-page, 0);
         return;
       case "ArrowRight":
+        e.preventDefault();
+        move(0, isCmd(e) ? columns.length : 1);
+        return;
       case "Tab":
         e.preventDefault();
         move(0, e.shiftKey ? -1 : 1);
