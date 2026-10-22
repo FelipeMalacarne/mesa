@@ -28,6 +28,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/platform"
 	"github.com/felipemalacarne/mesa/internal/platform/bootstrap"
 	"github.com/felipemalacarne/mesa/internal/platform/desktop"
+	"github.com/felipemalacarne/mesa/internal/platform/update"
 	httptransport "github.com/felipemalacarne/mesa/internal/transport/http"
 	"github.com/felipemalacarne/mesa/web"
 )
@@ -61,7 +62,8 @@ func run() error {
 	defer stop()
 	go a.Monitor.Run(ctx)
 
-	if exe, err := os.Executable(); err == nil && os.Getenv("MESA_REGISTER_SCHEME") != "off" {
+	// A Nix install's path changes with every version; its package registers the links.
+	if exe, err := os.Executable(); err == nil && os.Getenv("MESA_REGISTER_SCHEME") != "off" && !update.Managed(exe) {
 		if err := desktop.RegisterScheme(exe); err != nil {
 			log.Warn("cannot register mesa:// links", "err", err)
 		}

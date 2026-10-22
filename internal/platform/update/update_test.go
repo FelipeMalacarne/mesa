@@ -256,3 +256,16 @@ func TestDue(t *testing.T) {
 		t.Error("check after a day is not due")
 	}
 }
+
+func TestManaged(t *testing.T) {
+	if !Managed("/nix/store/0abc-mesa-sql-desktop-0.1.0/bin/.mesa-desktop-wrapped") {
+		t.Error("a /nix/store executable is not managed")
+	}
+	exe := filepath.Join(t.TempDir(), "mesa-desktop")
+	if err := os.WriteFile(exe, nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if Managed(exe) {
+		t.Error("an executable outside /nix/store is managed")
+	}
+}
