@@ -83,7 +83,7 @@ func run() error {
 		BackgroundColour: &options.RGBA{R: 20, G: 20, B: 23, A: 255},
 		// Every request from the webview, the API included, goes to the
 		// same handler the service runs.
-		AssetServer: &assetserver.Options{Handler: handler},
+		AssetServer: &assetserver.Options{Handler: links.serve(handler)},
 		Menu:        appMenu(func() context.Context { return wctx }, updates),
 		OnStartup: func(ctx context.Context) {
 			wctx = ctx
