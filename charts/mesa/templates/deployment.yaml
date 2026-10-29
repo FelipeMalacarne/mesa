@@ -16,31 +16,45 @@ spec:
   template:
     metadata:
       labels: {{ include "mesa.selectorLabels" . | nindent 8 }}
+      {{- if .Values.connections }}
+      annotations:
+        # Declared connections are read at start: a change rolls the pods.
+        checksum/connections: {{ include "mesa.connectionsToml" . | sha256sum }}
+      {{- end }}
     spec:
+      # Mesa does not talk to the Kubernetes API.
+      automountServiceAccountToken: false
       securityContext: {{ toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: mesa
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{ toYaml .Values.securityContext | nindent 12 }}
           ports:
             - name: http
               containerPort: 8080
+          # MESA_APP_KEY, and anything else the Secret holds (a store URL with
+          # its password, the passwords of declared connections).
+          envFrom:
+            - secretRef:
+                name: {{ .Values.config.existingSecret | default (include "mesa.fullname" .) }}
           env:
-            - name: MESA_APP_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.config.existingSecret | default (include "mesa.fullname" .) }}
-                  key: MESA_APP_KEY
             - name: MESA_LISTEN
               value: ":8080"
             - name: MESA_STORE
               value: {{ .Values.config.store | quote }}
+            {{- if .Values.config.storeDSN }}
             - name: MESA_STORE_DSN
               value: {{ .Values.config.storeDSN | quote }}
+            {{- end }}
             - name: MESA_LOG_LEVEL
               value: {{ .Values.config.logLevel | quote }}
             - name: MESA_LOG_FORMAT
               value: {{ .Values.config.logFormat | quote }}
+            {{- if .Values.connections }}
+            - name: MESA_CONNECTIONS
+              value: /etc/mesa/connections.toml
+            {{- end }}
             {{- with .Values.config.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -57,13 +71,23 @@ spec:
             initialDelaySeconds: 2
             periodSeconds: 5
           resources: {{ toYaml .Values.resources | nindent 12 }}
-          {{- if eq .Values.config.store "sqlite" }}
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if eq .Values.config.store "sqlite" }}
             - name: data
               mountPath: /data
-          {{- end }}
-      {{- if eq .Values.config.store "sqlite" }}
+            {{- end }}
+            {{- if .Values.connections }}
+            - name: connections
+              mountPath: /etc/mesa
+              readOnly: true
+            {{- end }}
       volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        {{- if eq .Values.config.store "sqlite" }}
         - name: data
           {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
@@ -71,7 +95,12 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-      {{- end }}
+        {{- end }}
+        {{- if .Values.connections }}
+        - name: connections
+          configMap:
+            name: {{ include "mesa.fullname" . }}-connections
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector: {{ toYaml . | nindent 8 }}
       {{- end }}

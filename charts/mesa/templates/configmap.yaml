@@ -1,0 +1,10 @@
+{{- if .Values.connections }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mesa.fullname" . }}-connections
+  labels: {{ include "mesa.labels" . | nindent 4 }}
+data:
+  connections.toml: |
+    {{- include "mesa.connectionsToml" . | nindent 4 }}
+{{- end }}
