@@ -4,6 +4,19 @@ Mesa is an open-source SQL control plane: one Go application layer shipped as on
 
 Read `docs/architecture.md` before changing structure, and the ADRs in `docs/adr/` before revisiting a decision.
 
+## Design
+
+The product design lives on claude.ai and is the source of truth for the UI:
+
+- **Mesa** design system: https://claude.ai/artifact/PrzDHq5SgQ7j5w5n6krEhX (tokens, `components/bundle.css`, a README and preview per component, `layout.md` for screens and navigation).
+- **Mesa — Screens** canvas: https://claude.ai/artifact/VgkixCE9HtcFZ2UNpt6jd1 (one board per screen; it installs a copy of the design system under `ds/mesa/`).
+
+Keep them in sync with the code, in the same change as the UI work:
+
+- `web/src/ui/mesa.css` above its "App additions" line is a verbatim copy of the design system's `components/bundle.css`, and `web/src/styles.css` is generated from its tokens. A new or changed component style goes into the design system's `bundle.css` and that copy together; only app plumbing (Radix positioning, z-index) stays in the app additions.
+- A UI change also updates the component's README and preview in the design system, the boards it touches on the screens canvas, and the canvas's `ds/mesa/components/bundle.css` copy; then set the design system's `lastChange`.
+- Say in the PR which of the two were updated.
+
 ## Layout
 
 ```
