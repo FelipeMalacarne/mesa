@@ -13,7 +13,11 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"log/slog"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/menu"
@@ -71,9 +75,19 @@ func run() error {
 		links.pending = route
 	}
 	updates := newUpdates(configDir, log)
+	zoom := desktop.NewZoom(filepath.Join(configDir, "window-zoom"))
 
-	handler := httptransport.New(a, httptransport.Options{Assets: web.Assets(), Logger: log})
 	var wctx context.Context
+	ctxOf := func() context.Context { return wctx }
+	// The page hears about every zoom change, the menu's too, so Settings
+	// shows the current level.
+	applyZoom := func(level float64) {
+		setZoom(level)
+		runtime.WindowExecJS(ctxOf(), `window.dispatchEvent(new CustomEvent("mesa:zoom",{detail:`+strconv.FormatFloat(level, 'f', -1, 64)+`}))`)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/desktop/zoom", zoom.Handler(nativeZoom, applyZoom))
+	mux.Handle("/", httptransport.New(a, httptransport.Options{Assets: web.Assets(), Logger: log}))
 	return wails.Run(&options.App{
 		Title:            "Mesa",
 		Width:            1440,
@@ -82,15 +96,18 @@ func run() error {
 		MinHeight:        600,
 		BackgroundColour: &options.RGBA{R: 20, G: 20, B: 23, A: 255},
 		// Every request from the webview, the API included, goes to the
-		// same handler the service runs.
-		AssetServer: &assetserver.Options{Handler: handler},
-		Menu:        appMenu(func() context.Context { return wctx }, updates),
+		// same handler the service runs; /desktop/zoom is the one addition.
+		AssetServer: &assetserver.Options{Handler: mux},
+		Menu:        appMenu(ctxOf, updates, zoom, applyZoom, log),
 		OnStartup: func(ctx context.Context) {
 			wctx = ctx
 			links.start(ctx)
 			go updates.background(ctx)
 		},
-		OnDomReady: links.ready,
+		OnDomReady: func(ctx context.Context) {
+			setZoom(zoom.Level())
+			links.ready(ctx)
+		},
 		// A second launch (a mesa:// link clicked on Linux or Windows) hands
 		// its arguments to this window and exits.
 		SingleInstanceLock: &options.SingleInstanceLock{
@@ -114,20 +131,41 @@ func run() error {
 	})
 }
 
-func appMenu(ctx func() context.Context, updates *updates) *menu.Menu {
+func appMenu(ctx func() context.Context, updates *updates, zoom *desktop.Zoom, applyZoom func(float64), log *slog.Logger) *menu.Menu {
 	m := menu.NewMenu()
 	// The role menus exist only on macOS, where Edit is what makes copy and
 	// paste work in the webview; Linux and Windows handle those natively.
 	if isMac() {
 		m.Append(menu.AppMenu())
+	}
+	file := m.AddSubmenu("File")
+	file.AddText("New query", keys.CmdOrCtrl("t"), command(ctx, "tab.new"))
+	file.AddText("Close tab", keys.CmdOrCtrl("w"), command(ctx, "tab.close"))
+	file.AddText("Reopen closed tab", keys.Combo("t", keys.CmdOrCtrlKey, keys.ShiftKey), command(ctx, "tab.reopen"))
+	file.AddSeparator()
+	file.AddText("Settings…", keys.CmdOrCtrl(","), command(ctx, "settings"))
+	if isMac() {
 		m.Append(menu.EditMenu())
 	}
 	view := m.AddSubmenu("View")
-	view.AddText("Reload", keys.CmdOrCtrl("r"), func(*menu.CallbackData) { runtime.WindowReload(ctx()) })
-	view.AddText("Command palette", keys.CmdOrCtrl("k"), func(*menu.CallbackData) {
-		runtime.WindowExecJS(ctx(), `window.dispatchEvent(new KeyboardEvent("keydown",{key:"k",metaKey:navigator.platform.includes("Mac"),ctrlKey:!navigator.platform.includes("Mac")}))`)
-	})
+	view.AddText("Command palette", keys.CmdOrCtrl("k"), command(ctx, "palette"))
+	view.AddText("Find object", keys.CmdOrCtrl("p"), command(ctx, "objects.find"))
+	view.AddText("Toggle sidebar", keys.CmdOrCtrl("b"), command(ctx, "sidebar.toggle"))
+	view.AddText("Keyboard shortcuts", keys.CmdOrCtrl("/"), command(ctx, "shortcuts"))
 	view.AddSeparator()
+	if nativeZoom {
+		zoomTo := func(level float64, err error) {
+			if err != nil {
+				log.Warn("cannot save the zoom level", "err", err)
+			}
+			applyZoom(level)
+		}
+		view.AddText("Actual size", keys.CmdOrCtrl("0"), func(*menu.CallbackData) { zoomTo(zoom.Reset()) })
+		view.AddText("Zoom in", keys.CmdOrCtrl("="), func(*menu.CallbackData) { zoomTo(zoom.In()) })
+		view.AddText("Zoom out", keys.CmdOrCtrl("-"), func(*menu.CallbackData) { zoomTo(zoom.Out()) })
+		view.AddSeparator()
+	}
+	view.AddText("Reload", keys.CmdOrCtrl("r"), func(*menu.CallbackData) { runtime.WindowReload(ctx()) })
 	view.AddText("Toggle full screen", keys.Key("f11"), func(*menu.CallbackData) {
 		if runtime.WindowIsFullscreen(ctx()) {
 			runtime.WindowUnfullscreen(ctx())
@@ -135,8 +173,20 @@ func appMenu(ctx func() context.Context, updates *updates) *menu.Menu {
 			runtime.WindowFullscreen(ctx())
 		}
 	})
+	if isMac() {
+		m.Append(menu.WindowMenu())
+	}
 	help := m.AddSubmenu("Help")
 	help.AddText("Check for updates…", nil, func(*menu.CallbackData) { go updates.check(ctx(), true) })
 	help.AddText("Mesa on GitHub", nil, func(*menu.CallbackData) { runtime.BrowserOpenURL(ctx(), "https://github.com/felipemalacarne/mesa") })
 	return m
+}
+
+// command runs a web app command (web/src/app/commands.ts), the same one its
+// keyboard shortcut runs. Where the menu sees a key first (GTK), this is how
+// the shortcut reaches the page; where the page sees it first (WebKit on
+// macOS) the page handles it and the menu item does not fire.
+func command(ctx func() context.Context, id string) menu.Callback {
+	js := `window.dispatchEvent(new CustomEvent("mesa:command",{detail:` + strconv.Quote(id) + `}))`
+	return func(*menu.CallbackData) { runtime.WindowExecJS(ctx(), js) }
 }
