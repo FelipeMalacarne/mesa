@@ -1,7 +1,7 @@
 /**
  * Pure helpers over the schema model for the designer: keys, edits made from the UI (the DBML
- * is re-printed from the edited model), what is new compared with the live database, and a
- * dependency-ordered auto layout.
+ * is re-printed from the edited model) and what is new compared with the live database.
+ * Layouts live in layout.ts.
  */
 import type { Column, Database, ForeignKey, Table } from "@/lib/api/mesaAPI.schemas";
 
@@ -129,55 +129,210 @@ export function fkId(f: ForeignKey): string {
   return `${f.columns.join(",")}>${f.references.schema}.${f.references.name}(${f.refColumns.join(",")})`;
 }
 
-/** Places tables left to right by how deep their references go, stacking each column. */
-export function autoLayout(db: Database, keep: Record<string, Pos> = {}): Record<string, Pos> {
-  const refs = tablesOf(db);
-  const byKey = new Map(refs.map((r) => [r.key, r]));
-  const depth = new Map<string, number>();
-  const visit = (key: string, seen: Set<string>): number => {
-    if (depth.has(key)) return depth.get(key)!;
-    if (seen.has(key)) return 0;
-    seen.add(key);
-    const r = byKey.get(key);
-    let d = 0;
-    for (const f of r?.table.foreignKeys ?? []) {
-      const target = tableKey(f.references.schema, f.references.name);
-      if (target !== key && byKey.has(target)) d = Math.max(d, visit(target, seen) + 1);
-    }
-    depth.set(key, d);
-    return d;
-  };
-  for (const r of refs) visit(r.key, new Set());
-  const columns = new Map<number, TableRef[]>();
-  for (const r of refs) {
-    const d = depth.get(r.key) ?? 0;
-    columns.set(d, [...(columns.get(d) ?? []), r]);
-  }
-  const out: Record<string, Pos> = { ...keep };
-  for (const [d, list] of [...columns.entries()].sort((a, b) => a[0] - b[0])) {
-    let y = 40;
-    for (const r of list.sort((a, b) => a.table.name.localeCompare(b.table.name))) {
-      if (!keep[r.key]) out[r.key] = { x: 40 + d * (NODE_WIDTH + 100), y };
-      y += nodeHeight(r.table) + 40;
-    }
-  }
-  return out;
+function renameIn(list: string[] | undefined, from: string, to: string): string[] | undefined {
+  return list?.map((c) => (c === from ? to : c));
 }
 
-/** Positions for tables that have none yet, placed below or beside the others. */
-export function placeMissing(db: Database, positions: Record<string, Pos>): Record<string, Pos> {
-  const missing = tablesOf(db).filter((t) => !positions[t.key]);
-  if (missing.length === 0) return positions;
-  if (Object.keys(positions).length === 0) return autoLayout(db);
-  // New tables go in a row under everything already placed.
-  const out = { ...positions };
-  let bottom = 0;
-  const heights = new Map(tablesOf(db).map((t) => [t.key, nodeHeight(t.table)]));
-  for (const [key, p] of Object.entries(positions)) bottom = Math.max(bottom, p.y + (heights.get(key) ?? 0));
-  let x = 40;
-  for (const m of missing) {
-    out[m.key] = { x, y: bottom + 60 };
-    x += NODE_WIDTH + 60;
+/** Changes a column; a new name follows into keys, indexes and relations. */
+export function updateColumn(db: Database, key: string, name: string, patch: Partial<Column>): Database {
+  const next = clone(db);
+  const ref = findTable(next, key);
+  if (!ref) return next;
+  const t = ref.table;
+  t.columns = t.columns.map((c) => (c.name === name ? { ...c, ...patch } : c));
+  for (const c of t.columns) if (c.default === undefined) delete c.default;
+  const to = patch.name;
+  if (to && to !== name) {
+    if (t.primaryKey) t.primaryKey = { ...t.primaryKey, columns: renameIn(t.primaryKey.columns, name, to)! };
+    t.uniques = t.uniques?.map((u) => ({ ...u, columns: renameIn(u.columns, name, to)! }));
+    t.indexes = t.indexes?.map((i) => ({ ...i, columns: renameIn(i.columns, name, to) }));
+    t.foreignKeys = t.foreignKeys?.map((f) => ({ ...f, columns: renameIn(f.columns, name, to)! }));
+    for (const o of tablesOf(next))
+      o.table.foreignKeys = o.table.foreignKeys?.map((f) => (tableKey(f.references.schema, f.references.name) === key ? { ...f, refColumns: renameIn(f.refColumns, name, to)! } : f));
   }
-  return out;
+  return next;
+}
+
+/** Puts a column in or out of the primary key; key columns cannot be null. */
+export function togglePrimaryKey(db: Database, key: string, column: string): Database {
+  const next = clone(db);
+  const ref = findTable(next, key);
+  if (!ref) return next;
+  const t = ref.table;
+  const cols = t.primaryKey?.columns ?? [];
+  const on = !cols.includes(column);
+  const nextCols = on ? [...cols, column] : cols.filter((c) => c !== column);
+  t.primaryKey = nextCols.length ? { name: t.primaryKey?.name, columns: nextCols } : undefined;
+  if (on) t.columns = t.columns.map((c) => (c.name === column ? { ...c, nullable: false } : c));
+  return next;
+}
+
+export type KeyKind = "unique" | "index";
+
+/** Adds a unique constraint or an index over the columns, in order. */
+export function addKey(db: Database, key: string, kind: KeyKind, columns: string[], name?: string): Database {
+  const next = clone(db);
+  const ref = findTable(next, key);
+  if (!ref || columns.length === 0) return next;
+  const t = ref.table;
+  if (kind === "unique") t.uniques = [...(t.uniques ?? []), { name: name || undefined, columns }];
+  else t.indexes = [...(t.indexes ?? []), { name: name || indexName(t.name, columns, "idx"), columns }];
+  return next;
+}
+
+/** Removes the i-th unique constraint or index. */
+export function removeKey(db: Database, key: string, kind: KeyKind, i: number): Database {
+  const next = clone(db);
+  const ref = findTable(next, key);
+  if (!ref) return next;
+  if (kind === "unique") ref.table.uniques = (ref.table.uniques ?? []).filter((_, j) => j !== i);
+  else ref.table.indexes = (ref.table.indexes ?? []).filter((_, j) => j !== i);
+  return next;
+}
+
+/** Whether a single column is unique on its own (constraint or unique index). */
+export function isUnique(t: Table, column: string): boolean {
+  return (t.uniques ?? []).some((u) => u.columns.length === 1 && u.columns[0] === column) || (t.indexes ?? []).some((i) => i.unique && i.columns?.length === 1 && i.columns[0] === column);
+}
+
+export function indexName(table: string, columns: string[], suffix: string): string {
+  return `${table}_${columns.join("_")}_${suffix}`.slice(0, 63);
+}
+
+export function removeForeignKey(db: Database, key: string, id: string): Database {
+  const next = clone(db);
+  const ref = findTable(next, key);
+  if (ref) ref.table.foreignKeys = (ref.table.foreignKeys ?? []).filter((f) => fkId(f) !== id);
+  return next;
+}
+
+export function updateForeignKey(db: Database, key: string, id: string, patch: Partial<ForeignKey>): Database {
+  const next = clone(db);
+  const ref = findTable(next, key);
+  if (ref) ref.table.foreignKeys = (ref.table.foreignKeys ?? []).map((f) => (fkId(f) === id ? { ...f, ...patch } : f));
+  return next;
+}
+
+/** Renames a table; relations to it follow. Only for tables not in the database yet. */
+export function renameTable(db: Database, key: string, name: string): Database {
+  const next = clone(db);
+  const ref = findTable(next, key);
+  if (!ref) return next;
+  ref.table.name = name;
+  for (const o of tablesOf(next))
+    o.table.foreignKeys = o.table.foreignKeys?.map((f) => (tableKey(f.references.schema, f.references.name) === key ? { ...f, references: { ...f.references, name } } : f));
+  return next;
+}
+
+export function setTableComment(db: Database, key: string, comment: string): Database {
+  const next = clone(db);
+  const ref = findTable(next, key);
+  if (ref) ref.table.comment = comment || undefined;
+  return next;
+}
+
+/** Puts a table the edit dropped back as it is in the database. */
+export function restoreTable(db: Database, live: Database, key: string): Database {
+  const l = findTable(live, key);
+  if (!l || findTable(db, key)) return db;
+  return addTable(db, l.schema, JSON.parse(JSON.stringify(l.table)) as Table);
+}
+
+/** Puts a dropped column back where it was, with the keys and relations it had. */
+export function restoreColumn(db: Database, live: Database, key: string, column: string): Database {
+  const l = findTable(live, key)?.table;
+  const next = clone(db);
+  const t = findTable(next, key)?.table;
+  const c = l?.columns.find((x) => x.name === column);
+  if (!l || !t || !c || t.columns.some((x) => x.name === column)) return next;
+  const i = l.columns.findIndex((x) => x.name === column);
+  const before = l.columns.slice(0, i).map((x) => x.name);
+  const at = t.columns.reduce((pos, x, j) => (before.includes(x.name) ? j + 1 : pos), 0);
+  t.columns = [...t.columns.slice(0, at), { ...c }, ...t.columns.slice(at)];
+  const present = new Set(t.columns.map((x) => x.name));
+  const fits = (cols: string[] | undefined) => !!cols?.includes(column) && cols.every((x) => present.has(x));
+  if (l.primaryKey && fits(l.primaryKey.columns)) t.primaryKey = l.primaryKey;
+  for (const u of l.uniques ?? []) if (fits(u.columns) && !(t.uniques ?? []).some((x) => x.columns.join() === u.columns.join())) t.uniques = [...(t.uniques ?? []), u];
+  for (const x of l.indexes ?? []) if (fits(x.columns) && !(t.indexes ?? []).some((y) => y.name === x.name)) t.indexes = [...(t.indexes ?? []), x];
+  for (const f of l.foreignKeys ?? []) if (fits(f.columns) && !(t.foreignKeys ?? []).some((y) => fkId(y) === fkId(f))) t.foreignKeys = [...(t.foreignKeys ?? []), f];
+  return next;
+}
+
+/** "customers" → "customer", "categories" → "category". Good enough for column names. */
+export function singular(name: string): string {
+  if (/ies$/i.test(name)) return name.slice(0, -3) + "y";
+  if (/(x|ch|sh|ss|us)es$/i.test(name)) return name.slice(0, -2);
+  if (/(ss|us|is)$/i.test(name)) return name;
+  if (/s$/i.test(name)) return name.slice(0, -1);
+  return name;
+}
+
+/** A referencing column takes the referenced type, without what makes it generate values. */
+function referencingType(type: string): string {
+  const t = type.trim().toLowerCase();
+  if (t === "serial" || t === "serial4") return "integer";
+  if (t === "bigserial" || t === "serial8") return "bigint";
+  if (t === "smallserial" || t === "serial2") return "smallint";
+  return type;
+}
+
+function keyed(t: Table, column: string): boolean {
+  return (t.primaryKey?.columns.length === 1 && t.primaryKey.columns[0] === column) || isUnique(t, column);
+}
+
+export interface RelateResult {
+  model: Database;
+  /** The table that got the foreign key, and the key. */
+  from?: string;
+  fk?: ForeignKey;
+  /** A column made for the relation (dragging a key onto a table). */
+  addedColumn?: string;
+  error?: string;
+  /** The two columns' types differ; the database may refuse the key. */
+  warning?: string;
+}
+
+/**
+ * A relation drawn on the canvas, from a column to a column or to a whole table. The side that
+ * is a primary key or unique column is the one referenced; drop a key on a table and that table
+ * gets a `<table>_<column>` column for it (reusing one with that name).
+ */
+export function relate(db: Database, a: { table: string; column: string }, b: { table: string; column?: string }): RelateResult {
+  const ta = findTable(db, a.table);
+  const tb = findTable(db, b.table);
+  if (!ta || !tb) return { model: db, error: "That table is not in the model." };
+  let fromRef = ta;
+  let fromCol: string;
+  let toRef = tb;
+  let toCol: string;
+  let addedColumn: string | undefined;
+  let model = db;
+  if (b.column) {
+    if (keyed(tb.table, b.column)) [fromCol, toCol] = [a.column, b.column];
+    else if (keyed(ta.table, a.column)) [fromRef, fromCol, toRef, toCol] = [tb, b.column, ta, a.column];
+    else return { model: db, error: `A relation must refer to a primary key or unique column; neither ${a.column} nor ${b.column} is one.` };
+  } else if (keyed(ta.table, a.column)) {
+    // A key dropped on a table: that table refers to it.
+    [fromRef, toRef, toCol] = [tb, ta, a.column];
+    const name = `${singular(ta.table.name)}_${a.column}`;
+    const existing = tb.table.columns.find((c) => c.name === name);
+    fromCol = name;
+    if (!existing) {
+      const ref = ta.table.columns.find((c) => c.name === a.column)!;
+      model = addColumn(model, tb.key, { name, type: referencingType(ref.type), nullable: true }, false);
+      addedColumn = name;
+    }
+  } else {
+    const pk = tb.table.primaryKey?.columns;
+    if (pk?.length !== 1) return { model: db, error: `${tb.table.name} has no single-column primary key to refer to; drop onto a unique column instead.` };
+    [fromCol, toCol] = [a.column, pk[0]!];
+  }
+  if (fromRef.key === toRef.key && fromCol === toCol) return { model: db, error: "A column cannot refer to itself." };
+  const fk: ForeignKey = { columns: [fromCol], references: { schema: toRef.schema, name: toRef.table.name }, refColumns: [toCol] };
+  const fromTable = findTable(model, fromRef.key)!.table;
+  if ((fromTable.foreignKeys ?? []).some((f) => fkId(f) === fkId(fk))) return { model: db, error: "That relation is already there." };
+  const a1 = fromTable.columns.find((c) => c.name === fromCol)?.type ?? "";
+  const b1 = toRef.table.columns.find((c) => c.name === toCol)?.type ?? "";
+  const warning = referencingType(a1).toLowerCase() !== referencingType(b1).toLowerCase() ? `${fromRef.table.name}.${fromCol} is ${a1} but ${toRef.table.name}.${toCol} is ${b1}; the database may refuse the key.` : undefined;
+  return { model: addForeignKey(model, fromRef.key, fk), from: fromRef.key, fk, addedColumn, warning };
 }
