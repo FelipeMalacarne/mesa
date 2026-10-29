@@ -5,6 +5,7 @@ import { EmptyState } from "@/ui/controls";
 import { errorMessage } from "@/lib/api/fetch";
 
 import { CommandPalette } from "../CommandPalette";
+import { SettingsDialog } from "../SettingsDialog";
 import { ShortcutsDialog } from "../ShortcutsDialog";
 import { useShortcuts } from "../shortcuts";
 
@@ -45,6 +46,7 @@ function Root() {
       <Outlet />
       <CommandPalette />
       <ShortcutsDialog />
+      <SettingsDialog />
     </>
   );
 }

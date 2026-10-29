@@ -5,28 +5,38 @@
  *
  * Browsers keep ⌘W, ⌘T, ⌘1–9 and ⌃Tab for their own tabs, so every tab command also has an
  * ⌥ shortcut. ⌥ shortcuts are ignored while typing, where ⌥ types characters ([, ], @…).
+ * Commands marked `vim` run only with vim keys on (Settings → Keyboard, vim.ts).
  */
 import type { useNavigate } from "@tanstack/react-router";
 
+import { isMac } from "@/lib/utils";
 import { tabLink, useTabs, type Tab } from "@/features/explorer/tabs.store";
+import { focusMain, focusPane } from "@/features/workspace/focus";
 
 import type { Binding } from "./keys";
 import { useUi } from "./ui.store";
 
-export type CommandGroup = "General" | "Tabs";
+export type CommandGroup = "General" | "Tabs" | "Vim keys";
 
 export interface Command {
   id: string;
   title: string;
   group: CommandGroup;
   keys: Binding[];
-  /** Needs an open connection (tabs, the object filter). */
+  /** Needs an open connection (tabs, the object search). */
   inConnection?: boolean;
   /** Left out of the palette and the sheet (the sheet shows ⌘1–9 as one row). */
   hidden?: boolean;
+  /** Runs only with vim keys on. */
+  vim?: boolean;
+  /** Not run while focus is inside this selector, where its keys mean something else. */
+  notIn?: string;
 }
 
 const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+// ⌃h/j/k/l on macOS; elsewhere Ctrl is ⌘ (Ctrl+K is the palette), so Alt.
+const pane = (code: string): Binding => (isMac ? { code, ctrl: true } : { code, alt: true });
 
 export const commands: Command[] = [
   {
@@ -34,6 +44,12 @@ export const commands: Command[] = [
     title: "Command palette",
     group: "General",
     keys: [{ code: "KeyK", mod: true }],
+  },
+  {
+    id: "settings",
+    title: "Settings",
+    group: "General",
+    keys: [{ code: "Comma", mod: true }],
   },
   {
     id: "help",
@@ -55,9 +71,16 @@ export const commands: Command[] = [
   },
   {
     id: "filter",
-    title: "Filter objects",
+    title: "Find a table, view, function or column",
     group: "General",
     keys: [{ code: "KeyP", mod: true }],
+    inConnection: true,
+  },
+  {
+    id: "tree",
+    title: "Focus the object tree",
+    group: "General",
+    keys: [{ code: "KeyE", mod: true, shift: true }],
     inConnection: true,
   },
   {
@@ -126,6 +149,41 @@ export const commands: Command[] = [
       ],
     }),
   ),
+  {
+    id: "pane.left",
+    title: "To the sidebar",
+    group: "Vim keys",
+    inConnection: true,
+    vim: true,
+    keys: [pane("KeyH")],
+  },
+  {
+    id: "pane.right",
+    title: "To the view",
+    group: "Vim keys",
+    inConnection: true,
+    vim: true,
+    keys: [pane("KeyL")],
+  },
+  {
+    id: "pane.down",
+    title: "Next pane in the view (SQL editor → results)",
+    group: "Vim keys",
+    inConnection: true,
+    vim: true,
+    // In the sidebar ⌃j/⌃k move through the search results and the tree.
+    notIn: ".m-rail",
+    keys: [pane("KeyJ")],
+  },
+  {
+    id: "pane.up",
+    title: "Previous pane in the view",
+    group: "Vim keys",
+    inConnection: true,
+    vim: true,
+    notIn: ".m-rail",
+    keys: [pane("KeyK")],
+  },
 ];
 
 export function command(id: string): Command | undefined {
@@ -160,21 +218,39 @@ export function runCommand(id: string, ctx: CommandContext): boolean {
   const ui = useUi.getState();
   switch (id) {
     case "palette":
+      ui.setSettingsOpen(false);
       ui.setPaletteOpen(!ui.paletteOpen);
+      return true;
+    case "settings":
+      if (ui.settingsOpen) ui.setSettingsOpen(false);
+      else ui.openSettings("appearance");
       return true;
     case "help":
       ui.setPaletteOpen(false);
+      ui.setSettingsOpen(false);
       ui.setHelpOpen(!ui.helpOpen);
       return true;
     case "rail":
       ui.toggleRail();
       return true;
     case "filter":
-      window.dispatchEvent(new Event("mesa:focus-filter"));
+      ui.focusRail("filter");
+      return true;
+    case "tree":
+      ui.focusRail("tree");
       return true;
     case "refresh":
       ctx.refresh?.();
       return true;
+    case "pane.left":
+      ui.focusRail("tree");
+      return true;
+    case "pane.right":
+      return focusPane(0);
+    case "pane.down":
+      return focusPane(1);
+    case "pane.up":
+      return focusPane(-1);
   }
   return runTabCommand(id, ctx.connectionId!, ctx.navigate);
 }
@@ -194,6 +270,8 @@ function runTabCommand(id: string, connectionId: string, navigate: CommandContex
   switch (id) {
     case "tab.new":
       show(store.newQuery(connectionId));
+      // Typing right away goes into the new editor.
+      focusMain();
       return true;
     case "tab.close":
       if (index >= 0) show(store.close(connectionId, tabs[index].id));

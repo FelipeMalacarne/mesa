@@ -13,7 +13,11 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"log/slog"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/menu"
@@ -73,9 +77,19 @@ func run() error {
 		links.pending = route
 	}
 	updates := newUpdates(configDir, log)
+	zoom := desktop.NewZoom(filepath.Join(configDir, "window-zoom"))
 
-	handler := httptransport.New(a, httptransport.Options{Assets: web.Assets(), Logger: log})
 	var wctx context.Context
+	ctxOf := func() context.Context { return wctx }
+	// The page hears about every zoom change, the menu's too, so Settings
+	// shows the current level.
+	applyZoom := func(level float64) {
+		setZoom(level)
+		runtime.WindowExecJS(ctxOf(), `window.dispatchEvent(new CustomEvent("mesa:zoom",{detail:`+strconv.FormatFloat(level, 'f', -1, 64)+`}))`)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/desktop/zoom", zoom.Handler(nativeZoom, applyZoom))
+	mux.Handle("/", links.serve(httptransport.New(a, httptransport.Options{Assets: web.Assets(), Logger: log})))
 	return wails.Run(&options.App{
 		Title:            "Mesa",
 		Width:            1440,
@@ -84,15 +98,18 @@ func run() error {
 		MinHeight:        600,
 		BackgroundColour: &options.RGBA{R: 20, G: 20, B: 23, A: 255},
 		// Every request from the webview, the API included, goes to the
-		// same handler the service runs.
-		AssetServer: &assetserver.Options{Handler: links.serve(handler)},
-		Menu:        appMenu(func() context.Context { return wctx }, updates),
+		// same handler the service runs; /desktop/zoom is the one addition.
+		AssetServer: &assetserver.Options{Handler: mux},
+		Menu:        appMenu(ctxOf, updates, zoom, applyZoom, log),
 		OnStartup: func(ctx context.Context) {
 			wctx = ctx
 			links.start(ctx)
 			go updates.background(ctx)
 		},
-		OnDomReady: links.ready,
+		OnDomReady: func(ctx context.Context) {
+			setZoom(zoom.Level())
+			links.ready(ctx)
+		},
 		// A second launch (a mesa:// link clicked on Linux or Windows) hands
 		// its arguments to this window and exits.
 		SingleInstanceLock: &options.SingleInstanceLock{
@@ -116,7 +133,7 @@ func run() error {
 	})
 }
 
-func appMenu(ctx func() context.Context, updates *updates) *menu.Menu {
+func appMenu(ctx func() context.Context, updates *updates, zoom *desktop.Zoom, applyZoom func(float64), log *slog.Logger) *menu.Menu {
 	// send runs one of the web app's commands (web/src/app/commands.ts), the
 	// same ones its keyboard shortcuts run; it ignores a repeat within 250 ms,
 	// so a key press seen by both the menu and the page acts once.
@@ -136,14 +153,28 @@ func appMenu(ctx func() context.Context, updates *updates) *menu.Menu {
 	file.AddText("Reopen Closed Tab", keys.Combo("t", keys.CmdOrCtrlKey, keys.ShiftKey), send("tab.reopen"))
 	file.AddSeparator()
 	file.AddText("Close Tab", keys.CmdOrCtrl("w"), send("tab.close"))
+	file.AddSeparator()
+	file.AddText("Settings…", keys.CmdOrCtrl(","), send("settings"))
 	if isMac() {
 		m.Append(menu.EditMenu())
 	}
 	view := m.AddSubmenu("View")
 	view.AddText("Command Palette", keys.CmdOrCtrl("k"), send("palette"))
-	view.AddText("Filter Objects", keys.CmdOrCtrl("p"), send("filter"))
+	view.AddText("Find Object", keys.CmdOrCtrl("p"), send("filter"))
 	view.AddText("Show or Hide Sidebar", keys.CmdOrCtrl("b"), send("rail"))
 	view.AddSeparator()
+	if nativeZoom {
+		zoomTo := func(level float64, err error) {
+			if err != nil {
+				log.Warn("cannot save the zoom level", "err", err)
+			}
+			applyZoom(level)
+		}
+		view.AddText("Actual Size", keys.CmdOrCtrl("0"), func(*menu.CallbackData) { zoomTo(zoom.Reset()) })
+		view.AddText("Zoom In", keys.CmdOrCtrl("="), func(*menu.CallbackData) { zoomTo(zoom.In()) })
+		view.AddText("Zoom Out", keys.CmdOrCtrl("-"), func(*menu.CallbackData) { zoomTo(zoom.Out()) })
+		view.AddSeparator()
+	}
 	view.AddText("Next Tab", keys.Control("tab"), send("tab.next"))
 	view.AddText("Previous Tab", keys.Combo("tab", keys.ControlKey, keys.ShiftKey), send("tab.prev"))
 	view.AddSeparator()
@@ -156,6 +187,9 @@ func appMenu(ctx func() context.Context, updates *updates) *menu.Menu {
 			runtime.WindowFullscreen(ctx())
 		}
 	})
+	if isMac() {
+		m.Append(menu.WindowMenu())
+	}
 	help := m.AddSubmenu("Help")
 	help.AddText("Keyboard Shortcuts", keys.CmdOrCtrl("/"), send("help"))
 	help.AddSeparator()

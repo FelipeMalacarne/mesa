@@ -18,9 +18,9 @@ function tree() {
   return root;
 }
 
-function press(root: HTMLElement, key: string) {
-  const ev = { key, currentTarget: root, target: document.activeElement, metaKey: false, ctrlKey: false, altKey: false, preventDefault: vi.fn() };
-  onTreeKeyDown(ev as never);
+function press(root: HTMLElement, key: string, opts: { ctrl?: boolean; onSearch?: () => void } = {}) {
+  const ev = { key, currentTarget: root, target: document.activeElement, metaKey: false, ctrlKey: !!opts.ctrl, altKey: false, preventDefault: vi.fn() };
+  onTreeKeyDown(ev as never, { onSearch: opts.onSearch });
   return ev;
 }
 
@@ -66,5 +66,38 @@ describe("object tree keys", () => {
     press(root, "ArrowLeft");
     expect(collapsed).toHaveBeenCalledOnce();
     expect(document.activeElement?.id).toBe("folder");
+  });
+
+  it("moves like vim: j/k, h to the parent, gg and G, Ctrl+N", () => {
+    const root = tree();
+    focusFirstItem(root);
+    press(root, "j");
+    press(root, "j");
+    expect(document.activeElement?.id).toBe("orders");
+    press(root, "k");
+    expect(document.activeElement?.id).toBe("folder");
+    press(root, "j");
+    press(root, "h");
+    expect(document.activeElement?.id).toBe("folder");
+    press(root, "G");
+    expect(document.activeElement?.id).toBe("col");
+    press(root, "g");
+    press(root, "g");
+    expect(document.activeElement?.id).toBe("db");
+    press(root, "n", { ctrl: true });
+    expect(document.activeElement?.id).toBe("folder");
+  });
+
+  it("opens with Space and o, and / goes to the search", () => {
+    const root = tree();
+    const opened = vi.fn();
+    $("open").addEventListener("click", opened);
+    $("orders").focus();
+    press(root, " ");
+    press(root, "o");
+    expect(opened).toHaveBeenCalledTimes(2);
+    const search = vi.fn();
+    expect(press(root, "/", { onSearch: search }).preventDefault).toHaveBeenCalled();
+    expect(search).toHaveBeenCalledOnce();
   });
 });

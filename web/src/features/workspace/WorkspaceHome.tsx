@@ -16,6 +16,7 @@ import { EnvTag } from "@/ui/controls";
 import { useTabs, tabLink } from "@/features/explorer/tabs.store";
 
 import { useWorkspace } from "./context";
+import { focusMain } from "./focus";
 
 export function WorkspaceHome() {
   const { connection, connectionId } = useWorkspace();
@@ -34,8 +35,8 @@ export function WorkspaceHome() {
   }, [connectionId, navigate]);
 
   const newQuery = () => {
-    const tab = useTabs.getState().newQuery(connectionId);
-    void navigate(tabLink(connectionId, tab));
+    void navigate(tabLink(connectionId, useTabs.getState().newQuery(connectionId)));
+    focusMain();
   };
 
   const tools = [
@@ -129,6 +130,7 @@ export function WorkspaceHome() {
                     const tab = useTabs.getState().newQuery(connectionId);
                     useTabs.getState().update(connectionId, tab.id, { sql: h.sql, database: h.database });
                     void navigate(tabLink(connectionId, tab));
+                    focusMain();
                   }}
                 >
                   <span className="m-mono" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

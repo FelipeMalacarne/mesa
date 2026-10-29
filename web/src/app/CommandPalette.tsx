@@ -1,23 +1,26 @@
 /**
- * ⌘K: jump to a connection, a table of the open connection, or a tool. Tables come from the
- * schemas already loaded in the tree, so the palette never waits on the network.
+ * ⌘K: jump to a connection, an open tab, a table of the open connection, or a tool, or run a
+ * command. Tables come from the schemas already loaded in the tree, so the palette never waits
+ * on the network.
  */
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Activity, Command as CommandIcon, Database, Eye, History, LayoutGrid, Moon, SquareTerminal, Table2, Users } from "lucide-react";
+import { Activity, Command as CommandIcon, Database, Eye, History, Keyboard, LayoutGrid, Moon, SquareTerminal, Table2, Users } from "lucide-react";
 
 import { useListConnections } from "@/lib/api/connections/connections";
 import type { Database as DatabaseModel } from "@/lib/api/mesaAPI.schemas";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/ui/primitives/command";
 import { EnvTag, Kbd } from "@/ui/controls";
-import { tabLink, useTabs } from "@/features/explorer/tabs.store";
+import { TabIcon } from "@/features/explorer/TabStrip";
+import { tabLink, useConnectionTabs } from "@/features/explorer/tabs.store";
 
 import { commands, runCommand, usableKeys } from "./commands";
 import { label } from "./keys";
 import { useIsDesktop } from "./shortcuts";
 import { useTheme } from "./theme";
 import { useUi } from "./ui.store";
+import { useVim } from "./vim";
 
 export function CommandPalette() {
   const open = useUi((s) => s.paletteOpen);
@@ -29,6 +32,14 @@ export function CommandPalette() {
   const connections = useListConnections({ query: { enabled: open } });
   const toggleTheme = useTheme((s) => s.toggle);
   const desktop = useIsDesktop();
+  const vim = useVim((s) => s.vim);
+  const openTabs = useConnectionTabs(connectionId ?? "");
+  const ctx = { navigate, connectionId, refresh: () => void qc.invalidateQueries({ refetchType: "active" }) };
+  const keyOf = (id: string) => {
+    const c = commands.find((x) => x.id === id);
+    const key = c ? usableKeys(c, desktop)[0] : undefined;
+    return key ? label(key) : null;
+  };
 
   const tables = React.useMemo(() => {
     if (!open || !connectionId) return [];
@@ -58,6 +69,17 @@ export function CommandPalette() {
         <CommandEmpty>Nothing matches.</CommandEmpty>
         {connectionId ? (
           <>
+            {openTabs.length > 1 ? (
+              <CommandGroup heading="Open tabs">
+                {openTabs.map((t, i) => (
+                  <CommandItem key={t.id} value={`tab ${t.title} ${t.id}`} onSelect={() => run(() => void navigate(tabLink(connectionId, t)))}>
+                    <TabIcon tab={t} />
+                    {t.title}
+                    {i < 8 && keyOf(`tab.${i + 1}`) ? <Kbd>{keyOf(`tab.${i + 1}`)}</Kbd> : null}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : null}
             {tables.length > 0 ? (
               <CommandGroup heading="Tables">
                 {tables.map((t) => (
@@ -84,15 +106,7 @@ export function CommandPalette() {
               </CommandGroup>
             ) : null}
             <CommandGroup heading="Tools">
-              <CommandItem
-                value="new query sql editor"
-                onSelect={() =>
-                  run(() => {
-                    const tab = useTabs.getState().newQuery(connectionId);
-                    void navigate(tabLink(connectionId, tab));
-                  })
-                }
-              >
+              <CommandItem value="new query sql editor" onSelect={() => run(() => void runCommand("tab.new", ctx))}>
                 <SquareTerminal className="m-icon m-icon--sm" aria-hidden="true" />
                 New query
               </CommandItem>
@@ -134,11 +148,11 @@ export function CommandPalette() {
         </CommandGroup>
         <CommandGroup heading="Commands">
           {commands
-            .filter((c) => !c.hidden && c.id !== "palette" && (!c.inConnection || connectionId))
+            .filter((c) => !c.hidden && !c.vim && c.id !== "palette" && (!c.inConnection || connectionId))
             .map((c) => {
               const key = usableKeys(c, desktop)[0];
               return (
-                <CommandItem key={c.id} value={`${c.title} command`} onSelect={() => run(() => void runCommand(c.id, { navigate, connectionId, refresh: () => void qc.invalidateQueries({ refetchType: "active" }) }))}>
+                <CommandItem key={c.id} value={`${c.title} command`} onSelect={() => run(() => void runCommand(c.id, ctx))}>
                   <CommandIcon className="m-icon m-icon--sm" aria-hidden="true" />
                   {c.title}
                   {key ? <Kbd>{label(key)}</Kbd> : null}
@@ -146,7 +160,11 @@ export function CommandPalette() {
               );
             })}
         </CommandGroup>
-        <CommandGroup heading="Appearance">
+        <CommandGroup heading="Preferences">
+          <CommandItem value="vim keys hjkl toggle" onSelect={() => run(() => useVim.getState().setVim(!useVim.getState().vim))}>
+            <Keyboard className="m-icon m-icon--sm" aria-hidden="true" />
+            {vim ? "Turn vim keys off" : "Turn vim keys on"}
+          </CommandItem>
           <CommandItem value="toggle theme dark light" onSelect={() => run(toggleTheme)}>
             <Moon className="m-icon m-icon--sm" aria-hidden="true" />
             Toggle theme

@@ -6,6 +6,7 @@ import { useListAudit } from "@/lib/api/changes/changes";
 import type { AuditEntry } from "@/lib/api/mesaAPI.schemas";
 import { errorMessage } from "@/lib/api/fetch";
 import { plural, relativeTime } from "@/lib/format";
+import { useListKeys } from "@/lib/listKeys";
 import { cn } from "@/lib/utils";
 import { useStatusFacts } from "@/app/status.store";
 import { CodeBlock } from "@/ui/Code";
@@ -22,6 +23,7 @@ export function ActivityPage() {
     useTabs.getState().open(connectionId, { id: "activity", kind: "activity", title: "Activity" });
   }, [connectionId]);
   const failed = (audit.data ?? []).filter((a) => a.status === "failed").length;
+  const listKeys = useListKeys<HTMLTableElement>();
   useStatusFacts(audit.data ? [plural(audit.data.length, "write"), ...(failed ? [`${failed} failed`] : [])] : []);
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "16px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -35,7 +37,7 @@ export function ActivityPage() {
       {audit.data && audit.data.length === 0 ? <EmptyState icon={<History className="m-icon" aria-hidden="true" />} title="Nothing written yet" description="Row edits, schema changes and scripts appear here once applied, with the SQL that ran and how to undo it." /> : null}
       {audit.data && audit.data.length > 0 ? (
         <div className="m-grid-wrap">
-          <table className="m-grid m-grid--ui" style={{ width: "100%" }}>
+          <table className="m-grid m-grid--ui m-list" style={{ width: "100%" }} aria-label="Writes" {...listKeys}>
             <thead>
               <tr>
                 <th style={{ width: 28 }} />
@@ -62,7 +64,7 @@ export function ActivityPage() {
 function Row({ a, open, onToggle }: { a: AuditEntry; open: boolean; onToggle: () => void }) {
   return (
     <>
-      <tr className="is-link" onClick={onToggle} aria-expanded={open}>
+      <tr className="is-link" data-row="" tabIndex={-1} onClick={onToggle} aria-expanded={open}>
         <td>
           <ChevronRight className={cn("m-tree__chev", open && "is-open")} aria-hidden="true" />
         </td>

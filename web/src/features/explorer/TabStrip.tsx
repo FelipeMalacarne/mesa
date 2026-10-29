@@ -1,4 +1,5 @@
 /** Open objects of the connection as tabs (`Main` board). A dot marks tabs with staged edits. */
+import * as React from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Activity, Eye, History, LayoutGrid, Plus, SquareTerminal, Table2, Users, X } from "lucide-react";
 
@@ -12,9 +13,10 @@ import { label } from "@/app/keys";
 import { useIsDesktop } from "@/app/shortcuts";
 
 import { useWorkspace } from "../workspace/context";
+import { focusMain } from "../workspace/focus";
 import { tabLink, useActiveTab, useConnectionTabs, useTabs, type Tab } from "./tabs.store";
 
-function TabIcon({ tab }: { tab: Tab }) {
+export function TabIcon({ tab }: { tab: Tab }) {
   const cls = "m-icon m-icon--sm";
   switch (tab.kind) {
     case "table":
@@ -43,6 +45,12 @@ export function TabStrip() {
     const k = usableKeys(command(id)!, desktop)[0];
     return k ? label(k) : "";
   };
+  const navRef = React.useRef<HTMLElement>(null);
+
+  // Keep the active tab in sight when the keyboard moves to one scrolled out of view.
+  React.useEffect(() => {
+    navRef.current?.querySelector<HTMLElement>(".m-tab.is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [active?.id, tabs.length]);
 
   const close = (tab: Tab) => {
     const next = useTabs.getState().close(connectionId, tab.id);
@@ -55,11 +63,12 @@ export function TabStrip() {
   const newQuery = () => {
     const tab = useTabs.getState().newQuery(connectionId);
     void navigate(tabLink(connectionId, tab));
+    focusMain();
   };
 
   return (
-    <nav className="m-tabs" aria-label="Open objects" style={{ height: "var(--size-header)", flex: "none", overflowX: "auto", overflowY: "hidden" }}>
-      {tabs.map((tab) => {
+    <nav ref={navRef} className="m-tabs" aria-label="Open objects" style={{ height: "var(--size-header)", flex: "none", overflowX: "auto", overflowY: "hidden" }}>
+      {tabs.map((tab, i) => {
         const dirty = tab.kind === "table" && hasChanges(staged[tableKey(connectionId, tab.database, tab.schema, tab.table)]);
         return (
           <Link
@@ -67,7 +76,7 @@ export function TabStrip() {
             {...tabLink(connectionId, tab)}
             className={cn("m-tab", active?.id === tab.id && "is-active", dirty && "is-dirty")}
             aria-current={active?.id === tab.id ? "page" : undefined}
-            title={tab.kind === "table" ? objectPath(tab.database ?? "", tab.schema ?? "", tab.table ?? "") : tab.title}
+            title={`${tab.kind === "table" ? objectPath(tab.database ?? "", tab.schema ?? "", tab.table ?? "") : tab.title}${i < 8 ? ` (${keyFor(`tab.${i + 1}`)})` : ""}`}
             onAuxClick={(e) => {
               if (e.button === 1) {
                 e.preventDefault();

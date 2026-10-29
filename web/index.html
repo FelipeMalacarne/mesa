@@ -8,15 +8,19 @@
     <meta name="description" content="Mesa — the SQL control plane" />
     <title>Mesa</title>
     <script>
-      // Apply the stored theme before paint. Dark is the default; see src/app/theme.ts.
+      // Apply the stored theme and row density before paint. Dark and compact are the
+      // defaults; see src/app/theme.ts and src/app/density.ts.
       (function () {
         var t = "dark";
+        var d = "compact";
         try {
           t = localStorage.getItem("mesa.theme") === "light" ? "light" : "dark";
+          d = localStorage.getItem("mesa.density") === "comfortable" ? "comfortable" : "compact";
         } catch (e) {}
         var el = document.documentElement;
         el.classList.toggle("dark", t === "dark");
         el.setAttribute("data-theme", t);
+        el.setAttribute("data-density", d);
       })();
     </script>
   </head>

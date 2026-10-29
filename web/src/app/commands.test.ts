@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useTabs, type Tab } from "@/features/explorer/tabs.store";
 
-import { runCommand } from "./commands";
+import { command, runCommand } from "./commands";
 import { label, matches } from "./keys";
 import { useUi } from "./ui.store";
 
@@ -93,3 +93,35 @@ describe("tab commands", () => {
     expect(runCommand("tab.close", { navigate: navigate as never })).toBe(false);
   });
 });
+
+describe("Settings, the object search and vim panes", () => {
+  let now = 1e9;
+  const ctx = () => ({ navigate: vi.fn() as never, connectionId: "c1" });
+
+  beforeEach(() => {
+    vi.spyOn(performance, "now").mockImplementation(() => (now += 1000));
+    useUi.setState({ settingsOpen: false, paletteOpen: false, helpOpen: false, focusRequest: null, railCollapsed: true });
+  });
+
+  it("opens and closes Settings with ⌘,", () => {
+    expect(matches(key("Comma", { ctrlKey: true }), command("settings")!.keys[0])).toBe(true);
+    runCommand("settings", ctx());
+    expect(useUi.getState()).toMatchObject({ settingsOpen: true, settingsSection: "appearance" });
+    runCommand("settings", ctx());
+    expect(useUi.getState().settingsOpen).toBe(false);
+  });
+
+  it("asks the rail for its search or its tree, opening a collapsed rail", () => {
+    runCommand("filter", ctx());
+    expect(useUi.getState()).toMatchObject({ railCollapsed: false, focusRequest: { target: "filter" } });
+    runCommand("tree", ctx());
+    expect(useUi.getState().focusRequest?.target).toBe("tree");
+  });
+
+  it("moves between panes with Alt outside macOS, where Ctrl+K is the palette", () => {
+    expect(matches(key("KeyK", { altKey: true }), command("pane.up")!.keys[0])).toBe(true);
+    expect(matches(key("KeyK", { ctrlKey: true }), command("pane.up")!.keys[0])).toBe(false);
+    expect(command("pane.up")).toMatchObject({ vim: true, notIn: ".m-rail" });
+  });
+});
+

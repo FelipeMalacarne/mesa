@@ -1,10 +1,15 @@
-/** The left rail: connection switcher, object filter, nested tree and the connection's tools. */
+/**
+ * The left rail: connection switcher, object search, nested tree and the connection's tools.
+ * With text in the search the rail lists the matches (ObjectSearch) in place of the tree.
+ * ⌘P focuses the search, ⌘⇧E the tree; ↓ from an empty search goes into the tree and Esc
+ * from it goes back to where focus was.
+ */
 import * as React from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Activity, ChevronsUpDown, Database, History, LayoutGrid, Network, Search, SquareTerminal, Users } from "lucide-react";
 
 import { useListConnections } from "@/lib/api/connections/connections";
-import { cn } from "@/lib/utils";
+import { cn, isMac } from "@/lib/utils";
 import { EnvTag, Kbd } from "@/ui/controls";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/primitives/popover";
 import { useUi } from "@/app/ui.store";
@@ -12,23 +17,72 @@ import { shortcut } from "@/app/keys";
 
 import { useWorkspace } from "../workspace/context";
 import { NewDatabaseDialog } from "./NewDatabaseDialog";
+import { ObjectSearch, type ObjectSearchHandle } from "./ObjectSearch";
 import { ObjectTree } from "./ObjectTree";
-import { focusFirstItem, openFirstObject } from "./treeKeys";
 
 export function Rail() {
   const { connection, connectionId } = useWorkspace();
   const collapsed = useUi((s) => s.railCollapsed);
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilterText] = React.useState("");
+  const [active, setActive] = React.useState(0);
   const [newDb, setNewDb] = React.useState(false);
   const filterRef = React.useRef<HTMLInputElement>(null);
+  const treeRef = React.useRef<HTMLDivElement>(null);
+  const searchRef = React.useRef<ObjectSearchHandle>(null);
+  const returnFocus = React.useRef<HTMLElement | null>(null);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const searchView = useRouterState({ select: (s) => (s.location.search as { view?: string }).view });
+  const query = filter.trim();
+  const listId = React.useId();
 
+  const setFilter = (text: string) => {
+    setFilterText(text);
+    setActive(0);
+  };
+
+  // ⌘P and ⌘⇧E (commands.ts) ask through the ui store; a request older than this rail is not ours.
+  const focusRequest = useUi((s) => s.focusRequest);
+  const seen = React.useRef(useUi.getState().focusRequest?.n ?? 0);
   React.useEffect(() => {
-    const onFocus = () => filterRef.current?.focus();
-    window.addEventListener("mesa:focus-filter", onFocus);
-    return () => window.removeEventListener("mesa:focus-filter", onFocus);
-  }, []);
+    if (!focusRequest || focusRequest.n === seen.current) return;
+    seen.current = focusRequest.n;
+    const from = document.activeElement as HTMLElement | null;
+    if (from && !from.closest(".m-rail")) returnFocus.current = from;
+    if (focusRequest.target === "filter") {
+      filterRef.current?.focus();
+      filterRef.current?.select();
+    } else {
+      if (query) setFilter("");
+      requestAnimationFrame(() => treeRef.current?.focus());
+    }
+  }, [focusRequest]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const leave = () => {
+    const back = returnFocus.current;
+    returnFocus.current = null;
+    if (back?.isConnected) back.focus();
+    else document.querySelector<HTMLElement>("main")?.focus();
+  };
+
+  const onFilterKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.metaKey || e.altKey) return;
+    // Ctrl+P and Ctrl+K are ⌘P and ⌘K outside macOS; there only Ctrl+N and Ctrl+J move.
+    const down = e.key === "ArrowDown" || (e.ctrlKey && (e.key === "n" || e.key === "j"));
+    const up = e.key === "ArrowUp" || (e.ctrlKey && isMac && (e.key === "p" || e.key === "k"));
+    let handled = true;
+    if (!query) {
+      if (down) treeRef.current?.focus();
+      else if (e.key === "Escape") leave();
+      else handled = false;
+    } else if (down) searchRef.current?.move(1);
+    else if (up) searchRef.current?.move(-1);
+    else if (e.key === "PageDown") searchRef.current?.move(10);
+    else if (e.key === "PageUp") searchRef.current?.move(-10);
+    else if (e.key === "Enter") handled = searchRef.current?.open(e.shiftKey) ?? false;
+    else if (e.key === "Escape") setFilter("");
+    else handled = false;
+    if (handled) e.preventDefault();
+  };
 
   const tools = [
     { to: "/c/$connectionId/monitor" as const, label: "Monitor", icon: Activity, active: path.endsWith("/monitor") && searchView !== "sessions", search: { view: "overview" as const } },
@@ -50,26 +104,25 @@ export function Rail() {
               <input
                 ref={filterRef}
                 className="m-input m-input--sm"
-                placeholder="Filter objects"
-                aria-label="Filter objects"
+                placeholder="Find tables, views, columns…"
+                aria-label="Find objects"
+                role="combobox"
+                aria-expanded={!!query}
+                aria-controls={query ? listId : undefined}
+                aria-activedescendant={query ? `${listId}-${active}` : undefined}
+                aria-autocomplete="list"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                onKeyDown={(e) => {
-                  const tree = e.currentTarget.closest(".m-rail")?.querySelector<HTMLElement>(".m-tree") ?? null;
-                  if (e.key === "Escape") setFilter("");
-                  else if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    focusFirstItem(tree);
-                  } else if (e.key === "Enter" && filter.trim()) {
-                    e.preventDefault();
-                    openFirstObject(tree);
-                  }
-                }}
+                onKeyDown={onFilterKey}
               />
-              <Kbd>{shortcut("KeyP")}</Kbd>
+              {filter ? null : <Kbd>{shortcut("KeyP")}</Kbd>}
             </div>
           </div>
-          <ObjectTree filter={filter.trim()} onNewDatabase={() => setNewDb(true)} />
+          {query ? (
+            <ObjectSearch ref={searchRef} id={listId} query={query} active={active} onActive={setActive} onDone={() => setFilter("")} />
+          ) : (
+            <ObjectTree treeRef={treeRef} onNewDatabase={() => setNewDb(true)} onSearch={() => filterRef.current?.focus()} />
+          )}
         </>
       ) : (
         <div style={{ flex: 1 }} />

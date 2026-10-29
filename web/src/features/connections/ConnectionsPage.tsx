@@ -5,18 +5,21 @@
 import * as React from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Database, FolderGit2, Info, Lock, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Database, FolderGit2, Info, Lock, MoreHorizontal, Pencil, Plus, Search, Settings, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { deleteConnection, getListConnectionsQueryKey, pingConnection, useListConnections } from "@/lib/api/connections/connections";
 import type { Connection, Environment } from "@/lib/api/mesaAPI.schemas";
 import { errorMessage } from "@/lib/api/fetch";
 import { duration, ENVIRONMENTS, envLabel, relativeTime } from "@/lib/format";
+import { shortcut } from "@/app/keys";
+import { focusFirstRow, useListKeys } from "@/lib/listKeys";
 import { Button } from "@/ui/Button";
 import { EmptyState, EnvTag, Kbd, StatusLabel } from "@/ui/controls";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/primitives/popover";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFoot, DialogHead, DialogTitle } from "@/ui/primitives/dialog";
 import { ThemeToggle } from "@/app/ThemeToggle";
+import { useUi } from "@/app/ui.store";
 
 import { ConnectionDialog } from "./ConnectionDialog";
 
@@ -30,6 +33,8 @@ export function ConnectionsPage() {
   const [dialog, setDialog] = React.useState<{ open: boolean; connection?: Connection }>({ open: false });
   const [removing, setRemoving] = React.useState<Connection | null>(null);
   const searchRef = React.useRef<HTMLInputElement>(null);
+  const tableRef = React.useRef<HTMLTableElement>(null);
+  const listKeys = useListKeys<HTMLTableElement>();
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -67,7 +72,23 @@ export function ConnectionsPage() {
           </div>
           <div className="m-input-group" style={{ width: 280, maxWidth: "100%" }}>
             <Search className="m-icon m-icon--sm" aria-hidden="true" />
-            <input ref={searchRef} className="m-input" placeholder="Search connections" aria-label="Search connections" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input
+              ref={searchRef}
+              className="m-input"
+              placeholder="Search connections"
+              aria-label="Search connections"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                // ↓ (or Ctrl+N / Ctrl+J) goes into the list; Enter opens the first match.
+                if (e.key === "ArrowDown" || (e.ctrlKey && (e.key === "n" || e.key === "j"))) {
+                  e.preventDefault();
+                  focusFirstRow(tableRef.current);
+                } else if (e.key === "Enter" && shown[0]) {
+                  void navigate({ to: "/c/$connectionId", params: { connectionId: shown[0].c.id } });
+                } else if (e.key === "Escape") setSearch("");
+              }}
+            />
             <Kbd>/</Kbd>
           </div>
           <div className="m-seg" role="tablist" aria-label="Environment">
@@ -82,6 +103,9 @@ export function ConnectionsPage() {
             New connection
           </Button>
           <ThemeToggle />
+          <Button variant="ghost" icon aria-label="Settings" title={`Settings (${shortcut("Comma")})`} onClick={() => useUi.getState().openSettings("appearance")}>
+            <Settings className="m-icon m-icon--sm" aria-hidden="true" />
+          </Button>
         </header>
 
         {list.isError ? <p className="m-help m-help--error">{errorMessage(list.error)}</p> : null}
@@ -101,7 +125,7 @@ export function ConnectionsPage() {
 
         {connections.length > 0 ? (
           <div className="m-grid-wrap" style={{ overflowX: "auto" }}>
-            <table className="m-grid m-grid--ui" style={{ width: "100%" }}>
+            <table ref={tableRef} className="m-grid m-grid--ui m-list" style={{ width: "100%" }} aria-label="Connections" {...listKeys}>
               <thead>
                 <tr>
                   <th>Name</th>
@@ -117,7 +141,7 @@ export function ConnectionsPage() {
                 {shown.map(({ c, i }) => {
                   const p = statusOf(i);
                   return (
-                    <tr key={c.id} className="is-link" onClick={() => void navigate({ to: "/c/$connectionId", params: { connectionId: c.id } })}>
+                    <tr key={c.id} className="is-link" data-row="" tabIndex={-1} onClick={() => void navigate({ to: "/c/$connectionId", params: { connectionId: c.id } })}>
                       <td>
                         <Link to="/c/$connectionId" params={{ connectionId: c.id }} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 500 }} onClick={(e) => e.stopPropagation()}>
                           <Database className="m-icon m-icon--sm m-muted" aria-hidden="true" />

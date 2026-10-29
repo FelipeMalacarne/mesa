@@ -52,7 +52,7 @@ export function WorkspaceLayout({ connectionId }: { connectionId: string }) {
         <div className={`m-env-stripe m-env--${env}`} aria-hidden="true" />
         <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: `${collapsed ? "var(--size-sidebar-collapsed)" : "var(--size-sidebar)"} minmax(0, 1fr)` }}>
           <Rail />
-          <main style={{ minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <main tabIndex={-1} style={{ minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", outline: "none" }}>
             <TabStrip />
             <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               <React.Suspense fallback={null}>

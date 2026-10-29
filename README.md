@@ -106,6 +106,11 @@ Releases ship it as a macOS app (Apple Silicon and Intel), a Windows installer a
 archives. It opens `mesa://` links (`mesa://c/<connection>/sql`,
 `mesa://c/<connection>/db/<database>/t/<schema>/<table>`) and updates itself from signed
 releases (Help → Check for updates; `MESA_UPDATE_CHECK=off` stops the daily check).
+View → Zoom In / Zoom Out / Actual Size (⌘= ⌘- ⌘0, Ctrl elsewhere) scale the whole window
+and the level is kept between launches; Settings (⌘,) holds it with the theme and row
+density, and ⌘/ (or ?) lists every keyboard shortcut. Settings → Keyboard → Vim keys (in
+the browser too) gives the grids h j k l, counts, gg/G, dd and y, tabs gt/gT, panes
+⌃h/j/k/l (Alt+h/j/k/l elsewhere) and the palette `:`.
 On macOS, install from a terminal; this checks the download against the release checksums,
 puts Mesa in Applications and clears the quarantine flag macOS sets on apps that are not
 notarized:

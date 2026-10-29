@@ -83,6 +83,7 @@ export function TablePage({ database, schema, table, view, kind }: Props) {
   const changes = useTableChanges(tk);
   const discardRows = useChanges((s) => s.discard);
   const stageInsert = useChanges((s) => s.stageInsert);
+  const filterRef = React.useRef<HTMLInputElement>(null);
   const toggleDelete = useChanges((s) => s.toggleDelete);
   const removeInsert = useChanges((s) => s.removeInsert);
   const edits = useTableEdits(tk);
@@ -195,7 +196,7 @@ export function TablePage({ database, schema, table, view, kind }: Props) {
         <span className="m-sep" style={{ height: 20, alignSelf: "center" }} />
         {view === "data" ? (
           <>
-            {columns.length > 0 ? <FilterBar columns={columns} drafts={drafts} onChange={setDrafts} onApply={applyFilters} applied={filters.length > 0} /> : <span className="m-help">Loading…</span>}
+            {columns.length > 0 ? <FilterBar columns={columns} drafts={drafts} onChange={setDrafts} onApply={applyFilters} applied={filters.length > 0} inputRef={filterRef} onLeave={() => document.querySelector<HTMLElement>("main [data-main-focus]")?.focus()} /> : <span className="m-help">Loading…</span>}
             <span className="m-spacer" />
             <Button variant="ghost" size="sm" icon aria-label="Refresh" title="Refresh" onClick={refresh}>
               <RefreshCw className="m-icon m-icon--sm" aria-hidden="true" />
@@ -287,6 +288,8 @@ export function TablePage({ database, schema, table, view, kind }: Props) {
                   selectedRow={selectedRow}
                   onSelectRow={setSelectedRow}
                   refetching={rows.isFetching && !rows.isPending}
+                  onInsertRow={() => stageInsert(tk)}
+                  onFilter={() => filterRef.current?.focus()}
                 />
               ) : null}
               {rows.data && rows.data.result.rows.length === 0 && changes.inserts.length === 0 ? (
