@@ -1,137 +1,31 @@
-/** Designer dialogs: new table, new relation, import DBML. Each edits the model; the DBML follows. */
+/** Designer dialogs: new relation, import DBML (the new table has TableDialog). Each edits the model; the DBML follows. */
 import * as React from "react";
-import { Plus, Trash2 } from "lucide-react";
 
 import type { Column, Database, ForeignKey, Table } from "@/lib/api/mesaAPI.schemas";
 import { Button } from "@/ui/Button";
 import { Field, Select } from "@/ui/controls";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFoot, DialogHead, DialogTitle } from "@/ui/primitives/dialog";
 
-import { tablesOf } from "./model";
+import { singular, tablesOf } from "./model";
 
-const TYPES = ["bigint", "integer", "text", "varchar(255)", "boolean", "numeric(12,2)", "timestamptz", "date", "uuid", "jsonb"];
+export const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-interface ColumnDraft {
-  name: string;
-  type: string;
-  pk: boolean;
-  notNull: boolean;
-  unique: boolean;
-  default: string;
+/** Enum types in the model, as a column type is written (schema-qualified outside public). */
+export function enumTypes(model: Database): string[] {
+  return model.schemas.flatMap((s) => (s.enums ?? []).map((e) => (s.name === "public" || s.name === model.name ? e.name : `${s.name}.${e.name}`)));
 }
 
-const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const ACTIONS = ["NO ACTION", "CASCADE", "SET NULL", "RESTRICT", "SET DEFAULT"] as const;
+export type Action = (typeof ACTIONS)[number];
 
-export function AddTableDialog({ open, onOpenChange, model, onAdd }: { open: boolean; onOpenChange: (o: boolean) => void; model: Database; onAdd: (schema: string, table: Table) => void }) {
-  const [name, setName] = React.useState("");
-  // Engines without schemas (MySQL) have one schema named after the database.
-  const schemaless = model.schemas.length === 1 && model.schemas[0].name === model.name;
-  const defaultSchema = schemaless ? model.name : "public";
-  const [schema, setSchema] = React.useState(defaultSchema);
-  const [cols, setCols] = React.useState<ColumnDraft[]>([]);
-  React.useEffect(() => {
-    if (open) {
-      setName("");
-      setSchema(defaultSchema);
-      setCols([
-        { name: "id", type: "bigint", pk: true, notNull: true, unique: false, default: "" },
-        { name: "created_at", type: "timestamptz", pk: false, notNull: true, unique: false, default: "now()" },
-      ]);
-    }
-  }, [open, defaultSchema]);
-  const taken = tablesOf(model).some((t) => t.schema === schema && t.table.name === name);
-  const valid = NAME.test(name) && !taken && cols.length > 0 && cols.every((c) => NAME.test(c.name) && c.type.trim()) && new Set(cols.map((c) => c.name)).size === cols.length;
-  const set = (i: number, p: Partial<ColumnDraft>) => setCols(cols.map((c, j) => (j === i ? { ...c, ...p } : c)));
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!valid) return;
-    const columns: Column[] = cols.map((c) => ({
-      name: c.name,
-      type: c.type.trim(),
-      nullable: !(c.notNull || c.pk),
-      default: c.default.trim() || undefined,
-      identity: c.pk && /^(bigint|integer|int|int8|int4|smallint)$/i.test(c.type.trim()) && !c.default.trim() ? "by default" : undefined,
-    }));
-    const pk = cols.filter((c) => c.pk).map((c) => c.name);
-    onAdd(schema, {
-      name,
-      columns,
-      primaryKey: pk.length ? { columns: pk } : undefined,
-      uniques: cols.filter((c) => c.unique && !c.pk).map((c) => ({ columns: [c.name] })),
-    });
-    onOpenChange(false);
-  };
-  const schemas = schemaless ? [model.name] : [...new Set(["public", ...model.schemas.map((s) => s.name)])];
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent width={640} aria-describedby={undefined}>
-        <form onSubmit={submit}>
-          <DialogHead>
-            <DialogTitle>New table</DialogTitle>
-            <DialogDescription>The table is added to the model and its DBML; nothing runs until you review and apply.</DialogDescription>
-          </DialogHead>
-          <DialogBody>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 160px", gap: 12 }}>
-              <Field label="Name" htmlFor="nt-name" error={taken ? "A table has this name" : undefined}>
-                <input id="nt-name" className="m-input m-input--mono" value={name} onChange={(e) => setName(e.target.value)} placeholder="coupons" autoFocus autoComplete="off" />
-              </Field>
-              <Field label="Schema">
-                <Select aria-label="Schema" mono value={schema} options={schemas.map((s) => ({ value: s, label: s }))} onChange={setSchema} />
-              </Field>
-            </div>
-            <div className="m-field">
-              <span className="m-label">Columns</span>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 36px 36px 36px 28px", gap: 6, alignItems: "center" }}>
-                <span className="m-help">Name</span>
-                <span className="m-help">Type</span>
-                <span className="m-help">Default</span>
-                <span className="m-help" title="Primary key">PK</span>
-                <span className="m-help" title="Not null">NN</span>
-                <span className="m-help" title="Unique">UQ</span>
-                <span />
-                {cols.map((c, i) => (
-                  <React.Fragment key={i}>
-                    <input className="m-input m-input--sm m-input--mono" aria-label="Column name" value={c.name} onChange={(e) => set(i, { name: e.target.value })} />
-                    <input className="m-input m-input--sm m-input--mono" aria-label="Column type" value={c.type} list="designer-types" onChange={(e) => set(i, { type: e.target.value })} />
-                    <input className="m-input m-input--sm m-input--mono" aria-label="Default" value={c.default} onChange={(e) => set(i, { default: e.target.value })} />
-                    <input type="checkbox" aria-label="Primary key" checked={c.pk} onChange={() => set(i, { pk: !c.pk })} style={{ accentColor: "var(--primary)" }} />
-                    <input type="checkbox" aria-label="Not null" checked={c.notNull || c.pk} disabled={c.pk} onChange={() => set(i, { notNull: !c.notNull })} style={{ accentColor: "var(--primary)" }} />
-                    <input type="checkbox" aria-label="Unique" checked={c.unique} onChange={() => set(i, { unique: !c.unique })} style={{ accentColor: "var(--primary)" }} />
-                    <Button variant="ghost" size="xs" icon aria-label={`Remove ${c.name}`} onClick={() => setCols(cols.filter((_, j) => j !== i))}>
-                      <Trash2 className="m-icon m-icon--sm" aria-hidden="true" />
-                    </Button>
-                  </React.Fragment>
-                ))}
-              </div>
-              <datalist id="designer-types">
-                {TYPES.map((t) => (
-                  <option key={t} value={t} />
-                ))}
-              </datalist>
-              <div>
-                <Button variant="ghost" size="sm" onClick={() => setCols([...cols, { name: "", type: "text", pk: false, notNull: false, unique: false, default: "" }])}>
-                  <Plus className="m-icon m-icon--sm" aria-hidden="true" />
-                  Column
-                </Button>
-              </div>
-            </div>
-          </DialogBody>
-          <DialogFoot>
-            <span className="m-spacer" />
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit" disabled={!valid}>
-              Add table
-            </Button>
-          </DialogFoot>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+/** Columns a relation can refer to: the primary key and unique columns. */
+function keyColumns(t: Table): string[] {
+  const out = new Set<string>();
+  if (t.primaryKey?.columns.length === 1) out.add(t.primaryKey.columns[0]!);
+  for (const u of t.uniques ?? []) if (u.columns.length === 1) out.add(u.columns[0]!);
+  for (const i of t.indexes ?? []) if (i.unique && i.columns?.length === 1) out.add(i.columns[0]!);
+  return [...out];
 }
-
-const ACTIONS = ["NO ACTION", "CASCADE", "SET NULL", "RESTRICT", "SET DEFAULT"] as const;
 
 export function AddRelationDialog({ open, onOpenChange, model, from, onAdd }: { open: boolean; onOpenChange: (o: boolean) => void; model: Database; from: string | null; onAdd: (key: string, fk: ForeignKey) => void }) {
   const tables = tablesOf(model);
@@ -139,37 +33,53 @@ export function AddRelationDialog({ open, onOpenChange, model, from, onAdd }: { 
   const [srcCol, setSrcCol] = React.useState("");
   const [dst, setDst] = React.useState("");
   const [dstCol, setDstCol] = React.useState("");
-  const [onDelete, setOnDelete] = React.useState<(typeof ACTIONS)[number]>("NO ACTION");
+  const [onDelete, setOnDelete] = React.useState<Action>("NO ACTION");
+  const [onUpdate, setOnUpdate] = React.useState<Action>("NO ACTION");
+  const pickDst = (key: string, from = src) => {
+    setDst(key);
+    const t = tables.find((x) => x.key === key)?.table;
+    setDstCol((t && keyColumns(t)[0]) ?? t?.columns[0]?.name ?? "");
+    // Suggest the conventional column: customers → customer_id.
+    const s = tables.find((x) => x.key === from)?.table;
+    const guess = t && s?.columns.find((c) => c.name === `${singular(t.name)}_id`)?.name;
+    if (guess) setSrcCol(guess);
+  };
   React.useEffect(() => {
     if (!open) return;
     const s = from ?? tables[0]?.key ?? "";
     setSrc(s);
     const st = tables.find((t) => t.key === s);
     setSrcCol(st?.table.columns.find((c) => c.name.endsWith("_id"))?.name ?? st?.table.columns[0]?.name ?? "");
-    const d = tables.find((t) => t.key !== s)?.key ?? s;
-    setDst(d);
-    const dt = tables.find((t) => t.key === d);
-    setDstCol(dt?.table.primaryKey?.columns[0] ?? dt?.table.columns[0]?.name ?? "");
+    pickDst(tables.find((t) => t.key !== s)?.key ?? s, s);
     setOnDelete("NO ACTION");
+    setOnUpdate("NO ACTION");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   const st = tables.find((t) => t.key === src);
   const dt = tables.find((t) => t.key === dst);
+  const keys = dt ? keyColumns(dt.table) : [];
   const valid = !!st && !!dt && !!srcCol && !!dstCol;
+  const colLabel = (t: Table, c: Column) => `${c.name} ${c.type}${t.primaryKey?.columns.includes(c.name) ? " · pk" : ""}`;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent width={560} aria-describedby={undefined}>
+      <DialogContent width={600} aria-describedby={undefined}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (!valid) return;
-            onAdd(src, { columns: [srcCol], references: { schema: dt!.schema, name: dt!.table.name }, refColumns: [dstCol], onDelete: onDelete === "NO ACTION" ? undefined : onDelete });
+            onAdd(src, {
+              columns: [srcCol],
+              references: { schema: dt!.schema, name: dt!.table.name },
+              refColumns: [dstCol],
+              onDelete: onDelete === "NO ACTION" ? undefined : onDelete,
+              onUpdate: onUpdate === "NO ACTION" ? undefined : onUpdate,
+            });
             onOpenChange(false);
           }}
         >
           <DialogHead>
             <DialogTitle>New relation</DialogTitle>
-            <DialogDescription>A foreign key from a column to the column it refers to.</DialogDescription>
+            <DialogDescription>A foreign key from a column to the key it refers to. On the diagram you can also drag a column&apos;s dot onto another table.</DialogDescription>
           </DialogHead>
           <DialogBody>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -177,18 +87,21 @@ export function AddRelationDialog({ open, onOpenChange, model, from, onAdd }: { 
                 <Select aria-label="From table" mono value={src} options={tables.map((t) => ({ value: t.key, label: t.key }))} onChange={(v) => { setSrc(v); setSrcCol(tables.find((t) => t.key === v)?.table.columns[0]?.name ?? ""); }} />
               </Field>
               <Field label="Column">
-                <Select aria-label="From column" mono value={srcCol} options={(st?.table.columns ?? []).map((c) => ({ value: c.name, label: `${c.name} ${c.type}` }))} onChange={setSrcCol} />
+                <Select aria-label="From column" mono value={srcCol} options={(st?.table.columns ?? []).map((c) => ({ value: c.name, label: colLabel(st!.table, c) }))} onChange={setSrcCol} />
               </Field>
-              <Field label="References table">
-                <Select aria-label="References table" mono value={dst} options={tables.map((t) => ({ value: t.key, label: t.key }))} onChange={(v) => { setDst(v); const t = tables.find((x) => x.key === v); setDstCol(t?.table.primaryKey?.columns[0] ?? t?.table.columns[0]?.name ?? ""); }} />
+              <Field label="Refers to table">
+                <Select aria-label="References table" mono value={dst} options={tables.map((t) => ({ value: t.key, label: t.key }))} onChange={(v) => pickDst(v)} />
               </Field>
-              <Field label="Column">
-                <Select aria-label="References column" mono value={dstCol} options={(dt?.table.columns ?? []).map((c) => ({ value: c.name, label: `${c.name} ${c.type}` }))} onChange={setDstCol} />
+              <Field label="Key column" error={dt && keys.length === 0 ? "This table has no single-column primary or unique key" : undefined}>
+                <Select aria-label="References column" mono value={dstCol} options={(dt?.table.columns ?? []).filter((c) => keys.length === 0 || keys.includes(c.name)).map((c) => ({ value: c.name, label: colLabel(dt!.table, c) }))} onChange={setDstCol} />
+              </Field>
+              <Field label="On delete">
+                <Select aria-label="On delete" mono value={onDelete} options={ACTIONS.map((a) => ({ value: a, label: a }))} onChange={setOnDelete} />
+              </Field>
+              <Field label="On update">
+                <Select aria-label="On update" mono value={onUpdate} options={ACTIONS.map((a) => ({ value: a, label: a }))} onChange={setOnUpdate} />
               </Field>
             </div>
-            <Field label="On delete">
-              <Select aria-label="On delete" mono value={onDelete} options={ACTIONS.map((a) => ({ value: a, label: a }))} onChange={setOnDelete} />
-            </Field>
           </DialogBody>
           <DialogFoot>
             <span className="m-spacer" />
