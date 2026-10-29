@@ -216,7 +216,7 @@ export function DataGrid({ columns, rows, offset, meta, tableKey, changes, edita
   };
 
   return (
-    <table ref={gridRef} className={cn("m-grid", refetching && "is-refetching", active && "is-focused")} tabIndex={0} onKeyDown={onKeyDown} aria-rowcount={list.length} role="grid">
+    <table ref={gridRef} data-main-focus="" className={cn("m-grid", refetching && "is-refetching", active && "is-focused")} tabIndex={0} onKeyDown={onKeyDown} aria-rowcount={list.length} role="grid">
       <thead>
         <tr>
           <th className="m-gutter">#</th>

@@ -1,17 +1,20 @@
 /** Open objects of the connection as tabs (`Main` board). A dot marks tabs with staged edits. */
+import * as React from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Activity, Eye, History, LayoutGrid, Plus, SquareTerminal, Table2, Users, X } from "lucide-react";
 
 import { objectPath } from "@/lib/format";
+import { keyLabel } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/Button";
 import { Kbd } from "@/ui/controls";
 import { hasChanges, tableKey, useChanges } from "@/features/table/changes.store";
 
 import { useWorkspace } from "../workspace/context";
-import { tabLink, useActiveTab, useConnectionTabs, useTabs, type Tab } from "./tabs.store";
+import { closeTab, newQueryTab } from "./tabActions";
+import { tabLink, useActiveTab, useConnectionTabs, type Tab } from "./tabs.store";
 
-function TabIcon({ tab }: { tab: Tab }) {
+export function TabIcon({ tab }: { tab: Tab }) {
   const cls = "m-icon m-icon--sm";
   switch (tab.kind) {
     case "table":
@@ -35,23 +38,18 @@ export function TabStrip() {
   const active = useActiveTab(connectionId);
   const staged = useChanges((s) => s.tables);
   const navigate = useNavigate();
+  const navRef = React.useRef<HTMLElement>(null);
 
-  const close = (tab: Tab) => {
-    const next = useTabs.getState().close(connectionId, tab.id);
-    if (active?.id === tab.id) {
-      if (next) void navigate(tabLink(connectionId, next));
-      else void navigate({ to: "/c/$connectionId", params: { connectionId } });
-    }
-  };
+  // Keep the active tab in sight when the keyboard moves to one scrolled out of view.
+  React.useEffect(() => {
+    navRef.current?.querySelector<HTMLElement>(".m-tab.is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [active?.id, tabs.length]);
 
-  const newQuery = () => {
-    const tab = useTabs.getState().newQuery(connectionId);
-    void navigate(tabLink(connectionId, tab));
-  };
+  const close = (tab: Tab) => closeTab(navigate, connectionId, tab.id);
 
   return (
-    <nav className="m-tabs" aria-label="Open objects" style={{ height: "var(--size-header)", flex: "none", overflowX: "auto", overflowY: "hidden" }}>
-      {tabs.map((tab) => {
+    <nav ref={navRef} className="m-tabs" aria-label="Open objects" style={{ height: "var(--size-header)", flex: "none", overflowX: "auto", overflowY: "hidden" }}>
+      {tabs.map((tab, i) => {
         const dirty = tab.kind === "table" && hasChanges(staged[tableKey(connectionId, tab.database, tab.schema, tab.table)]);
         return (
           <Link
@@ -59,7 +57,7 @@ export function TabStrip() {
             {...tabLink(connectionId, tab)}
             className={cn("m-tab", active?.id === tab.id && "is-active", dirty && "is-dirty")}
             aria-current={active?.id === tab.id ? "page" : undefined}
-            title={tab.kind === "table" ? objectPath(tab.database ?? "", tab.schema ?? "", tab.table ?? "") : tab.title}
+            title={`${tab.kind === "table" ? objectPath(tab.database ?? "", tab.schema ?? "", tab.table ?? "") : tab.title}${i < 8 ? ` (${keyLabel(`mod+${i + 1}`)})` : ""}`}
             onAuxClick={(e) => {
               if (e.button === 1) {
                 e.preventDefault();
@@ -74,6 +72,7 @@ export function TabStrip() {
               tabIndex={-1}
               className="m-tab__close"
               aria-label={`Close ${tab.title}`}
+              title={`Close (${keyLabel("mod+w")})`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -86,10 +85,10 @@ export function TabStrip() {
         );
       })}
       <div className="m-tabs__end">
-        <Button variant="ghost" size="xs" icon aria-label="New query" onClick={newQuery}>
+        <Button variant="ghost" size="xs" icon aria-label="New query" onClick={() => newQueryTab(navigate, connectionId)}>
           <Plus className="m-icon m-icon--sm" aria-hidden="true" />
         </Button>
-        <Kbd>⌘T</Kbd>
+        <Kbd>{keyLabel("mod+t")}</Kbd>
       </div>
     </nav>
   );

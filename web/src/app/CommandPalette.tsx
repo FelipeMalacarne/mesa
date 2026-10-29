@@ -1,17 +1,21 @@
 /**
- * ⌘K: jump to a connection, a table of the open connection, or a tool. Tables come from the
- * schemas already loaded in the tree, so the palette never waits on the network.
+ * ⌘K: jump to a connection, an open tab, a table of the open connection, or a tool, or run an
+ * app command. Tables come from the schemas already loaded in the tree, so the palette never
+ * waits on the network.
  */
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Activity, Database, Eye, History, LayoutGrid, Moon, SquareTerminal, Table2, Users } from "lucide-react";
+import { Activity, Database, Eye, History, Keyboard, LayoutGrid, Moon, PanelLeft, RotateCcw, Search, Settings, SquareTerminal, Table2, Users, X } from "lucide-react";
 
 import { useListConnections } from "@/lib/api/connections/connections";
 import type { Database as DatabaseModel } from "@/lib/api/mesaAPI.schemas";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/ui/primitives/command";
-import { EnvTag } from "@/ui/controls";
-import { tabLink, useTabs } from "@/features/explorer/tabs.store";
+import { EnvTag, Kbd } from "@/ui/controls";
+import { keyLabel } from "@/lib/keys";
+import { TabIcon } from "@/features/explorer/TabStrip";
+import { activeTab, closeTab, goToTab, newQueryTab, reopenTab } from "@/features/explorer/tabActions";
+import { useConnectionTabs } from "@/features/explorer/tabs.store";
 
 import { useTheme } from "./theme";
 import { useUi } from "./ui.store";
@@ -25,6 +29,7 @@ export function CommandPalette() {
   const connectionId = params.connectionId;
   const connections = useListConnections({ query: { enabled: open } });
   const toggleTheme = useTheme((s) => s.toggle);
+  const openTabs = useConnectionTabs(connectionId ?? "");
 
   const tables = React.useMemo(() => {
     if (!open || !connectionId) return [];
@@ -54,6 +59,17 @@ export function CommandPalette() {
         <CommandEmpty>Nothing matches.</CommandEmpty>
         {connectionId ? (
           <>
+            {openTabs.length > 1 ? (
+              <CommandGroup heading="Open tabs">
+                {openTabs.map((t, i) => (
+                  <CommandItem key={t.id} value={`tab ${t.title} ${t.id}`} onSelect={() => run(() => goToTab(navigate, connectionId, t))}>
+                    <TabIcon tab={t} />
+                    {t.title}
+                    {i < 8 ? <Kbd>{keyLabel(`mod+${i + 1}`)}</Kbd> : null}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : null}
             {tables.length > 0 ? (
               <CommandGroup heading="Tables">
                 {tables.map((t) => (
@@ -80,17 +96,15 @@ export function CommandPalette() {
               </CommandGroup>
             ) : null}
             <CommandGroup heading="Tools">
-              <CommandItem
-                value="new query sql editor"
-                onSelect={() =>
-                  run(() => {
-                    const tab = useTabs.getState().newQuery(connectionId);
-                    void navigate(tabLink(connectionId, tab));
-                  })
-                }
-              >
+              <CommandItem value="new query sql editor" onSelect={() => run(() => newQueryTab(navigate, connectionId))}>
                 <SquareTerminal className="m-icon m-icon--sm" aria-hidden="true" />
                 New query
+                <Kbd>{keyLabel("mod+t")}</Kbd>
+              </CommandItem>
+              <CommandItem value="find object table view function column search" onSelect={() => run(() => useUi.getState().focusRail("filter"))}>
+                <Search className="m-icon m-icon--sm" aria-hidden="true" />
+                Find object
+                <Kbd>{keyLabel("mod+p")}</Kbd>
               </CommandItem>
               <CommandItem value="schema designer erd dbml" onSelect={() => run(() => void navigate({ to: "/c/$connectionId/designer", params: { connectionId }, search: {} }))}>
                 <LayoutGrid className="m-icon m-icon--sm" aria-hidden="true" />
@@ -113,6 +127,33 @@ export function CommandPalette() {
                 Activity
               </CommandItem>
             </CommandGroup>
+            <CommandGroup heading="Tabs">
+              {openTabs.length > 0 ? (
+                <CommandItem
+                  value="close tab"
+                  onSelect={() =>
+                    run(() => {
+                      const tab = activeTab(connectionId);
+                      if (tab) closeTab(navigate, connectionId, tab.id);
+                    })
+                  }
+                >
+                  <X className="m-icon m-icon--sm" aria-hidden="true" />
+                  Close tab
+                  <Kbd>{keyLabel("mod+w")}</Kbd>
+                </CommandItem>
+              ) : null}
+              <CommandItem value="reopen closed tab undo" onSelect={() => run(() => reopenTab(navigate, connectionId))}>
+                <RotateCcw className="m-icon m-icon--sm" aria-hidden="true" />
+                Reopen closed tab
+                <Kbd>{keyLabel("mod+shift+t")}</Kbd>
+              </CommandItem>
+              <CommandItem value="toggle sidebar rail" onSelect={() => run(() => useUi.getState().toggleRail())}>
+                <PanelLeft className="m-icon m-icon--sm" aria-hidden="true" />
+                Show or hide the sidebar
+                <Kbd>{keyLabel("mod+b")}</Kbd>
+              </CommandItem>
+            </CommandGroup>
           </>
         ) : null}
         <CommandGroup heading="Connections">
@@ -128,7 +169,17 @@ export function CommandPalette() {
             All connections
           </CommandItem>
         </CommandGroup>
-        <CommandGroup heading="Appearance">
+        <CommandGroup heading="Preferences">
+          <CommandItem value="settings preferences zoom density appearance" onSelect={() => run(() => useUi.getState().openSettings("appearance"))}>
+            <Settings className="m-icon m-icon--sm" aria-hidden="true" />
+            Settings
+            <Kbd>{keyLabel("mod+,")}</Kbd>
+          </CommandItem>
+          <CommandItem value="keyboard shortcuts keys help" onSelect={() => run(() => useUi.getState().openSettings("keyboard"))}>
+            <Keyboard className="m-icon m-icon--sm" aria-hidden="true" />
+            Keyboard shortcuts
+            <Kbd>{keyLabel("mod+/")}</Kbd>
+          </CommandItem>
           <CommandItem value="toggle theme dark light" onSelect={() => run(toggleTheme)}>
             <Moon className="m-icon m-icon--sm" aria-hidden="true" />
             Toggle theme
@@ -137,33 +188,4 @@ export function CommandPalette() {
       </CommandList>
     </CommandDialog>
   );
-}
-
-/** App-wide shortcuts. Views add their own (⌘S in a table, ⌘↵ in the SQL editor). */
-export function useGlobalShortcuts() {
-  const navigate = useNavigate();
-  const params = useParams({ strict: false }) as { connectionId?: string };
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const mod = navigator.platform.includes("Mac") ? e.metaKey : e.ctrlKey;
-      if (!mod) return;
-      const k = e.key.toLowerCase();
-      if (k === "k") {
-        e.preventDefault();
-        useUi.getState().setPaletteOpen(!useUi.getState().paletteOpen);
-      } else if (k === "b") {
-        e.preventDefault();
-        useUi.getState().toggleRail();
-      } else if (k === "p" && params.connectionId) {
-        e.preventDefault();
-        window.dispatchEvent(new Event("mesa:focus-filter"));
-      } else if ((k === "t" || (e.altKey && k === "n")) && params.connectionId) {
-        e.preventDefault();
-        const tab = useTabs.getState().newQuery(params.connectionId);
-        void navigate(tabLink(params.connectionId, tab));
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [navigate, params.connectionId]);
 }

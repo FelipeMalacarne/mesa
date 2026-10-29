@@ -4,7 +4,9 @@ import { createRootRouteWithContext, Link, Outlet } from "@tanstack/react-router
 import { EmptyState } from "@/ui/controls";
 import { errorMessage } from "@/lib/api/fetch";
 
-import { CommandPalette, useGlobalShortcuts } from "../CommandPalette";
+import { CommandPalette } from "../CommandPalette";
+import { useCommands } from "../commands";
+import { SettingsDialog } from "../SettingsDialog";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: Root,
@@ -37,11 +39,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function Root() {
-  useGlobalShortcuts();
+  useCommands();
   return (
     <>
       <Outlet />
       <CommandPalette />
+      <SettingsDialog />
     </>
   );
 }

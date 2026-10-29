@@ -2,6 +2,7 @@
  * Workspace tabs, one list per connection, persisted so they survive reloads.
  * Routes open their tab with `useTabs.getState().open(connectionId, tab)` on mount, so a tab
  * exists even when the person arrives by URL; `tabLink` says where each tab lives.
+ * Closed tabs are remembered for this session so ⌘⇧T can bring them back, query text included.
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -68,13 +69,25 @@ interface ConnectionTabs {
 
 const empty: ConnectionTabs = { tabs: [], activeId: null, nextQuery: 1 };
 
+interface ClosedTab {
+  tab: Tab;
+  index: number;
+}
+
+const CLOSED_KEPT = 20;
+
 interface TabsState {
   byConnection: Record<string, ConnectionTabs>;
+  /** Recently closed tabs per connection, newest last; not persisted. */
+  closed: Record<string, ClosedTab[]>;
   /** Adds the tab when missing (merging fields when present), activates it and returns it. */
   open: (connectionId: string, tab: Tab) => Tab;
-  activate: (connectionId: string, id: string) => void;
+  /** Makes a tab active; null leaves none active (on the way to the workspace home). */
+  activate: (connectionId: string, id: string | null) => void;
   /** Closes a tab; returns the tab that is active afterwards (null when none are left). */
   close: (connectionId: string, id: string) => Tab | null;
+  /** Brings back the most recently closed tab, where it was, and activates it; null when none. */
+  reopen: (connectionId: string) => Tab | null;
   update: (connectionId: string, id: string, patch: Partial<Tab>) => void;
   /** Opens a fresh "Query N" tab and returns it. */
   newQuery: (connectionId: string) => QueryTab;
@@ -84,6 +97,7 @@ export const useTabs = create<TabsState>()(
   persist(
     (set, get) => ({
       byConnection: {},
+      closed: {},
       open: (connectionId, tab) => {
         const conn = get().byConnection[connectionId] ?? empty;
         const existing = conn.tabs.find((t) => t.id === tab.id);
@@ -107,8 +121,22 @@ export const useTabs = create<TabsState>()(
           const next = tabs[Math.min(index, tabs.length - 1)];
           activeId = next ? next.id : null;
         }
-        set({ byConnection: { ...get().byConnection, [connectionId]: { ...conn, tabs, activeId } } });
+        const closed = [...(get().closed[connectionId] ?? []), { tab: conn.tabs[index], index }].slice(-CLOSED_KEPT);
+        set({ byConnection: { ...get().byConnection, [connectionId]: { ...conn, tabs, activeId } }, closed: { ...get().closed, [connectionId]: closed } });
         return tabs.find((t) => t.id === activeId) ?? null;
+      },
+      reopen: (connectionId) => {
+        const stack = get().closed[connectionId] ?? [];
+        const last = stack[stack.length - 1];
+        if (!last) return null;
+        const conn = get().byConnection[connectionId] ?? empty;
+        // Reopened by other means since (a table opened from the tree): just go back to it.
+        const tabs = conn.tabs.some((t) => t.id === last.tab.id) ? conn.tabs : [...conn.tabs.slice(0, last.index), last.tab, ...conn.tabs.slice(last.index)];
+        set({
+          byConnection: { ...get().byConnection, [connectionId]: { ...conn, tabs, activeId: last.tab.id } },
+          closed: { ...get().closed, [connectionId]: stack.slice(0, -1) },
+        });
+        return tabs.find((t) => t.id === last.tab.id) ?? null;
       },
       update: (connectionId, id, patch) => {
         const conn = get().byConnection[connectionId] ?? empty;
@@ -128,7 +156,7 @@ export const useTabs = create<TabsState>()(
         return tab;
       },
     }),
-    { name: "mesa.tabs" },
+    { name: "mesa.tabs", partialize: (s) => ({ byConnection: s.byConnection }) },
   ),
 );
 
