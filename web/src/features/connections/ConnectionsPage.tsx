@@ -5,7 +5,7 @@
 import * as React from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Database, FolderGit2, Info, Lock, MoreHorizontal, Pencil, Plus, Search, Settings, Trash2 } from "lucide-react";
+import { Database, FileCog, FolderGit2, Info, Lock, MoreHorizontal, Pencil, Plus, Search, Settings, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { deleteConnection, getListConnectionsQueryKey, pingConnection, useListConnections } from "@/lib/api/connections/connections";
@@ -149,8 +149,17 @@ export function ConnectionsPage() {
                           {c.readOnly ? <Lock className="m-icon m-icon--sm m-muted" aria-label="Read-only" /> : null}
                           {c.definedIn ? (
                             <span className="m-badge m-badge--outline" title={`Defined in ${c.definedIn}; edit that file to change it`} style={{ fontWeight: 400 }}>
-                              <FolderGit2 className="m-icon m-icon--sm" aria-hidden="true" />
-                              project
+                              {isProjectFile(c.definedIn) ? (
+                                <>
+                                  <FolderGit2 className="m-icon m-icon--sm" aria-hidden="true" />
+                                  project
+                                </>
+                              ) : (
+                                <>
+                                  <FileCog className="m-icon m-icon--sm" aria-hidden="true" />
+                                  declared
+                                </>
+                              )}
                             </span>
                           ) : null}
                         </Link>
@@ -202,6 +211,12 @@ export function ConnectionsPage() {
       <RemoveDialog connection={removing} onClose={() => setRemoving(null)} />
     </div>
   );
+}
+
+// A project's connections come from .mesa/mesa.toml; the others a deployment
+// declares in the server's connections file (MESA_CONNECTIONS).
+function isProjectFile(definedIn: string): boolean {
+  return /(^|[\\/])\.mesa[\\/]/.test(definedIn);
 }
 
 function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {

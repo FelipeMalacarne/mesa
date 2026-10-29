@@ -123,7 +123,7 @@ export interface Connection {
   lastOpenedAt?: string;
   createdAt: string;
   updatedAt: string;
-  /** The project file that defines this connection (.mesa/mesa.toml); it cannot be edited through the API */
+  /** The file that defines this connection: a project's .mesa/mesa.toml, or the connections file the server was started with (MESA_CONNECTIONS). It cannot be edited through the API */
   definedIn?: string;
 }
 

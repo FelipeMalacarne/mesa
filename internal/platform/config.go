@@ -38,6 +38,9 @@ type Config struct {
 	// Project is where to look for a .mesa/ folder ("off" disables it). The
 	// CLI and MCP binaries default it to the working directory.
 	Project string
+	// Connections is a file of connections the deployment declares (empty:
+	// none). They are listed with the stored ones and cannot be edited.
+	Connections string
 }
 
 // FromEnv reads MESA_* variables over defaults for the given config directory.
@@ -52,6 +55,7 @@ func FromEnv(configDir string) Config {
 		SessionIdle: 10 * time.Minute,
 		MCPWrites:   env("MESA_MCP_WRITES", "false") == "true",
 		Project:     env("MESA_PROJECT", ""),
+		Connections: env("MESA_CONNECTIONS", ""),
 	}
 	if v := env("MESA_SESSION_IDLE", ""); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {

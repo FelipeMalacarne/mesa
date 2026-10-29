@@ -21,6 +21,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/secret"
 	"github.com/felipemalacarne/mesa/internal/session"
 	"github.com/felipemalacarne/mesa/internal/store"
+	"github.com/felipemalacarne/mesa/internal/store/declared"
 	"github.com/felipemalacarne/mesa/internal/store/project"
 )
 
@@ -62,12 +63,15 @@ type Options struct {
 	Session session.Options
 	// Project, when set, layers a .mesa/ folder over Store and Vault.
 	Project *project.Project
+	// Declared, when set, adds the connections a deployment declares in a
+	// file (MESA_CONNECTIONS).
+	Declared *declared.Set
 }
 
 // New builds the application.
 func New(o Options) *App {
-	o.Store = project.Overlay(o.Store, o.Project)
-	o.Vault = project.Vault(o.Vault, o.Project)
+	o.Store = declared.Overlay(project.Overlay(o.Store, o.Project), o.Declared)
+	o.Vault = declared.Vault(project.Vault(o.Vault, o.Project), o.Declared)
 	sessions := session.New(o.Engines, o.Store.Connections(), o.Vault, o.Session)
 	unlocks := changes.NewMemoryUnlocks()
 	exp := explore.New(sessions, 30*time.Second)
@@ -88,11 +92,16 @@ func New(o Options) *App {
 		Roles:       roles.New(sessions, ch),
 	}
 	a.Designer = designer.New(sessions, ch, o.Store.Layouts(), exp.Schema)
-	if p := o.Project; p != nil {
-		file := p.Rel(filepath.Join(p.Dir, project.ConfigName))
+	if o.Project != nil || o.Declared != nil {
+		p, d := o.Project, o.Declared
 		a.Connections.SetDefinedIn(func(id uuid.UUID) string {
-			if _, ok := p.EnvOf(id); ok {
-				return file
+			if d != nil && d.Has(id) {
+				return d.Path
+			}
+			if p != nil {
+				if _, ok := p.EnvOf(id); ok {
+					return p.Rel(filepath.Join(p.Dir, project.ConfigName))
+				}
 			}
 			return ""
 		})

@@ -56,6 +56,27 @@ helm install mesa ./charts/mesa --set config.appKey="$(openssl rand -base64 32)"
 Set `config.store=postgres` and `config.storeDSN` to run several replicas with
 Mesa's own data in PostgreSQL.
 
+The connections a deployment needs can live in its values, and so in Git. They are listed
+next to the ones people add, cannot be edited from Mesa, and their passwords are references
+to variables from a Secret:
+
+```yaml
+config:
+  existingSecret: mesa      # MESA_APP_KEY, MESA_ORDERS_PASSWORD, optionally MESA_STORE_DSN
+connections:
+  orders:
+    environment: production
+    host: orders-rw.databases.svc
+    database: orders
+    user: mesa
+    password: env:MESA_ORDERS_PASSWORD
+    tls: require
+```
+
+Outside the chart, point `MESA_CONNECTIONS` at a TOML file with the same fields under
+`[connections.<name>]`. Mesa has no sign-in of its own yet: keep the service on a private
+network (a VPN, a tailnet, a LAN-only ingress) or behind an authenticating proxy.
+
 ### CLI
 
 ```bash
@@ -191,6 +212,7 @@ it still goes through policy and audit.
 | `MESA_SESSION_IDLE` | `10m` | Idle database sessions are closed after this |
 | `MESA_MCP_WRITES` | `false` | Expose `apply_sql` on the server's `/mcp` endpoint |
 | `MESA_HOME` | OS config dir + `/mesa` | CLI and MCP data directory |
+| `MESA_CONNECTIONS` | none | A TOML file of connections the deployment declares; read-only in Mesa, passwords as `env:NAME` |
 | `MESA_PROJECT` | working directory for `mesa` and `mesa-mcp`, none for the server | Where to look for a `.mesa/` folder; `off` disables it |
 | `MESA_UPDATE_CHECK` | on | Desktop: `off` stops the daily check for a new release |
 | `MESA_UPDATE_URL` | `https://api.github.com` | Desktop: a mirror of the GitHub releases API to check instead |

@@ -22,6 +22,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/secret"
 	"github.com/felipemalacarne/mesa/internal/session"
 	"github.com/felipemalacarne/mesa/internal/store"
+	"github.com/felipemalacarne/mesa/internal/store/declared"
 	storepg "github.com/felipemalacarne/mesa/internal/store/postgres"
 	"github.com/felipemalacarne/mesa/internal/store/project"
 	"github.com/felipemalacarne/mesa/internal/store/sqlite"
@@ -107,13 +108,21 @@ func Build(ctx context.Context, c platform.Config, mode app.Mode, configDir stri
 			return nil, err
 		}
 	}
+	var decl *declared.Set
+	if c.Connections != "" {
+		if decl, err = declared.Load(c.Connections); err != nil {
+			_ = st.Close()
+			return nil, err
+		}
+	}
 	return app.New(app.Options{
-		Project: proj,
-		Version: platform.Version,
-		Mode:    mode,
-		Engines: Engines(),
-		Store:   st,
-		Vault:   vault,
-		Session: session.Options{IdleTimeout: c.SessionIdle, AppName: "mesa-" + string(mode)},
+		Project:  proj,
+		Declared: decl,
+		Version:  platform.Version,
+		Mode:     mode,
+		Engines:  Engines(),
+		Store:    st,
+		Vault:    vault,
+		Session:  session.Options{IdleTimeout: c.SessionIdle, AppName: "mesa-" + string(mode)},
 	}), nil
 }
