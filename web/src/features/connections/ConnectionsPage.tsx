@@ -14,6 +14,7 @@ import { errorMessage } from "@/lib/api/fetch";
 import { duration, ENVIRONMENTS, envLabel, relativeTime } from "@/lib/format";
 import { shortcut } from "@/app/keys";
 import { focusFirstRow, useListKeys } from "@/lib/listKeys";
+import { useCan } from "@/app/auth";
 import { Button } from "@/ui/Button";
 import { EmptyState, EnvTag, Kbd, StatusLabel } from "@/ui/controls";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/primitives/popover";
@@ -32,6 +33,8 @@ export function ConnectionsPage() {
   const [env, setEnv] = React.useState<EnvFilter>("all");
   const [dialog, setDialog] = React.useState<{ open: boolean; connection?: Connection }>({ open: false });
   const [removing, setRemoving] = React.useState<Connection | null>(null);
+  // Adding, editing and removing connections is for admins (the server says so too).
+  const manage = useCan("admin");
   const searchRef = React.useRef<HTMLInputElement>(null);
   const tableRef = React.useRef<HTMLTableElement>(null);
   const listKeys = useListKeys<HTMLTableElement>();
@@ -98,10 +101,12 @@ export function ConnectionsPage() {
               </button>
             ))}
           </div>
-          <Button variant="primary" onClick={() => setDialog({ open: true })}>
-            <Plus className="m-icon m-icon--sm" aria-hidden="true" />
-            New connection
-          </Button>
+          {manage ? (
+            <Button variant="primary" onClick={() => setDialog({ open: true })}>
+              <Plus className="m-icon m-icon--sm" aria-hidden="true" />
+              New connection
+            </Button>
+          ) : null}
           <ThemeToggle />
           <Button variant="ghost" icon aria-label="Settings" title={`Settings (${shortcut("Comma")})`} onClick={() => useUi.getState().openSettings("appearance")}>
             <Settings className="m-icon m-icon--sm" aria-hidden="true" />
@@ -115,10 +120,12 @@ export function ConnectionsPage() {
             title="No connections yet"
             description="Add a PostgreSQL or MySQL server to browse its databases, edit rows with a review step, watch its metrics and design its schema."
             actions={
-              <Button variant="primary" onClick={() => setDialog({ open: true })}>
-                <Plus className="m-icon m-icon--sm" aria-hidden="true" />
-                New connection
-              </Button>
+              manage ? (
+                <Button variant="primary" onClick={() => setDialog({ open: true })}>
+                  <Plus className="m-icon m-icon--sm" aria-hidden="true" />
+                  New connection
+                </Button>
+              ) : undefined
             }
           />
         ) : null}
@@ -186,7 +193,7 @@ export function ConnectionsPage() {
                       </td>
                       <td className="m-muted">{relativeTime(c.lastOpenedAt)}</td>
                       <td onClick={(e) => e.stopPropagation()}>
-                        {c.definedIn ? null : <RowMenu onEdit={() => setDialog({ open: true, connection: c })} onDelete={() => setRemoving(c)} />}
+                        {c.definedIn || !manage ? null : <RowMenu onEdit={() => setDialog({ open: true, connection: c })} onDelete={() => setRemoving(c)} />}
                       </td>
                     </tr>
                   );
