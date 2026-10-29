@@ -1,12 +1,12 @@
 {
-  "version": "0.2.0",
+  "version": "0.4.0",
   "hashes": {
-    "Mesa_darwin_universal.zip": "sha256-q6fzNoPHfGIOB3w3uv2a40R2Mfr1GmVhHceXuKS6ppc=",
-    "mesa-desktop_linux_amd64.tar.gz": "sha256-2o8ysIaYwKPCk26+an/rLyeCRNX67dvFFgS2QakLvc0=",
-    "mesa-desktop_linux_arm64.tar.gz": "sha256-fV/MqS1rmXZM8aGtRyB3Rni7ux9vG5fdvdH9+bjstQ4=",
-    "mesa_0.2.0_darwin_amd64.tar.gz": "sha256-7K9ulKgFoPOWpvfPPBTNqnuQJC+ZRGLniHbq4oicEgw=",
-    "mesa_0.2.0_darwin_arm64.tar.gz": "sha256-vytf4jeyYOlJ+HmmVzwtzOSvH56S1aG1wcpGJ7LE058=",
-    "mesa_0.2.0_linux_amd64.tar.gz": "sha256-cgRmZHQg+GXcw3WS7BwSC4tMjZ2zsSWZgkzUoeeY/qU=",
-    "mesa_0.2.0_linux_arm64.tar.gz": "sha256-pax+JScsVp51c8fHLpmOMS7yo72tISYrIfavS9pkLBA="
+    "Mesa_darwin_universal.zip": "sha256-ngAXbb5eao4qQNW8LpJJVqjbqZ2bIONK7oAieh/lxjg=",
+    "mesa-desktop_linux_amd64.tar.gz": "sha256-xVnQBU6CHK2KqJ3535ZUXG6dOPWFrKvUr3MmUTcM6BE=",
+    "mesa-desktop_linux_arm64.tar.gz": "sha256-DqgdnBwAo8lxufJHjlkYKJMk1qK5sn4GGqgXRsLDEmc=",
+    "mesa_0.4.0_darwin_amd64.tar.gz": "sha256-okjCli0eU30Zs+6eytN2lLOq206fI7Gfk1o/JH5kJSs=",
+    "mesa_0.4.0_darwin_arm64.tar.gz": "sha256-bGDXvG0SW2xziHaCWd3Bmk/5KgtpXZTHdjpwnfM6K3E=",
+    "mesa_0.4.0_linux_amd64.tar.gz": "sha256-MZ4jppV8e6jAlDB8VLYccto7JzZtlNxt12cqSoCgq+8=",
+    "mesa_0.4.0_linux_arm64.tar.gz": "sha256-0/QfOw3CbKQs1mp+nuA/8W0DmVBC3rLyTPGmhQUeAtU="
   }
 }
