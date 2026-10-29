@@ -104,38 +104,59 @@ export const Erd = React.forwardRef<ErdHandle, Props>(function Erd(props, ref) {
     return () => ro.disconnect();
   }, []);
 
+  // Measured when used: a panel opening beside the canvas narrows it before the observer says so.
+  const dims = React.useCallback(() => ({ w: box.current?.clientWidth ?? 0, h: box.current?.clientHeight ?? 0 }), []);
+
   const go = React.useCallback(
     (to: View, animate: boolean) => {
       cancelAnim.current();
-      if (animate) cancelAnim.current = animateView(viewRef.current, to, 260, size.w, size.h, setView);
+      const { w, h } = dims();
+      if (animate) cancelAnim.current = animateView(viewRef.current, to, 260, w, h, setView);
       else setView(to);
     },
-    [size.w, size.h, setView],
+    [dims, setView],
   );
 
   const fit = React.useCallback(
     (keys?: Iterable<string>, animate = true) => {
       const only = keys ? new Set(keys) : null;
       const b = bounds(rects.filter((r) => !only || only.has(r.key)));
-      if (!b || !size.w) return;
-      go(fitView(b, size.w, size.h), animate);
+      const { w, h } = dims();
+      if (!b || !w) return;
+      go(fitView(b, w, h), animate);
     },
-    [rects, size, go],
+    [rects, dims, go],
   );
 
   const reveal = React.useCallback(
     (key: string) => {
       const r = rects.find((x) => x.key === key);
-      if (!r || !size.w) return;
+      const { w, h } = dims();
+      if (!r || !w) return;
       const v = viewRef.current;
-      const seen = visibleRect(v, size.w, size.h);
+      const seen = visibleRect(v, w, h);
       const inside = r.x >= seen.x && r.y >= seen.y && r.x + r.w <= seen.x + seen.w && r.y + Math.min(r.h, 300) <= seen.y + seen.h;
       if (inside && v.k >= 0.6) return;
       const k = Math.max(v.k, 0.8);
       // Centre the card, or its top when it is taller than the view.
-      go(centerOn({ x: r.x + r.w / 2, y: r.y + Math.min(r.h, (size.h - 96) / k) / 2 }, k, size.w, size.h), true);
+      go(centerOn({ x: r.x + r.w / 2, y: r.y + Math.min(r.h, (h - 96) / k) / 2 }, k, w, h), true);
     },
-    [rects, size, go],
+    [rects, dims, go],
+  );
+
+  const zoomBy = React.useCallback(
+    (dir: 1 | -1) => {
+      const { w, h } = dims();
+      go(zoomAt(viewRef.current, zoomStep(viewRef.current.k, dir), w / 2, h / 2), true);
+    },
+    [dims, go],
+  );
+  const zoomTo = React.useCallback(
+    (k: number) => {
+      const { w, h } = dims();
+      go(zoomAt(viewRef.current, k, w / 2, h / 2), true);
+    },
+    [dims, go],
   );
 
   // Show everything the first time there is something to show.
@@ -150,13 +171,16 @@ export const Erd = React.forwardRef<ErdHandle, Props>(function Erd(props, ref) {
     ref,
     () => ({
       fit,
-      zoom: (dir) => go(zoomAt(viewRef.current, zoomStep(viewRef.current.k, dir), size.w / 2, size.h / 2), true),
-      zoomTo: (k) => go(zoomAt(viewRef.current, k, size.w / 2, size.h / 2), true),
+      zoom: zoomBy,
+      zoomTo,
       reveal,
-      center: () => toWorld(viewRef.current, size.w / 2, size.h / 2),
+      center: () => {
+        const { w, h } = dims();
+        return toWorld(viewRef.current, w / 2, h / 2);
+      },
       find: () => setFinding(true),
     }),
-    [fit, go, reveal, size],
+    [fit, zoomBy, zoomTo, reveal, dims],
   );
 
   // Wheel: zoom at the pointer (ctrl/⌘ or a pinch always zooms), or pan.
@@ -377,8 +401,8 @@ export const Erd = React.forwardRef<ErdHandle, Props>(function Erd(props, ref) {
               reveal(key);
             }} />
           <div className="m-erd-dock" data-erd-overlay="">
-            <Minimap rects={rects} diagram={diagram} selected={selected} view={view} size={size} onCenter={(p) => go(centerOn(p, viewRef.current.k, size.w, size.h), false)} />
-            <ZoomBar view={view} wheel={wheel} onWheelMode={props.onWheelMode} onZoom={(dir) => go(zoomAt(viewRef.current, zoomStep(viewRef.current.k, dir), size.w / 2, size.h / 2), true)} onZoomTo={(k) => go(zoomAt(viewRef.current, k, size.w / 2, size.h / 2), true)} onFit={() => fit()} onFitSelection={() => selected.size && fit(selected)} />
+            <Minimap rects={rects} diagram={diagram} selected={selected} view={view} size={size} onCenter={(p) => go(centerOn(p, viewRef.current.k, dims().w, dims().h), false)} />
+            <ZoomBar view={view} wheel={wheel} onWheelMode={props.onWheelMode} onZoom={zoomBy} onZoomTo={zoomTo} onFit={() => fit()} onFitSelection={() => selected.size && fit(selected)} />
           </div>
         </>
       ) : null}
