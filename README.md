@@ -108,9 +108,9 @@ archives. It opens `mesa://` links (`mesa://c/<connection>/sql`,
 releases (Help → Check for updates; `MESA_UPDATE_CHECK=off` stops the daily check).
 View → Zoom In / Zoom Out / Actual Size (⌘= ⌘- ⌘0, Ctrl elsewhere) scale the whole window
 and the level is kept between launches; Settings (⌘,) holds it with the theme and row
-density, and ⌘/ lists every keyboard shortcut. Settings → Keyboard → Vim keys (in the
-browser too) gives the grids h j k l, counts, gg/G, dd and y, tabs gt/gT, panes
-Ctrl+h/j/k/l and the palette `:`.
+density, and ⌘/ (or ?) lists every keyboard shortcut. Settings → Keyboard → Vim keys (in
+the browser too) gives the grids h j k l, counts, gg/G, dd and y, tabs gt/gT, panes
+⌃h/j/k/l (Alt+h/j/k/l elsewhere) and the palette `:`.
 On macOS, install from a terminal; this checks the download against the release checksums,
 puts Mesa in Applications and clears the quarantine flag macOS sets on apps that are not
 notarized:
@@ -123,6 +123,46 @@ With the `.dmg` instead, drag Mesa to Applications, then Control-click it → Op
 time (or run `xattr -dr com.apple.quarantine /Applications/Mesa.app`).
 
 How releases are built and signed: [docs/releasing.md](docs/releasing.md).
+
+### Nix
+
+The flake installs the release builds on Linux (x86_64, aarch64) and Apple Silicon Macs: `mesa`
+(the CLI with `mesa-server` and `mesa-mcp`) and `mesa-desktop`.
+
+```bash
+nix run github:FelipeMalacarne/mesa -- --help
+nix profile install github:FelipeMalacarne/mesa#mesa-desktop
+```
+
+In a NixOS, nix-darwin or home-manager flake, add the input and its overlay:
+
+```nix
+{
+  inputs.mesa.url = "github:FelipeMalacarne/mesa";
+  inputs.mesa.inputs.nixpkgs.follows = "nixpkgs";
+
+  # nix-darwin here; nixpkgs.lib.nixosSystem takes the same modules
+  outputs = { nix-darwin, mesa, ... }: {
+    darwinConfigurations.my-mac = nix-darwin.lib.darwinSystem {
+      modules = [
+        { nixpkgs.overlays = [ mesa.overlays.default ]; }
+        ./configuration.nix
+      ];
+    };
+  };
+}
+```
+
+```nix
+# configuration.nix (home-manager: home.packages)
+environment.systemPackages = [ pkgs.mesa-sql pkgs.mesa-sql-desktop ];
+```
+
+The overlay names them `mesa-sql` and `mesa-sql-desktop` because nixpkgs' `mesa` is the OpenGL
+library; without it, use `mesa.packages.${system}.mesa` and `.mesa-desktop`. Nix owns these
+copies, so the desktop app does not update itself: `nix flake update mesa` moves to the latest
+release. nix-darwin puts the app in `/Applications/Nix Apps`. On an Intel Mac, which
+nixpkgs-unstable no longer supports, use the overlay with nixpkgs 26.05.
 
 ### MCP
 

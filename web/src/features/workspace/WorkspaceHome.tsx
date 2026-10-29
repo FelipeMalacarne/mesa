@@ -13,7 +13,6 @@ import { useListHistory } from "@/lib/api/query/query";
 import { bytes, engineLabel, relativeTime } from "@/lib/format";
 import { useStatusFacts } from "@/app/status.store";
 import { EnvTag } from "@/ui/controls";
-import { newQueryTab } from "@/features/explorer/tabActions";
 import { useTabs, tabLink } from "@/features/explorer/tabs.store";
 
 import { useWorkspace } from "./context";
@@ -35,7 +34,10 @@ export function WorkspaceHome() {
     if (active) void navigate({ ...tabLink(connectionId, active), replace: true });
   }, [connectionId, navigate]);
 
-  const newQuery = () => newQueryTab(navigate, connectionId);
+  const newQuery = () => {
+    void navigate(tabLink(connectionId, useTabs.getState().newQuery(connectionId)));
+    focusMain();
+  };
 
   const tools = [
     { label: "New query", hint: "Run SQL with results, EXPLAIN and history", icon: SquareTerminal, onClick: newQuery },

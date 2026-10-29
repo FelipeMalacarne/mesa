@@ -32,6 +32,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/platform"
 	"github.com/felipemalacarne/mesa/internal/platform/bootstrap"
 	"github.com/felipemalacarne/mesa/internal/platform/desktop"
+	"github.com/felipemalacarne/mesa/internal/platform/update"
 	httptransport "github.com/felipemalacarne/mesa/internal/transport/http"
 	"github.com/felipemalacarne/mesa/web"
 )
@@ -65,7 +66,8 @@ func run() error {
 	defer stop()
 	go a.Monitor.Run(ctx)
 
-	if exe, err := os.Executable(); err == nil && os.Getenv("MESA_REGISTER_SCHEME") != "off" {
+	// A Nix install's path changes with every version; its package registers the links.
+	if exe, err := os.Executable(); err == nil && os.Getenv("MESA_REGISTER_SCHEME") != "off" && !update.Managed(exe) {
 		if err := desktop.RegisterScheme(exe); err != nil {
 			log.Warn("cannot register mesa:// links", "err", err)
 		}
@@ -87,7 +89,7 @@ func run() error {
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/desktop/zoom", zoom.Handler(nativeZoom, applyZoom))
-	mux.Handle("/", httptransport.New(a, httptransport.Options{Assets: web.Assets(), Logger: log}))
+	mux.Handle("/", links.serve(httptransport.New(a, httptransport.Options{Assets: web.Assets(), Logger: log})))
 	return wails.Run(&options.App{
 		Title:            "Mesa",
 		Width:            1440,
@@ -132,6 +134,14 @@ func run() error {
 }
 
 func appMenu(ctx func() context.Context, updates *updates, zoom *desktop.Zoom, applyZoom func(float64), log *slog.Logger) *menu.Menu {
+	// send runs one of the web app's commands (web/src/app/commands.ts), the
+	// same ones its keyboard shortcuts run; it ignores a repeat within 250 ms,
+	// so a key press seen by both the menu and the page acts once.
+	send := func(id string) menu.Callback {
+		return func(*menu.CallbackData) {
+			runtime.WindowExecJS(ctx(), `window.dispatchEvent(new CustomEvent("mesa:command",{detail:"`+id+`"}))`)
+		}
+	}
 	m := menu.NewMenu()
 	// The role menus exist only on macOS, where Edit is what makes copy and
 	// paste work in the webview; Linux and Windows handle those natively.
@@ -139,19 +149,19 @@ func appMenu(ctx func() context.Context, updates *updates, zoom *desktop.Zoom, a
 		m.Append(menu.AppMenu())
 	}
 	file := m.AddSubmenu("File")
-	file.AddText("New query", keys.CmdOrCtrl("t"), command(ctx, "tab.new"))
-	file.AddText("Close tab", keys.CmdOrCtrl("w"), command(ctx, "tab.close"))
-	file.AddText("Reopen closed tab", keys.Combo("t", keys.CmdOrCtrlKey, keys.ShiftKey), command(ctx, "tab.reopen"))
+	file.AddText("New Query Tab", keys.CmdOrCtrl("t"), send("tab.new"))
+	file.AddText("Reopen Closed Tab", keys.Combo("t", keys.CmdOrCtrlKey, keys.ShiftKey), send("tab.reopen"))
 	file.AddSeparator()
-	file.AddText("Settings…", keys.CmdOrCtrl(","), command(ctx, "settings"))
+	file.AddText("Close Tab", keys.CmdOrCtrl("w"), send("tab.close"))
+	file.AddSeparator()
+	file.AddText("Settings…", keys.CmdOrCtrl(","), send("settings"))
 	if isMac() {
 		m.Append(menu.EditMenu())
 	}
 	view := m.AddSubmenu("View")
-	view.AddText("Command palette", keys.CmdOrCtrl("k"), command(ctx, "palette"))
-	view.AddText("Find object", keys.CmdOrCtrl("p"), command(ctx, "objects.find"))
-	view.AddText("Toggle sidebar", keys.CmdOrCtrl("b"), command(ctx, "sidebar.toggle"))
-	view.AddText("Keyboard shortcuts", keys.CmdOrCtrl("/"), command(ctx, "shortcuts"))
+	view.AddText("Command Palette", keys.CmdOrCtrl("k"), send("palette"))
+	view.AddText("Find Object", keys.CmdOrCtrl("p"), send("filter"))
+	view.AddText("Show or Hide Sidebar", keys.CmdOrCtrl("b"), send("rail"))
 	view.AddSeparator()
 	if nativeZoom {
 		zoomTo := func(level float64, err error) {
@@ -160,13 +170,17 @@ func appMenu(ctx func() context.Context, updates *updates, zoom *desktop.Zoom, a
 			}
 			applyZoom(level)
 		}
-		view.AddText("Actual size", keys.CmdOrCtrl("0"), func(*menu.CallbackData) { zoomTo(zoom.Reset()) })
-		view.AddText("Zoom in", keys.CmdOrCtrl("="), func(*menu.CallbackData) { zoomTo(zoom.In()) })
-		view.AddText("Zoom out", keys.CmdOrCtrl("-"), func(*menu.CallbackData) { zoomTo(zoom.Out()) })
+		view.AddText("Actual Size", keys.CmdOrCtrl("0"), func(*menu.CallbackData) { zoomTo(zoom.Reset()) })
+		view.AddText("Zoom In", keys.CmdOrCtrl("="), func(*menu.CallbackData) { zoomTo(zoom.In()) })
+		view.AddText("Zoom Out", keys.CmdOrCtrl("-"), func(*menu.CallbackData) { zoomTo(zoom.Out()) })
 		view.AddSeparator()
 	}
-	view.AddText("Reload", keys.CmdOrCtrl("r"), func(*menu.CallbackData) { runtime.WindowReload(ctx()) })
-	view.AddText("Toggle full screen", keys.Key("f11"), func(*menu.CallbackData) {
+	view.AddText("Next Tab", keys.Control("tab"), send("tab.next"))
+	view.AddText("Previous Tab", keys.Combo("tab", keys.ControlKey, keys.ShiftKey), send("tab.prev"))
+	view.AddSeparator()
+	view.AddText("Refresh", keys.CmdOrCtrl("r"), send("refresh"))
+	view.AddText("Reload Window", keys.Combo("r", keys.CmdOrCtrlKey, keys.ShiftKey), func(*menu.CallbackData) { runtime.WindowReload(ctx()) })
+	view.AddText("Toggle Full Screen", keys.Key("f11"), func(*menu.CallbackData) {
 		if runtime.WindowIsFullscreen(ctx()) {
 			runtime.WindowUnfullscreen(ctx())
 		} else {
@@ -177,16 +191,9 @@ func appMenu(ctx func() context.Context, updates *updates, zoom *desktop.Zoom, a
 		m.Append(menu.WindowMenu())
 	}
 	help := m.AddSubmenu("Help")
-	help.AddText("Check for updates…", nil, func(*menu.CallbackData) { go updates.check(ctx(), true) })
+	help.AddText("Keyboard Shortcuts", keys.CmdOrCtrl("/"), send("help"))
+	help.AddSeparator()
+	help.AddText("Check for Updates…", nil, func(*menu.CallbackData) { go updates.check(ctx(), true) })
 	help.AddText("Mesa on GitHub", nil, func(*menu.CallbackData) { runtime.BrowserOpenURL(ctx(), "https://github.com/felipemalacarne/mesa") })
 	return m
-}
-
-// command runs a web app command (web/src/app/commands.ts), the same one its
-// keyboard shortcut runs. Where the menu sees a key first (GTK), this is how
-// the shortcut reaches the page; where the page sees it first (WebKit on
-// macOS) the page handles it and the menu item does not fire.
-func command(ctx func() context.Context, id string) menu.Callback {
-	js := `window.dispatchEvent(new CustomEvent("mesa:command",{detail:` + strconv.Quote(id) + `}))`
-	return func(*menu.CallbackData) { runtime.WindowExecJS(ctx(), js) }
 }

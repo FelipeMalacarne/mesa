@@ -32,6 +32,18 @@ already tagged.
 The image is pushed to `ghcr.io/felipemalacarne/mesa:<v>` (and `:latest` for a
 final release) for amd64 and arm64, and signed with cosign keyless.
 
+## After the release: the Nix flake
+
+`flake.nix` installs the release files, so it points at one release through
+`nix/release.json`. Once the release is published, move it there and commit:
+
+```bash
+nix/update.sh 0.1.1          # writes nix/release.json from the release's checksums.txt
+nix build .#mesa .#mesa-desktop
+```
+
+Until then, `nix flake update mesa` keeps people on the previous release.
+
 ## Keys and certificates
 
 Without any of these the release still builds; what is missing is reported in

@@ -4,15 +4,17 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Activity, Eye, History, LayoutGrid, Plus, SquareTerminal, Table2, Users, X } from "lucide-react";
 
 import { objectPath } from "@/lib/format";
-import { keyLabel } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/Button";
 import { Kbd } from "@/ui/controls";
 import { hasChanges, tableKey, useChanges } from "@/features/table/changes.store";
+import { command, usableKeys } from "@/app/commands";
+import { label } from "@/app/keys";
+import { useIsDesktop } from "@/app/shortcuts";
 
 import { useWorkspace } from "../workspace/context";
-import { closeTab, newQueryTab } from "./tabActions";
-import { tabLink, useActiveTab, useConnectionTabs, type Tab } from "./tabs.store";
+import { focusMain } from "../workspace/focus";
+import { tabLink, useActiveTab, useConnectionTabs, useTabs, type Tab } from "./tabs.store";
 
 export function TabIcon({ tab }: { tab: Tab }) {
   const cls = "m-icon m-icon--sm";
@@ -38,6 +40,11 @@ export function TabStrip() {
   const active = useActiveTab(connectionId);
   const staged = useChanges((s) => s.tables);
   const navigate = useNavigate();
+  const desktop = useIsDesktop();
+  const keyFor = (id: string) => {
+    const k = usableKeys(command(id)!, desktop)[0];
+    return k ? label(k) : "";
+  };
   const navRef = React.useRef<HTMLElement>(null);
 
   // Keep the active tab in sight when the keyboard moves to one scrolled out of view.
@@ -45,7 +52,19 @@ export function TabStrip() {
     navRef.current?.querySelector<HTMLElement>(".m-tab.is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [active?.id, tabs.length]);
 
-  const close = (tab: Tab) => closeTab(navigate, connectionId, tab.id);
+  const close = (tab: Tab) => {
+    const next = useTabs.getState().close(connectionId, tab.id);
+    if (active?.id === tab.id) {
+      if (next) void navigate(tabLink(connectionId, next));
+      else void navigate({ to: "/c/$connectionId", params: { connectionId } });
+    }
+  };
+
+  const newQuery = () => {
+    const tab = useTabs.getState().newQuery(connectionId);
+    void navigate(tabLink(connectionId, tab));
+    focusMain();
+  };
 
   return (
     <nav ref={navRef} className="m-tabs" aria-label="Open objects" style={{ height: "var(--size-header)", flex: "none", overflowX: "auto", overflowY: "hidden" }}>
@@ -57,7 +76,7 @@ export function TabStrip() {
             {...tabLink(connectionId, tab)}
             className={cn("m-tab", active?.id === tab.id && "is-active", dirty && "is-dirty")}
             aria-current={active?.id === tab.id ? "page" : undefined}
-            title={`${tab.kind === "table" ? objectPath(tab.database ?? "", tab.schema ?? "", tab.table ?? "") : tab.title}${i < 8 ? ` (${keyLabel(`mod+${i + 1}`)})` : ""}`}
+            title={`${tab.kind === "table" ? objectPath(tab.database ?? "", tab.schema ?? "", tab.table ?? "") : tab.title}${i < 8 ? ` (${keyFor(`tab.${i + 1}`)})` : ""}`}
             onAuxClick={(e) => {
               if (e.button === 1) {
                 e.preventDefault();
@@ -72,7 +91,7 @@ export function TabStrip() {
               tabIndex={-1}
               className="m-tab__close"
               aria-label={`Close ${tab.title}`}
-              title={`Close (${keyLabel("mod+w")})`}
+              title={`Close (${keyFor("tab.close")})`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -85,10 +104,10 @@ export function TabStrip() {
         );
       })}
       <div className="m-tabs__end">
-        <Button variant="ghost" size="xs" icon aria-label="New query" onClick={() => newQueryTab(navigate, connectionId)}>
+        <Button variant="ghost" size="xs" icon aria-label="New query" title={`New query (${keyFor("tab.new")})`} onClick={newQuery}>
           <Plus className="m-icon m-icon--sm" aria-hidden="true" />
         </Button>
-        <Kbd>{keyLabel("mod+t")}</Kbd>
+        <Kbd>{keyFor("tab.new")}</Kbd>
       </div>
     </nav>
   );

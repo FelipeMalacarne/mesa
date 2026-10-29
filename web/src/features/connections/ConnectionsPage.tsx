@@ -12,7 +12,7 @@ import { deleteConnection, getListConnectionsQueryKey, pingConnection, useListCo
 import type { Connection, Environment } from "@/lib/api/mesaAPI.schemas";
 import { errorMessage } from "@/lib/api/fetch";
 import { duration, ENVIRONMENTS, envLabel, relativeTime } from "@/lib/format";
-import { keyLabel } from "@/lib/keys";
+import { shortcut } from "@/app/keys";
 import { focusFirstRow, useListKeys } from "@/lib/listKeys";
 import { Button } from "@/ui/Button";
 import { EmptyState, EnvTag, Kbd, StatusLabel } from "@/ui/controls";
@@ -103,7 +103,7 @@ export function ConnectionsPage() {
             New connection
           </Button>
           <ThemeToggle />
-          <Button variant="ghost" icon aria-label="Settings" title={`Settings (${keyLabel("mod+,")})`} onClick={() => useUi.getState().openSettings("appearance")}>
+          <Button variant="ghost" icon aria-label="Settings" title={`Settings (${shortcut("Comma")})`} onClick={() => useUi.getState().openSettings("appearance")}>
             <Settings className="m-icon m-icon--sm" aria-hidden="true" />
           </Button>
         </header>

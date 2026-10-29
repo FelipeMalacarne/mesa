@@ -28,6 +28,15 @@ func Install(archive, exe string) (string, error) {
 	return installBinary(archive, exe)
 }
 
+// Managed reports whether a package manager owns exe: Nix keeps it in the
+// read-only /nix/store and updates it itself, so the app must not.
+func Managed(exe string) bool {
+	if p, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = p
+	}
+	return strings.HasPrefix(filepath.ToSlash(exe), "/nix/store/")
+}
+
 // appBundle returns /…/Mesa.app for /…/Mesa.app/Contents/MacOS/<exe>.
 func appBundle(exe string) (string, bool) {
 	macos := filepath.Dir(exe)

@@ -1,9 +1,8 @@
 /**
  * The nested object tree (`Rail` board): databases → schemas → Tables / Views / Enums /
  * Functions / Sequences → columns and indexes. Each database's schema loads when it opens.
- * The tree moves like a vim buffer: j/k (or the arrows) step through the visible items, l/h open
- * and close a branch (h on a leaf goes to its parent), gg/G jump to the ends, Enter opens and
- * moves into the view, Space opens and stays, / goes to the search. Tab enters at the selection.
+ * The keyboard (arrows or vim keys, Enter, Space, /) is in treeKeys.ts; Tab enters the tree at
+ * the selection, and a node revealed from the search scrolls into view with focus.
  */
 import * as React from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -26,11 +25,11 @@ import { useGetSchema, useListDatabases } from "@/lib/api/explore/explore";
 import type { Schema, Table } from "@/lib/api/mesaAPI.schemas";
 import { errorMessage } from "@/lib/api/fetch";
 import { compact } from "@/lib/format";
-import { cn, isMac } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
-import { focusMain } from "../workspace/focus";
 import { useWorkspace } from "../workspace/context";
 import { treeNode, useNodeOpen, useTree } from "./tree.store";
+import { focusFirstItem, onTreeKeyDown } from "./treeKeys";
 
 interface TreeProps {
   onNewDatabase: () => void;
@@ -40,28 +39,6 @@ interface TreeProps {
 }
 
 const ITEM = '[role="treeitem"]';
-
-function items(tree: HTMLElement): HTMLElement[] {
-  return Array.from(tree.querySelectorAll<HTMLElement>(ITEM));
-}
-
-function focusItem(el: HTMLElement | undefined) {
-  if (!el) return;
-  el.focus({ preventScroll: true });
-  el.scrollIntoView({ block: "nearest" });
-}
-
-/** The treeitem that owns a group: the element just before the group. */
-function parentOf(item: HTMLElement): HTMLElement | undefined {
-  const group = item.parentElement?.closest('[role="group"]');
-  const prev = group?.previousElementSibling;
-  return prev instanceof HTMLElement && prev.matches(ITEM) ? prev : undefined;
-}
-
-/** Clicks the item's own control for `what` (a toggle or its primary action), else the item. */
-function press(item: HTMLElement, what: "toggle" | "primary") {
-  (item.querySelector<HTMLElement>(`[data-${what}]`) ?? item).click();
-}
 
 export function ObjectTree({ onNewDatabase, onSearch, treeRef }: TreeProps) {
   const { connectionId, connection } = useWorkspace();
@@ -73,7 +50,6 @@ export function ObjectTree({ onNewDatabase, onSearch, treeRef }: TreeProps) {
   }, [dbs.data, connection.database]);
   const localRef = React.useRef<HTMLDivElement>(null);
   const ref = treeRef ?? localRef;
-  const pendingG = React.useRef(0);
   const revealing = useTree((s) => (s.revealing?.connectionId === connectionId ? s.revealing : null));
 
   // Scroll to and focus a revealed node once its branch has rendered (its schema may still load).
@@ -94,51 +70,12 @@ export function ObjectTree({ onNewDatabase, onSearch, treeRef }: TreeProps) {
     return () => cancelAnimationFrame(raf);
   }, [revealing, ref]);
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.metaKey || e.altKey) return;
-    const tree = e.currentTarget;
-    const all = items(tree);
-    const current = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(ITEM) ?? undefined;
-    const at = current ? all.indexOf(current) : -1;
-    // Ctrl+P and Ctrl+K are ⌘P and ⌘K outside macOS; leave them to the app there.
-    const ctrl = e.ctrlKey && (isMac || (e.key !== "p" && e.key !== "k"));
-    if (e.ctrlKey && !ctrl) return;
-    let handled = true;
-    const key = e.key;
-    if (key !== "g") pendingG.current = 0;
-    if ((!ctrl && (key === "j" || key === "ArrowDown")) || (ctrl && (key === "n" || key === "j"))) focusItem(all[Math.min(all.length - 1, at + 1)]);
-    else if ((!ctrl && (key === "k" || key === "ArrowUp")) || (ctrl && (key === "p" || key === "k"))) focusItem(all[Math.max(0, at - 1)]);
-    else if (ctrl && key === "d") focusItem(all[Math.min(all.length - 1, at + 10)]);
-    else if (ctrl && key === "u") focusItem(all[Math.max(0, at - 10)]);
-    else if (ctrl) handled = false;
-    else if (key === "Home" || key === "G" || key === "End") focusItem(key === "Home" ? all[0] : all[all.length - 1]);
-    else if (key === "g") {
-      // gg: two presses within a moment.
-      if (Date.now() - pendingG.current < 600) {
-        focusItem(all[0]);
-        pendingG.current = 0;
-      } else pendingG.current = Date.now();
-    } else if (!current) handled = false;
-    else if (key === "l" || key === "ArrowRight") {
-      if (current.getAttribute("aria-expanded") === "false") press(current, "toggle");
-      else if (current.getAttribute("aria-expanded") === "true") focusItem(all[at + 1]);
-    } else if (key === "h" || key === "ArrowLeft") {
-      if (current.getAttribute("aria-expanded") === "true") press(current, "toggle");
-      else focusItem(parentOf(current));
-    } else if (key === "Enter" || key === "o") {
-      press(current, "primary");
-      if (current.dataset.opens !== undefined) focusMain();
-    } else if (key === " ") press(current, "primary");
-    else if (key === "/") onSearch();
-    else handled = false;
-    if (handled) e.preventDefault();
-  };
-
   // Tab lands on the selected object, else the first item; the items themselves are not tab stops.
   const onFocus = (e: React.FocusEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
-    const tree = e.currentTarget;
-    focusItem(tree.querySelector<HTMLElement>(`${ITEM}.is-selected`) ?? items(tree)[0]);
+    const selected = e.currentTarget.querySelector<HTMLElement>(`${ITEM}.is-selected`);
+    if (selected) selected.focus();
+    else focusFirstItem(e.currentTarget);
   };
 
   return (
@@ -148,7 +85,7 @@ export function ObjectTree({ onNewDatabase, onSearch, treeRef }: TreeProps) {
       role="tree"
       aria-label={`${connection.name} objects`}
       tabIndex={0}
-      onKeyDown={onKeyDown}
+      onKeyDown={(e) => onTreeKeyDown(e, { onSearch })}
       // A button clicks itself on Space's keyup; onKeyDown already pressed it.
       onKeyUp={(e) => e.key === " " && e.preventDefault()}
       onFocus={onFocus}
@@ -357,7 +294,7 @@ function ObjectLeaf({ icon, label, meta, database, schema, table, kind }: { icon
       role="treeitem"
       tabIndex={-1}
       data-node={treeNode(kind, database, schema, table)}
-      data-opens=""
+      data-open=""
       onClick={() => void navigate({ to: "/c/$connectionId/db/$database/t/$schema/$table", params: { connectionId, database, schema, table }, search: { view: "data", kind } })}
     >
       <span className="m-tree__chev" aria-hidden="true" />
@@ -379,14 +316,14 @@ function TableNode({ database, schema, table }: { database: string; schema: stri
   const pkCols = new Set(table.primaryKey?.columns ?? []);
   return (
     <>
-      <div className={cn("m-tree__item", selected && "is-selected")} role="treeitem" tabIndex={-1} data-node={id} data-opens="" aria-expanded={open} style={{ paddingLeft: 0 }}>
+      <div className={cn("m-tree__item", selected && "is-selected")} role="treeitem" tabIndex={-1} data-node={id} aria-expanded={open} style={{ paddingLeft: 0 }}>
         <button type="button" tabIndex={-1} data-toggle="" aria-label={open ? `Collapse ${table.name}` : `Expand ${table.name}`} onClick={() => toggle(connectionId, id)} style={{ display: "grid", placeItems: "center", width: 22, height: "100%" }}>
           <Chevron open={open} />
         </button>
         <button
           type="button"
           tabIndex={-1}
-          data-primary=""
+          data-open=""
           onClick={() => void navigate({ to: "/c/$connectionId/db/$database/t/$schema/$table", params: { connectionId, database, schema, table: table.name }, search: { view: "data", kind: "table" } })}
           style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0, height: "100%" }}
           title={table.comment || table.name}

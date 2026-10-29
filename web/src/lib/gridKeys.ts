@@ -1,9 +1,11 @@
 /**
- * Keys in a grid, read as a motion or an action. Arrows, Home/End, Ctrl+Home/End and
- * PageUp/PageDown always move. With vim keys on, so do h j k l, w b, 0 ^ $, gg G, Ctrl+D/U
+ * Keys in a grid, read as a motion or an action. Arrows, ⌘+arrows (to the edge), Home/End,
+ * Ctrl+Home/End and PageUp/PageDown always move. With vim keys on, so do h j k l, w b, 0 ^ $, gg G, Ctrl+D/U
  * (half a page), with a count in front (5j, 3w, 10G), and i a s c o dd y Y / are actions.
  * Multi-key commands keep their progress in `state`, which the grid holds in a ref.
  */
+import { isMac } from "./utils";
+
 export interface Cell {
   row: number;
   col: number;
@@ -39,8 +41,8 @@ export function newGridKeyState(): GridKeyState {
   return { count: "", pending: "" };
 }
 
-export function gridKey(e: KeyLike, at: Cell | null, size: GridSize, vim: boolean, state: GridKeyState): GridAction | null {
-  if (e.metaKey || e.altKey || size.rows === 0 || size.cols === 0) {
+export function gridKey(e: KeyLike, at: Cell | null, size: GridSize, vim: boolean, state: GridKeyState, mac: boolean = isMac): GridAction | null {
+  if (size.rows === 0 || size.cols === 0) {
     reset(state);
     return null;
   }
@@ -49,6 +51,24 @@ export function gridKey(e: KeyLike, at: Cell | null, size: GridSize, vim: boolea
     kind: "move",
     cell: { row: Math.max(0, Math.min(size.rows - 1, row)), col: Math.max(0, Math.min(size.cols - 1, col)) },
   });
+  // ⌘+arrow (Ctrl outside macOS) goes to the edge, as in a spreadsheet.
+  if ((mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey) && !e.altKey && e.key.startsWith("Arrow")) {
+    reset(state);
+    switch (e.key) {
+      case "ArrowUp":
+        return clamp(0, here.col);
+      case "ArrowDown":
+        return clamp(size.rows - 1, here.col);
+      case "ArrowLeft":
+        return clamp(here.row, 0);
+      case "ArrowRight":
+        return clamp(here.row, size.cols - 1);
+    }
+  }
+  if (e.metaKey || e.altKey) {
+    reset(state);
+    return null;
+  }
   // The first move into a grid with no active cell lands on the first cell.
   const by = (dr: number, dc: number) => (at ? clamp(here.row + dr, here.col + dc) : clamp(0, 0));
   const half = Math.max(1, Math.floor(size.page / 2));

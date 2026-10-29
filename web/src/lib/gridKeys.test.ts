@@ -63,6 +63,16 @@ describe("gridKey", () => {
     expect(press(["/"], { row: 1, col: 1 })).toEqual({ kind: "filter" });
   });
 
+  it("goes to the edge with ⌘+arrow (Ctrl outside macOS)", () => {
+    const state = newGridKeyState();
+    const arrow = (key: string, mods: { metaKey?: boolean; ctrlKey?: boolean }, mac: boolean) =>
+      gridKey({ key, metaKey: !!mods.metaKey, ctrlKey: !!mods.ctrlKey, altKey: false, shiftKey: false }, { row: 50, col: 2 }, size, false, state, mac);
+    expect(arrow("ArrowDown", { metaKey: true }, true)).toEqual(to(99, 2));
+    expect(arrow("ArrowUp", { ctrlKey: true }, false)).toEqual(to(0, 2));
+    expect(arrow("ArrowRight", { metaKey: true }, true)).toEqual(to(50, 4));
+    expect(arrow("ArrowLeft", { ctrlKey: true }, false)).toEqual(to(50, 0));
+  });
+
   it("leaves ⌘ and ⌥ keys to the page", () => {
     const state = newGridKeyState();
     expect(gridKey({ key: "c", metaKey: true, ctrlKey: false, altKey: false, shiftKey: false }, { row: 0, col: 0 }, size, true, state)).toBeNull();

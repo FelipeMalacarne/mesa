@@ -1,7 +1,7 @@
 /**
  * Workspace chrome state that is not tied to a route: the inspector, the collapsed rail,
- * the command palette, the review and settings dialogs, and requests to move keyboard focus
- * into the rail. Inspector and rail choices persist per viewer.
+ * the command palette, the shortcuts sheet, Settings, the review dialog, and requests to move
+ * keyboard focus into the rail. Inspector and rail choices persist per viewer.
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -18,6 +18,7 @@ interface UiState {
   inspectorOpen: boolean;
   railCollapsed: boolean;
   paletteOpen: boolean;
+  helpOpen: boolean;
   reviewOpen: boolean;
   settingsOpen: boolean;
   settingsSection: SettingsSection;
@@ -26,10 +27,11 @@ interface UiState {
   toggleInspector: () => void;
   toggleRail: () => void;
   setPaletteOpen: (open: boolean) => void;
+  setHelpOpen: (open: boolean) => void;
   setReviewOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   openSettings: (section: SettingsSection) => void;
-  /** Opens the rail when it is collapsed and asks it to focus its filter or its tree. */
+  /** Opens the rail when it is collapsed and asks it to focus its search or its tree. */
   focusRail: (target: FocusRequest["target"]) => void;
 }
 
@@ -41,6 +43,7 @@ export const useUi = create<UiState>()(
       inspectorOpen: wideEnough,
       railCollapsed: false,
       paletteOpen: false,
+      helpOpen: false,
       reviewOpen: false,
       settingsOpen: false,
       settingsSection: "appearance",
@@ -49,9 +52,10 @@ export const useUi = create<UiState>()(
       toggleInspector: () => set({ inspectorOpen: !get().inspectorOpen }),
       toggleRail: () => set({ railCollapsed: !get().railCollapsed }),
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+      setHelpOpen: (helpOpen) => set({ helpOpen }),
       setReviewOpen: (reviewOpen) => set({ reviewOpen }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
-      openSettings: (settingsSection) => set({ settingsOpen: true, settingsSection, paletteOpen: false }),
+      openSettings: (settingsSection) => set({ settingsOpen: true, settingsSection, paletteOpen: false, helpOpen: false }),
       focusRail: (target) => set({ railCollapsed: false, focusRequest: { target, n: (get().focusRequest?.n ?? 0) + 1 } }),
     }),
     {

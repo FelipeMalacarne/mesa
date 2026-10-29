@@ -1,7 +1,8 @@
 /**
- * Settings (⌘,): appearance (theme, window zoom, row density), the keyboard reference (⌘/) and
- * the version. Choices apply at once and are kept per viewer; the zoom belongs to the desktop
- * window, so in a browser the page points at the browser's own zoom instead.
+ * Settings (⌘,): appearance (theme, window zoom, row density), the keyboard (vim keys, and the
+ * way to the shortcuts sheet) and the version. Choices apply at once and are kept per viewer;
+ * the zoom belongs to the desktop window, so in a browser the page points at the browser's own
+ * zoom instead.
  */
 import * as React from "react";
 import { Info, Keyboard, Minus, Palette, Plus } from "lucide-react";
@@ -10,14 +11,13 @@ import { toast } from "sonner";
 import type { Engine } from "@/lib/api/mesaAPI.schemas";
 import { useGetSystemInfo } from "@/lib/api/system/system";
 import { engineLabel } from "@/lib/format";
-import { keyLabel } from "@/lib/keys";
 import { cn, isMac } from "@/lib/utils";
 import { Button } from "@/ui/Button";
 import { Kbd, Switch } from "@/ui/controls";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/ui/primitives/dialog";
 
-import { SHORTCUTS } from "./commands";
 import { useDensity, type Density } from "./density";
+import { shortcut } from "./keys";
 import { useTheme, type Theme } from "./theme";
 import { useUi, type SettingsSection } from "./ui.store";
 import { useVim } from "./vim";
@@ -68,7 +68,7 @@ export function SettingsDialog() {
           ))}
         </nav>
         <div className="m-settings__body" role="tabpanel">
-          {section === "appearance" ? <Appearance /> : section === "keyboard" ? <KeyboardHelp /> : <About />}
+          {section === "appearance" ? <Appearance /> : section === "keyboard" ? <KeyboardSettings /> : <About />}
         </div>
       </DialogContent>
     </Dialog>
@@ -161,7 +161,7 @@ function ZoomRow() {
     return (
       <Row label="Zoom" help="Mesa follows your browser's zoom.">
         <span className="m-help">
-          <Kbd>{keyLabel("mod+=", isMac)}</Kbd> <Kbd>{keyLabel("mod+-", isMac)}</Kbd> <Kbd>{keyLabel("mod+0", isMac)}</Kbd>
+          <Kbd>{shortcut("Equal")}</Kbd> <Kbd>{shortcut("Minus")}</Kbd> <Kbd>{shortcut("Digit0")}</Kbd>
         </span>
       </Row>
     );
@@ -175,7 +175,7 @@ function ZoomRow() {
   }
   const pct = `${Math.round(zoom.level * 100)}%`;
   return (
-    <Row label="Zoom" help={<>Scales the whole window. Also in the View menu: <Kbd>{keyLabel("mod+=")}</Kbd> <Kbd>{keyLabel("mod+-")}</Kbd> <Kbd>{keyLabel("mod+0")}</Kbd></>}>
+    <Row label="Zoom" help={<>Scales the whole window. Also in the View menu: <Kbd>{shortcut("Equal")}</Kbd> <Kbd>{shortcut("Minus")}</Kbd> <Kbd>{shortcut("Digit0")}</Kbd></>}>
       <div className="m-settings__zoom">
         <Button variant="outline" size="sm" icon aria-label="Zoom out" disabled={zoom.level <= 0.5} onClick={() => void change("out")}>
           <Minus className="m-icon m-icon--sm" aria-hidden="true" />
@@ -194,55 +194,26 @@ function ZoomRow() {
   );
 }
 
-function Keys({ combo }: { combo: string }) {
-  // "g g" is a sequence: two presses.
-  return (
-    <span className="m-settings__keys">
-      {combo.split(" ").map((k, i) => (
-        <Kbd key={i}>{keyLabel(k)}</Kbd>
-      ))}
-    </span>
-  );
-}
-
-function KeyboardHelp() {
-  const { zoom } = useDesktopZoom();
+function KeyboardSettings() {
   const vim = useVim((s) => s.vim);
   const setVim = useVim((s) => s.setVim);
   return (
     <>
       <h2 className="m-section-title">Keyboard</h2>
       <DialogDescription className="m-help" style={{ margin: 0 }}>
-        Everything in Mesa works from the keyboard. The object tree and the lists move like a vim buffer; the search lists use the arrows or Ctrl with n/p or j/k.
+        Everything in Mesa works from the keyboard. The object tree and the lists also move with j/k; the search lists take Ctrl with n/p or j/k.
       </DialogDescription>
-      <Row label="Vim keys" help={`h j k l, counts, gg/G, dd and y in the grids, gt/gT for tabs, ${isMac ? "Ctrl" : "Alt"}+h/j/k/l between panes, : for the palette. With them on, typing in a grid no longer starts editing: press i.`}>
+      <Row
+        label="Vim keys"
+        help={`h j k l, counts, gg/G, dd and y in the grids; gt/gT for tabs; ${isMac ? "⌃" : "Alt+"}h/j/k/l between panes; : for the palette. With them on, typing in a grid no longer starts editing: press i.`}
+      >
         <Switch checked={vim} onChange={setVim} aria-label="Vim keys" />
       </Row>
-      {SHORTCUTS.map((g) => (
-        <section key={g.group} aria-label={g.group} className={cn(g.vim && !vim && "m-settings__off")}>
-          <h3 className="m-settings__group">
-            {g.group}
-            {g.vim ? <span className="m-settings__state">{vim ? "on" : "off"}</span> : null}
-          </h3>
-          <dl className="m-settings__shortcuts">
-            {g.items
-              .filter((s) => !s.nativeZoom || zoom?.native)
-              .map((s) => (
-                <div key={s.label} className="m-settings__shortcut">
-                  <dt>{s.label}</dt>
-                  <dd>
-                    {s.keys.map((k, i) => (
-                      <React.Fragment key={k}>
-                        {i > 0 ? <span className="m-muted"> or </span> : null}
-                        <Keys combo={k} />
-                      </React.Fragment>
-                    ))}
-                  </dd>
-                </div>
-              ))}
-          </dl>
-        </section>
-      ))}
+      <Row label="All shortcuts" help="The sheet lists every shortcut, in this platform's keys.">
+        <Button variant="outline" size="sm" onClick={() => useUi.setState({ settingsOpen: false, helpOpen: true })}>
+          Show <Kbd>{shortcut("Slash")}</Kbd>
+        </Button>
+      </Row>
     </>
   );
 }

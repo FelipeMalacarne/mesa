@@ -5,8 +5,9 @@ import { EmptyState } from "@/ui/controls";
 import { errorMessage } from "@/lib/api/fetch";
 
 import { CommandPalette } from "../CommandPalette";
-import { useCommands } from "../commands";
 import { SettingsDialog } from "../SettingsDialog";
+import { ShortcutsDialog } from "../ShortcutsDialog";
+import { useShortcuts } from "../shortcuts";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: Root,
@@ -39,11 +40,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function Root() {
-  useCommands();
+  useShortcuts();
   return (
     <>
       <Outlet />
       <CommandPalette />
+      <ShortcutsDialog />
       <SettingsDialog />
     </>
   );

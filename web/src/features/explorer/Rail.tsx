@@ -9,11 +9,11 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Activity, ChevronsUpDown, Database, History, LayoutGrid, Network, Search, SquareTerminal, Users } from "lucide-react";
 
 import { useListConnections } from "@/lib/api/connections/connections";
-import { keyLabel } from "@/lib/keys";
 import { cn, isMac } from "@/lib/utils";
 import { EnvTag, Kbd } from "@/ui/controls";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/primitives/popover";
 import { useUi } from "@/app/ui.store";
+import { shortcut } from "@/app/keys";
 
 import { useWorkspace } from "../workspace/context";
 import { NewDatabaseDialog } from "./NewDatabaseDialog";
@@ -115,7 +115,7 @@ export function Rail() {
                 onChange={(e) => setFilter(e.target.value)}
                 onKeyDown={onFilterKey}
               />
-              {filter ? null : <Kbd>{keyLabel("mod+p")}</Kbd>}
+              {filter ? null : <Kbd>{shortcut("KeyP")}</Kbd>}
             </div>
           </div>
           {query ? (

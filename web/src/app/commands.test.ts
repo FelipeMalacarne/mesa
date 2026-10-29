@@ -1,48 +1,127 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { matchShortcut } from "./commands";
+import { useTabs, type Tab } from "@/features/explorer/tabs.store";
 
-function key(k: string, mods: { meta?: boolean; ctrl?: boolean; shift?: boolean; alt?: boolean; code?: string } = {}) {
-  return { key: k, code: mods.code ?? "", metaKey: !!mods.meta, ctrlKey: !!mods.ctrl, shiftKey: !!mods.shift, altKey: !!mods.alt };
-}
+import { command, runCommand } from "./commands";
+import { label, matches } from "./keys";
+import { useUi } from "./ui.store";
 
-describe("matchShortcut", () => {
-  it("reads ⌘ on macOS and Ctrl elsewhere", () => {
-    expect(matchShortcut(key("w", { meta: true }), true)).toBe("tab.close");
-    expect(matchShortcut(key("w", { ctrl: true }), false)).toBe("tab.close");
-    expect(matchShortcut(key("w", { ctrl: true }), true)).toBeNull();
-    expect(matchShortcut(key("w"), true)).toBeNull();
+const key = (code: string, mods: Partial<KeyboardEventInit> = {}) => new KeyboardEvent("keydown", { code, ...mods });
+
+describe("bindings (Ctrl as ⌘ outside macOS)", () => {
+  it("matches the exact modifiers", () => {
+    expect(matches(key("KeyW", { ctrlKey: true }), { code: "KeyW", mod: true })).toBe(true);
+    expect(
+      matches(key("KeyW", { ctrlKey: true, shiftKey: true }), {
+        code: "KeyW",
+        mod: true,
+      }),
+    ).toBe(false);
+    expect(matches(key("KeyW", { altKey: true }), { code: "KeyW", alt: true })).toBe(true);
+    expect(matches(key("Tab", { ctrlKey: true }), { code: "Tab", ctrl: true })).toBe(true);
+    expect(matches(key("KeyW"), { code: "KeyW", alt: true })).toBe(false);
   });
-
-  it("knows the tab keys", () => {
-    expect(matchShortcut(key("T", { meta: true, shift: true }), true)).toBe("tab.reopen");
-    expect(matchShortcut(key("}", { meta: true, shift: true }), true)).toBe("tab.next");
-    expect(matchShortcut(key("{", { meta: true, shift: true }), true)).toBe("tab.prev");
-    expect(matchShortcut(key("Tab", { ctrl: true }), true)).toBe("tab.next");
-    expect(matchShortcut(key("Tab", { ctrl: true, shift: true }), false)).toBe("tab.prev");
-    expect(matchShortcut(key("3", { meta: true }), true)).toBe("tab.3");
-    expect(matchShortcut(key("9", { meta: true }), true)).toBe("tab.last");
-    expect(matchShortcut(key("˜", { meta: true, alt: true, code: "KeyN" }), true)).toBe("tab.new");
-  });
-
-  it("leaves zoom keys to the browser or the desktop menu", () => {
-    expect(matchShortcut(key("=", { meta: true }), true)).toBeNull();
-    expect(matchShortcut(key("-", { meta: true }), true)).toBeNull();
-    expect(matchShortcut(key("0", { meta: true }), true)).toBeNull();
-  });
-
-  it("opens settings and the shortcut list", () => {
-    expect(matchShortcut(key(",", { meta: true }), true)).toBe("settings");
-    expect(matchShortcut(key("/", { ctrl: true }), false)).toBe("shortcuts");
-  });
-
-  it("moves between panes only with vim keys on", () => {
-    expect(matchShortcut(key("h", { ctrl: true }), true)).toBeNull();
-    expect(matchShortcut(key("h", { ctrl: true }), true, true)).toBe("pane.left");
-    expect(matchShortcut(key("j", { ctrl: true }), true, true)).toBe("pane.down");
-    // Outside macOS Ctrl is ⌘, so panes take Alt.
-    expect(matchShortcut(key("k", { ctrl: true }), false, true)).toBe("palette");
-    expect(matchShortcut(key("˚", { alt: true, code: "KeyK" }), false, true)).toBe("pane.up");
-    expect(matchShortcut(key("l", { alt: true, code: "KeyL" }), false, true)).toBe("pane.right");
+  it("prints shortcuts for the platform", () => {
+    expect(label({ code: "KeyT", mod: true, shift: true })).toBe("Ctrl+Shift+T");
+    expect(label({ code: "BracketRight", alt: true })).toBe("Alt+]");
   });
 });
+
+describe("tab commands", () => {
+  const cid = "c1";
+  const t = (n: number): Tab => ({
+    id: `query:${n}`,
+    kind: "query",
+    title: `Query ${n}`,
+  });
+  let navigate: ReturnType<typeof vi.fn>;
+  const ctx = () => ({ navigate: navigate as never, connectionId: cid });
+  const active = () => useTabs.getState().byConnection[cid]?.activeId;
+  // Commands repeated within 250 ms run once; tests move the clock past that.
+  let now = 0;
+
+  beforeEach(() => {
+    now += 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => (now += 1000));
+    useTabs.setState({ byConnection: {} });
+    for (const n of [1, 2, 3]) useTabs.getState().open(cid, t(n));
+    useTabs.getState().activate(cid, "query:2");
+    navigate = vi.fn();
+  });
+
+  it("closes the active tab and shows its neighbour", () => {
+    runCommand("tab.close", ctx());
+    expect(useTabs.getState().byConnection[cid].tabs.map((x) => x.id)).toEqual(["query:1", "query:3"]);
+    expect(active()).toBe("query:3");
+    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ search: { tab: "query:3" } }));
+  });
+
+  it("reopens what was closed, newest first", () => {
+    runCommand("tab.close", ctx());
+    runCommand("tab.close", ctx());
+    runCommand("tab.reopen", ctx());
+    expect(active()).toBe("query:3");
+    runCommand("tab.reopen", ctx());
+    expect(active()).toBe("query:2");
+    expect(useTabs.getState().byConnection[cid].tabs.map((x) => x.id)).toEqual(["query:1", "query:3", "query:2"]);
+  });
+
+  it("cycles and jumps between tabs", () => {
+    runCommand("tab.next", ctx());
+    expect(active()).toBe("query:3");
+    runCommand("tab.next", ctx());
+    expect(active()).toBe("query:1");
+    runCommand("tab.prev", ctx());
+    expect(active()).toBe("query:3");
+    runCommand("tab.1", ctx());
+    expect(active()).toBe("query:1");
+    runCommand("tab.9", ctx());
+    expect(active()).toBe("query:3");
+    navigate.mockClear();
+    runCommand("tab.5", ctx());
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("runs a command once when a menu and a key press both send it", () => {
+    vi.spyOn(performance, "now").mockReturnValue(now + 50_000);
+    runCommand("help", ctx());
+    runCommand("help", ctx());
+    expect(useUi.getState().helpOpen).toBe(true);
+  });
+
+  it("ignores tab commands outside a connection", () => {
+    expect(runCommand("tab.close", { navigate: navigate as never })).toBe(false);
+  });
+});
+
+describe("Settings, the object search and vim panes", () => {
+  let now = 1e9;
+  const ctx = () => ({ navigate: vi.fn() as never, connectionId: "c1" });
+
+  beforeEach(() => {
+    vi.spyOn(performance, "now").mockImplementation(() => (now += 1000));
+    useUi.setState({ settingsOpen: false, paletteOpen: false, helpOpen: false, focusRequest: null, railCollapsed: true });
+  });
+
+  it("opens and closes Settings with ⌘,", () => {
+    expect(matches(key("Comma", { ctrlKey: true }), command("settings")!.keys[0])).toBe(true);
+    runCommand("settings", ctx());
+    expect(useUi.getState()).toMatchObject({ settingsOpen: true, settingsSection: "appearance" });
+    runCommand("settings", ctx());
+    expect(useUi.getState().settingsOpen).toBe(false);
+  });
+
+  it("asks the rail for its search or its tree, opening a collapsed rail", () => {
+    runCommand("filter", ctx());
+    expect(useUi.getState()).toMatchObject({ railCollapsed: false, focusRequest: { target: "filter" } });
+    runCommand("tree", ctx());
+    expect(useUi.getState().focusRequest?.target).toBe("tree");
+  });
+
+  it("moves between panes with Alt outside macOS, where Ctrl+K is the palette", () => {
+    expect(matches(key("KeyK", { altKey: true }), command("pane.up")!.keys[0])).toBe(true);
+    expect(matches(key("KeyK", { ctrlKey: true }), command("pane.up")!.keys[0])).toBe(false);
+    expect(command("pane.up")).toMatchObject({ vim: true, notIn: ".m-rail" });
+  });
+});
+
