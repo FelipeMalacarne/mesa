@@ -268,7 +268,7 @@ export function singular(name: string): string {
 }
 
 /** A referencing column takes the referenced type, without what makes it generate values. */
-function referencingType(type: string): string {
+export function referencingType(type: string): string {
   const t = type.trim().toLowerCase();
   if (t === "serial" || t === "serial4") return "integer";
   if (t === "bigserial" || t === "serial8") return "bigint";

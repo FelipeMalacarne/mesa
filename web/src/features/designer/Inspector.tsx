@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/ui/Button";
 import { Field, Select } from "@/ui/controls";
 
+import { guessColumn } from "./columns";
 import { ACTIONS, enumTypes, NAME, type Action } from "./dialogs";
 import { DefaultField, isIntegerType, KeyList, TypeField, useColumnTypes, type KeyItem } from "./fields";
 import type { DiagramEdge, DiagramTable, State } from "./graph";
@@ -27,7 +28,7 @@ function StateBadge({ state }: { state: State }) {
 export function TableInspector({ t, model, live, onChange, onRename, onSelectEdge, onSelectTable, onRelation, onClose }: { t: DiagramTable; model: Database; live: Database | undefined; onChange: Apply; onRename: (name: string) => void; onSelectEdge: (id: string) => void; onSelectTable: (key: string) => void; onRelation: () => void; onClose: () => void }) {
   const types = useColumnTypes();
   const [open, setOpen] = React.useState<string | null>(null);
-  const [adding, setAdding] = React.useState<{ name: string; type: string } | null>(null);
+  const [adding, setAdding] = React.useState<{ name: string; type: string; typed?: boolean } | null>(null);
   const key = t.key;
   const liveTable = live ? findTable(live, key)?.table : undefined;
 
@@ -123,7 +124,8 @@ export function TableInspector({ t, model, live, onChange, onRename, onSelectEdg
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!NAME.test(adding.name) || table.columns.some((c) => c.name === adding.name) || !adding.type.trim()) return;
-                onChange(addColumn(model, key, { name: adding.name, type: adding.type.trim(), nullable: true }, false));
+                const g = adding.typed ? {} : guessColumn(adding.name, types);
+                onChange(addColumn(model, key, { name: adding.name, type: adding.type.trim(), nullable: !g.notNull, default: g.default }, false));
                 setOpen(adding.name);
                 setAdding(null);
               }}
@@ -132,8 +134,20 @@ export function TableInspector({ t, model, live, onChange, onRename, onSelectEdg
                 if (e.key === "Escape") (e.stopPropagation(), setAdding(null));
               }}
             >
-              <input className="m-input m-input--sm m-input--mono" aria-label="New column name" placeholder="name" value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} autoFocus spellCheck={false} />
-              <TypeField aria-label="New column type" value={adding.type} onChange={(v) => setAdding({ ...adding, type: v })} types={types} enums={enums} />
+              <input
+                className="m-input m-input--sm m-input--mono"
+                aria-label="New column name"
+                placeholder="name"
+                value={adding.name}
+                onChange={(e) => {
+                  // The name suggests a type until one is picked.
+                  const g = guessColumn(e.target.value, types);
+                  setAdding({ ...adding, name: e.target.value, type: !adding.typed && g.type ? g.type : adding.type });
+                }}
+                autoFocus
+                spellCheck={false}
+              />
+              <TypeField aria-label="New column type" value={adding.type} onChange={(v) => setAdding({ ...adding, type: v, typed: true })} types={types} enums={enums} />
               <div className="m-row">
                 <Button variant="primary" size="xs" type="submit" disabled={!NAME.test(adding.name) || table.columns.some((c) => c.name === adding.name)}>
                   Add column

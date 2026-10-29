@@ -28,11 +28,13 @@ import { useTabs } from "@/features/explorer/tabs.store";
 import { Editor } from "@/features/sql/Editor";
 
 import { useWorkspace } from "../workspace/context";
-import { AddRelationDialog, AddTableDialog, ImportDialog } from "./dialogs";
+import { AddRelationDialog, ImportDialog } from "./dialogs";
 import { Erd, type ErdHandle, type RelationsMode, type WheelMode } from "./Erd";
 import { diagramOf, edgeId, neighbours } from "./graph";
 import { History } from "./history";
+import { useDebounced, usePref } from "./hooks";
 import { RelationInspector, TableInspector } from "./Inspector";
+import { TableDialog } from "./TableDialog";
 import { freeSpot, layout, placeMissing, type LayoutKind } from "./layout";
 import { addForeignKey, addTable, emptyModel, findTable, fkId, NODE_WIDTH, relate, removeForeignKey, removeTable, renameTable, tableKey, tablesOf, type Pos } from "./model";
 
@@ -48,39 +50,6 @@ interface FocusState {
   /** Where the focused tables sit while focused; the saved layout is left alone. */
   positions: Record<string, Pos>;
   around: string[];
-}
-
-/** A per-browser preference in localStorage. */
-function usePref<T extends string>(key: string, initial: T, allowed: readonly T[]): [T, (v: T) => void] {
-  const [v, setV] = React.useState<T>(() => {
-    try {
-      const s = localStorage.getItem(key) as T | null;
-      return s && allowed.includes(s) ? s : initial;
-    } catch {
-      return initial;
-    }
-  });
-  const set = React.useCallback(
-    (next: T) => {
-      setV(next);
-      try {
-        localStorage.setItem(key, next);
-      } catch {
-        // Blocked storage: the choice lasts for this page.
-      }
-    },
-    [key],
-  );
-  return [v, set];
-}
-
-function useDebounced<T>(value: T, ms: number): T {
-  const [v, setV] = React.useState(value);
-  React.useEffect(() => {
-    const t = window.setTimeout(() => setV(value), ms);
-    return () => window.clearTimeout(t);
-  }, [value, ms]);
-  return v;
 }
 
 /** The model plus the live tables it drops, so layouts leave room for their ghosts. */
@@ -699,13 +668,14 @@ function Designer({ database, fresh }: { database: string; fresh: boolean }) {
           <RelationInspector key={selEdge.id} edge={selEdge} model={current} live={liveSchema} onChange={(m, c) => void applyModel(m, c)} onSelectTable={showTable} onClose={() => setSelectedEdge(null)} />
         ) : null}
       </div>
-      <AddTableDialog
+      <TableDialog
         open={dialog === "table"}
         onOpenChange={(o) => {
           setDialog(o ? "table" : null);
           if (!o) setTimeout(() => setAddAt(null), 0);
         }}
         model={current}
+        live={liveSchema}
         onAdd={(schema, table) => {
           const key = tableKey(schema, table.name);
           if (focus) {
