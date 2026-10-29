@@ -1,9 +1,19 @@
 # Releasing
 
-Pushing a tag `vX.Y.Z` (or `vX.Y.Z-rc.N` for a prerelease) runs
-`.github/workflows/release.yml`, which builds everything, signs what it has keys
-for and publishes a GitHub release. Running the workflow by hand with a version
-builds the same files as a dry run and keeps them as an artifact.
+Actions → release → Run workflow on `main`, with a version (`X.Y.Z`, or
+`X.Y.Z-rc.N` for a prerelease) and **publish** ticked, runs
+`.github/workflows/release.yml`: it builds everything, signs what it has keys
+for, tags the commit `vX.Y.Z` and publishes a GitHub release. Pushing the tag
+yourself does the same:
+
+```bash
+git tag -a v0.2.0 -m "Mesa 0.2.0" && git push origin v0.2.0
+```
+
+With **publish** unticked (on any branch) the run builds the same files as a
+dry run and keeps them as an artifact, which is how to check the keys before a
+release. Publishing refuses a branch other than `main` and a version that is
+already tagged.
 
 ## What a release contains
 
