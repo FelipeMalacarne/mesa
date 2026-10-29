@@ -8,6 +8,65 @@ policy decision), then applies it with the confirmation the policy asks for.
 
  * OpenAPI spec version: 1.0.0
  */
+export interface ProvisioningTarget {
+  /** owner/name on GitHub */
+  repo: string;
+  branch: string;
+  /** The folder Mesa owns in the repository */
+  path: string;
+  /** The CloudNativePG Cluster */
+  cluster: string;
+  /** The Cluster's namespace */
+  namespace: string;
+  /** Opens a pull request instead of committing to the branch */
+  pullRequest: boolean;
+}
+
+export interface ProvisionRequest {
+  /** The database and its role: lowercase letters, digits and _ */
+  name: string;
+  /** The app's Kubernetes namespace; it gets the Secret <name>-db */
+  namespace: string;
+  confirmation?: string;
+  dryRun?: boolean;
+}
+
+export type ProvisionResultCommit = {
+  sha: string;
+  url: string;
+  pullRequestUrl?: string;
+};
+
+export type DecisionOutcome = typeof DecisionOutcome[keyof typeof DecisionOutcome];
+
+
+export const DecisionOutcome = {
+  allow: 'allow',
+  needs_confirmation: 'needs_confirmation',
+  deny: 'deny',
+} as const;
+
+export interface Decision {
+  outcome: DecisionOutcome;
+  reason?: string;
+  confirmWith?: string;
+}
+
+export interface ProvisionResult {
+  target: ProvisioningTarget;
+  /** The SQL that runs now; the password is hidden */
+  statements: string[];
+  /** Paths written to the repository */
+  files: string[];
+  decision: Decision;
+  roleSecret: string;
+  appSecret: string;
+  commit?: ProvisionResultCommit;
+  /** The role and database exist now */
+  applied: boolean;
+  note?: string;
+}
+
 /**
  * local = no sign-in; oidc = people sign in through the identity provider
  */
@@ -521,21 +580,6 @@ export interface Plan {
   down?: Statement[];
   risks?: Risk[];
   summary: PlanSummary;
-}
-
-export type DecisionOutcome = typeof DecisionOutcome[keyof typeof DecisionOutcome];
-
-
-export const DecisionOutcome = {
-  allow: 'allow',
-  needs_confirmation: 'needs_confirmation',
-  deny: 'deny',
-} as const;
-
-export interface Decision {
-  outcome: DecisionOutcome;
-  reason?: string;
-  confirmWith?: string;
 }
 
 export interface PlanResult {

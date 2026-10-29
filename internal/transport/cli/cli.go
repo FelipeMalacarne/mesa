@@ -51,7 +51,7 @@ func Root(d Deps) *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.PersistentFlags().Bool("json", false, "machine-readable output")
-	root.AddCommand(initCmd(d), connectionsCmd(d), queryCmd(d), modelCmd(d), diffCmd(d), applyCmd(d), auditCmd(d), keyCmd(d))
+	root.AddCommand(initCmd(d), connectionsCmd(d), queryCmd(d), modelCmd(d), diffCmd(d), applyCmd(d), provisionCmd(d), auditCmd(d), keyCmd(d))
 	return root
 }
 

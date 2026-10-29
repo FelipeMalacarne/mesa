@@ -18,6 +18,7 @@ tags:
   - name: Designer
   - name: System
   - name: Auth
+  - name: Provision
 
 paths:
   /system/info:
@@ -812,6 +813,41 @@ paths:
               schema: { type: array, items: { $ref: "#/components/schemas/User" } }
         default: { $ref: "#/components/responses/Error" }
 
+  /connections/{connectionId}/provisioning:
+    parameters: [{ $ref: "#/components/parameters/ConnectionId" }]
+    get:
+      operationId: getProvisioningTarget
+      tags: [Provision]
+      summary: Where this connection provisions app databases (its GitOps repository); not_found when it does not
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProvisioningTarget" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: provisionDatabase
+      tags: [Provision]
+      summary: Create an app's database and role now, and declare them in the GitOps repository (admins)
+      description: >
+        The role gets a generated password, never shown. The commit adds a CNPG Database, the managed
+        role, and two sops-encrypted Secrets: the role's password for CNPG, and <name>-db in the app's
+        namespace with DATABASE_URL. With dryRun nothing runs and nothing is committed; the result
+        shows the statements, the files and the policy's decision.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProvisionRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProvisionResult" }
+        default: { $ref: "#/components/responses/Error" }
+
 components:
   parameters:
     ConnectionId:
@@ -834,6 +870,46 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
 
   schemas:
+    ProvisioningTarget:
+      type: object
+      required: [repo, branch, path, cluster, namespace, pullRequest]
+      properties:
+        repo: { type: string, description: owner/name on GitHub }
+        branch: { type: string }
+        path: { type: string, description: The folder Mesa owns in the repository }
+        cluster: { type: string, description: The CloudNativePG Cluster }
+        namespace: { type: string, description: The Cluster's namespace }
+        pullRequest: { type: boolean, description: Opens a pull request instead of committing to the branch }
+
+    ProvisionRequest:
+      type: object
+      required: [name, namespace]
+      properties:
+        name: { type: string, description: "The database and its role: lowercase letters, digits and _" }
+        namespace: { type: string, description: The app's Kubernetes namespace; it gets the Secret <name>-db }
+        confirmation: { type: string }
+        dryRun: { type: boolean }
+
+    ProvisionResult:
+      type: object
+      required: [target, statements, files, decision, roleSecret, appSecret, applied]
+      properties:
+        target: { $ref: "#/components/schemas/ProvisioningTarget" }
+        statements: { type: array, items: { type: string }, description: The SQL that runs now; the password is hidden }
+        files: { type: array, items: { type: string }, description: Paths written to the repository }
+        decision: { $ref: "#/components/schemas/Decision" }
+        roleSecret: { type: string }
+        appSecret: { type: string }
+        commit:
+          type: object
+          required: [sha, url]
+          properties:
+            sha: { type: string }
+            url: { type: string }
+            pullRequestUrl: { type: string }
+        applied: { type: boolean, description: The role and database exist now }
+        note: { type: string }
+
     AuthState:
       type: object
       required: [mode]
