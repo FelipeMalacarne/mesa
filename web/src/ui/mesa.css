@@ -497,3 +497,6 @@
 .m-list tbody tr[data-row]:focus { outline: none; }
 .m-list tbody tr[data-row]:focus-visible td { background: var(--muted); }
 .m-list tbody tr[data-row]:focus-visible td:first-child { box-shadow: inset 2px 0 0 var(--primary); }
+
+/* The review shows every statement whole: long DDL wraps instead of scrolling out of sight. */
+.m-code--wrap .m-code__line { white-space: pre-wrap; overflow-wrap: anywhere; }

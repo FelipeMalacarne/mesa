@@ -153,7 +153,7 @@ function ReviewBody({ title, target, connection, reviewKey, load, apply, onAppli
               <span className="m-help">{direction === "up" ? "What runs now" : "Saved with the migration to undo it"}</span>
             </div>
             {sql ? (
-              <CodeBlock code={sql} style={{ maxHeight: 280 }} />
+              <CodeBlock code={sql} className="m-code--wrap" style={{ maxHeight: 280 }} />
             ) : (
               <p className="m-help">{direction === "down" ? "Mesa cannot derive a rollback for these statements." : "Nothing to run."}</p>
             )}
