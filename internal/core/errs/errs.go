@@ -20,6 +20,8 @@ const (
 	Unavailable
 	Unsupported
 	NeedsConfirmation
+	// Unauthenticated means the request carries no valid sign-in.
+	Unauthenticated
 )
 
 func (k Kind) String() string {
@@ -38,6 +40,8 @@ func (k Kind) String() string {
 		return "unsupported"
 	case NeedsConfirmation:
 		return "needs_confirmation"
+	case Unauthenticated:
+		return "unauthenticated"
 	default:
 		return "unknown"
 	}
