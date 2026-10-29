@@ -1,10 +1,12 @@
 name: release
 
-# A tag v1.2.3 builds every binary, the desktop installers and the image,
-# signs what there are keys for, and publishes a GitHub release. A branch
-# push that touches packaging, the desktop app or the updater, or a manual
-# run, builds everything as a dry run and keeps the files as an artifact.
-# Secrets and variables are described in docs/releasing.md.
+# A tag v1.2.3, or a manual run on the default branch with "publish" ticked
+# (Actions → release → Run workflow), builds every binary, the desktop
+# installers and the image, signs what there are keys for, and publishes a
+# GitHub release. A branch push that touches packaging, the desktop app or
+# the updater, or a manual run without "publish", builds everything as a dry
+# run and keeps the files as an artifact. Secrets and variables are
+# described in docs/releasing.md.
 
 on:
   push:
@@ -19,8 +21,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version for a dry run (nothing is published), e.g. 0.0.0-test"
+        description: "Version, e.g. 0.2.0 (0.2.0-rc.1 publishes a prerelease)"
         required: true
+      publish:
+        description: "Publish: tag v<version> on this commit and release it (default branch only). Unticked: a dry run"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,10 +42,15 @@ jobs:
       - id: v
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           PUBLIC_KEY: ${{ vars.MESA_UPDATE_PUBLIC_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             v="${GITHUB_REF_NAME#v}" publish=true
+          elif [ "$INPUT_PUBLISH" = true ]; then
+            v="${INPUT_VERSION#v}" publish=true
           else
             v="${INPUT_VERSION:-0.0.0-dryrun.$GITHUB_RUN_NUMBER}" publish=false
           fi
@@ -47,6 +58,18 @@ jobs:
             [0-9]*.[0-9]*.[0-9]*) ;;
             *) echo "version $v is not x.y.z" >&2; exit 1 ;;
           esac
+          # A release from the Actions tab tags the commit it runs on: only the
+          # default branch's, and only for a version not released yet.
+          if [ "$INPUT_PUBLISH" = true ] && [ "$GITHUB_REF_TYPE" != tag ]; then
+            if [ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]; then
+              echo "releases are published from $DEFAULT_BRANCH; this run is on $GITHUB_REF_NAME (untick publish for a dry run)" >&2
+              exit 1
+            fi
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$v" >/dev/null 2>&1; then
+              echo "v$v is already tagged; pick the next version" >&2
+              exit 1
+            fi
+          fi
           pkg=github.com/felipemalacarne/mesa/internal/platform
           {
             echo "version=$v"
@@ -333,4 +356,6 @@ jobs:
         run: |
           flags=
           case "$VERSION" in *-*) flags=--prerelease ;; esac
-          gh release create "v$VERSION" dist/* --title "Mesa $VERSION" --generate-notes $flags
+          # From a tag push the tag exists; from the Actions tab this creates
+          # it on the commit that was built.
+          gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" --title "Mesa $VERSION" --generate-notes $flags
