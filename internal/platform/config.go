@@ -41,6 +41,29 @@ type Config struct {
 	// Connections is a file of connections the deployment declares (empty:
 	// none). They are listed with the stored ones and cannot be edited.
 	Connections string
+	// OIDC signs people in to the server through an identity provider; with
+	// no issuer the server has no sign-in.
+	OIDC OIDC
+	// PublicURL is where people reach the server (https://mesa.example.com),
+	// for the single sign-on callback; empty takes it from each request.
+	PublicURL string
+}
+
+// OIDC is the identity provider of a server.
+type OIDC struct {
+	Issuer       string
+	ClientID     string
+	ClientSecret string
+	// Label names the provider on the sign-in button ("Zitadel").
+	Label string
+	// Scopes are asked for beyond openid, email and profile.
+	Scopes []string
+	// RolesClaim is the claim listing Mesa roles; empty reads Zitadel's
+	// project roles, then roles, then groups.
+	RolesClaim string
+	// DefaultRole is for people the provider names no Mesa role for; empty
+	// keeps them out.
+	DefaultRole string
 }
 
 // FromEnv reads MESA_* variables over defaults for the given config directory.
@@ -56,6 +79,16 @@ func FromEnv(configDir string) Config {
 		MCPWrites:   env("MESA_MCP_WRITES", "false") == "true",
 		Project:     env("MESA_PROJECT", ""),
 		Connections: env("MESA_CONNECTIONS", ""),
+		PublicURL:   strings.TrimRight(env("MESA_PUBLIC_URL", ""), "/"),
+		OIDC: OIDC{
+			Issuer:       strings.TrimRight(env("MESA_OIDC_ISSUER", ""), "/"),
+			ClientID:     env("MESA_OIDC_CLIENT_ID", ""),
+			ClientSecret: env("MESA_OIDC_CLIENT_SECRET", ""),
+			Label:        env("MESA_OIDC_LABEL", ""),
+			Scopes:       strings.Fields(env("MESA_OIDC_SCOPES", "")),
+			RolesClaim:   env("MESA_OIDC_ROLES_CLAIM", ""),
+			DefaultRole:  env("MESA_OIDC_DEFAULT_ROLE", ""),
+		},
 	}
 	if v := env("MESA_SESSION_IDLE", ""); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {

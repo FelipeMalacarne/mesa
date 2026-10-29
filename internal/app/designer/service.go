@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/felipemalacarne/mesa/internal/app/changes"
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/changeset"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/core/ident"
@@ -128,6 +129,9 @@ func Fold(target *schema.Database, database ident.Name) {
 
 // SaveLayout stores diagram positions.
 func (s *Service) SaveLayout(ctx context.Context, connID uuid.UUID, database string, positions map[string]store.Position) error {
+	if err := account.Require(ctx, account.Write); err != nil {
+		return err
+	}
 	return s.layouts.Put(ctx, connID, database, positions)
 }
 

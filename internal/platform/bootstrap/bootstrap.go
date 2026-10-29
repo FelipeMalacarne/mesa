@@ -14,10 +14,13 @@ import (
 	"github.com/zalando/go-keyring"
 
 	"github.com/felipemalacarne/mesa/internal/app"
+	"github.com/felipemalacarne/mesa/internal/app/accounts"
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/engine"
 	"github.com/felipemalacarne/mesa/internal/engine/mysql"
 	"github.com/felipemalacarne/mesa/internal/engine/postgres"
+	"github.com/felipemalacarne/mesa/internal/oidc"
 	"github.com/felipemalacarne/mesa/internal/platform"
 	"github.com/felipemalacarne/mesa/internal/secret"
 	"github.com/felipemalacarne/mesa/internal/session"
@@ -115,9 +118,17 @@ func Build(ctx context.Context, c platform.Config, mode app.Mode, configDir stri
 			return nil, err
 		}
 	}
+	var acc *accounts.Options
+	if mode == app.ModeServer && c.OIDC.Issuer != "" {
+		if acc, err = accountOptions(c.OIDC); err != nil {
+			_ = st.Close()
+			return nil, err
+		}
+	}
 	return app.New(app.Options{
 		Project:  proj,
 		Declared: decl,
+		Accounts: acc,
 		Version:  platform.Version,
 		Mode:     mode,
 		Engines:  Engines(),
@@ -125,4 +136,28 @@ func Build(ctx context.Context, c platform.Config, mode app.Mode, configDir stri
 		Vault:    vault,
 		Session:  session.Options{IdleTimeout: c.SessionIdle, AppName: "mesa-" + string(mode)},
 	}), nil
+}
+
+// accountOptions turns the identity provider settings into sign-in.
+func accountOptions(o platform.OIDC) (*accounts.Options, error) {
+	if o.ClientID == "" {
+		return nil, errs.New(errs.Invalid, "MESA_OIDC_CLIENT_ID is required with MESA_OIDC_ISSUER")
+	}
+	var def account.Role
+	if o.DefaultRole != "" {
+		r, err := account.ParseRole(o.DefaultRole)
+		if err != nil {
+			return nil, errs.Wrap(errs.Invalid, "MESA_OIDC_DEFAULT_ROLE", err)
+		}
+		def = r
+	}
+	return &accounts.Options{
+		Provider: accounts.ProviderConfig{
+			Issuer: o.Issuer, ClientID: o.ClientID, ClientSecret: o.ClientSecret, Scopes: o.Scopes,
+		},
+		Label:       o.Label,
+		RolesClaim:  o.RolesClaim,
+		DefaultRole: def,
+		Providers:   oidc.New,
+	}, nil
 }

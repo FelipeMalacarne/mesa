@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/felipemalacarne/mesa/internal/app/accounts"
 	"github.com/felipemalacarne/mesa/internal/app/changes"
 	"github.com/felipemalacarne/mesa/internal/app/connections"
 	"github.com/felipemalacarne/mesa/internal/app/designer"
@@ -44,6 +45,11 @@ type App struct {
 	// Project is the .mesa/ folder in use, or nil: it is always optional.
 	Project *project.Project
 
+	// Accounts is sign-in through the identity provider; nil when every
+	// request runs as the local principal (desktop, CLI, MCP on stdio, or a
+	// server without a provider).
+	Accounts *accounts.Service
+
 	Connections *connections.Service
 	Explore     *explore.Service
 	Changes     *changes.Service
@@ -66,6 +72,9 @@ type Options struct {
 	// Declared, when set, adds the connections a deployment declares in a
 	// file (MESA_CONNECTIONS).
 	Declared *declared.Set
+	// Accounts, when set, turns on sign-in through an identity provider
+	// (server mode).
+	Accounts *accounts.Options
 }
 
 // New builds the application.
@@ -92,6 +101,9 @@ func New(o Options) *App {
 		Roles:       roles.New(sessions, ch),
 	}
 	a.Designer = designer.New(sessions, ch, o.Store.Layouts(), exp.Schema)
+	if o.Accounts != nil {
+		a.Accounts = accounts.New(o.Store, *o.Accounts)
+	}
 	if o.Project != nil || o.Declared != nil {
 		p, d := o.Project, o.Declared
 		a.Connections.SetDefinedIn(func(id uuid.UUID) string {
