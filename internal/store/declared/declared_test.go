@@ -19,6 +19,12 @@ user = "mesa"
 password = "env:MESA_TEST_SARADOMIN_PASSWORD"
 tls = "require"
 
+[connections.saradomin.gitops]
+repo = "felipe/gielinor"
+path = "clusters/saradomin/apps/postgres/mesa"
+cluster = "postgres-main"
+namespace = "databases"
+
 [connections.reports]
 engine = "mysql"
 environment = "staging"
@@ -58,6 +64,12 @@ func TestLoad(t *testing.T) {
 	if ref, ok := s.Secret(sara.ID); !ok || ref != "env:MESA_TEST_SARADOMIN_PASSWORD" {
 		t.Errorf("secret ref = %q %v", ref, ok)
 	}
+	if g, ok := s.GitOps(sara.ID); !ok || g.Repo != "felipe/gielinor" || g.Branch != "main" || g.Cluster != "postgres-main" {
+		t.Errorf("gitops = %+v %v", g, ok)
+	}
+	if _, ok := s.GitOps(reports.ID); ok {
+		t.Error("reports has no gitops")
+	}
 	if ref, ok := s.Secret(reports.ID); !ok || ref != "" {
 		t.Errorf("no password: %q %v", ref, ok)
 	}
@@ -70,6 +82,7 @@ func TestLoadRejects(t *testing.T) {
 		"unknown engine":   "[connections.x]\nengine = \"oracle\"\nhost = \"h\"\nuser = \"u\"\n",
 		"unknown key":      "[connections.x]\nhost = \"h\"\nuser = \"u\"\ndriver = \"postgres\"\n",
 		"not toml":         "connections = [",
+		"gitops w/o repo":  "[connections.x]\nhost = \"h\"\nuser = \"u\"\n[connections.x.gitops]\npath = \"p\"\ncluster = \"c\"\nnamespace = \"n\"\n",
 	} {
 		if _, err := Load(write(t, body)); !errs.Is(err, errs.Invalid) {
 			t.Errorf("%s: %v, want Invalid", name, err)

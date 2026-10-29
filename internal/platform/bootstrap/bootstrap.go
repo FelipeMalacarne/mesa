@@ -15,11 +15,13 @@ import (
 
 	"github.com/felipemalacarne/mesa/internal/app"
 	"github.com/felipemalacarne/mesa/internal/app/accounts"
+	"github.com/felipemalacarne/mesa/internal/app/provision"
 	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/engine"
 	"github.com/felipemalacarne/mesa/internal/engine/mysql"
 	"github.com/felipemalacarne/mesa/internal/engine/postgres"
+	"github.com/felipemalacarne/mesa/internal/github"
 	"github.com/felipemalacarne/mesa/internal/oidc"
 	"github.com/felipemalacarne/mesa/internal/platform"
 	"github.com/felipemalacarne/mesa/internal/secret"
@@ -125,10 +127,15 @@ func Build(ctx context.Context, c platform.Config, mode app.Mode, configDir stri
 			return nil, err
 		}
 	}
+	var repos provision.RepoFactory
+	if c.GitHubToken != "" {
+		repos = github.New(c.GitHubToken, c.GitHubAPI).Repo
+	}
 	return app.New(app.Options{
 		Project:  proj,
 		Declared: decl,
 		Accounts: acc,
+		Repos:    repos,
 		Version:  platform.Version,
 		Mode:     mode,
 		Engines:  Engines(),

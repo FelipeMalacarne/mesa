@@ -32,6 +32,25 @@ type Conn struct {
 	Password    string `toml:"password"`
 	TLS         string `toml:"tls"`
 	ReadOnly    *bool  `toml:"read_only"`
+	// GitOps, when set, lets Mesa provision databases on this connection's
+	// CloudNativePG cluster and commit them to the repository it is
+	// reconciled from.
+	GitOps *GitOps `toml:"gitops"`
+}
+
+// GitOps is where a connection's cluster is declared.
+type GitOps struct {
+	// Repo is "owner/name" on GitHub.
+	Repo   string `toml:"repo"`
+	Branch string `toml:"branch"`
+	// Path is the folder Mesa owns, a Kustomize component next to the
+	// cluster's declaration.
+	Path string `toml:"path"`
+	// Cluster and Namespace name the CNPG Cluster.
+	Cluster   string `toml:"cluster"`
+	Namespace string `toml:"namespace"`
+	// PullRequest opens pull requests instead of committing to Branch.
+	PullRequest bool `toml:"pull_request"`
 }
 
 type file struct {
@@ -41,9 +60,10 @@ type file struct {
 // Set is a loaded connections file.
 type Set struct {
 	// Path is the file the connections come from.
-	Path  string
-	conns []connection.Connection
-	refs  map[uuid.UUID]string
+	Path   string
+	conns  []connection.Connection
+	refs   map[uuid.UUID]string
+	gitops map[uuid.UUID]GitOps
 }
 
 var namespace = uuid.MustParse("0f6a3c1e-8d42-4b7a-9e15-3c2d7f4a9b61")
@@ -73,7 +93,7 @@ func Load(path string) (*Set, error) {
 }
 
 func build(path string, f file, now time.Time) (*Set, error) {
-	s := &Set{Path: path, refs: map[uuid.UUID]string{}}
+	s := &Set{Path: path, refs: map[uuid.UUID]string{}, gitops: map[uuid.UUID]GitOps{}}
 	names := make([]string, 0, len(f.Connections))
 	for name := range f.Connections {
 		names = append(names, name)
@@ -97,6 +117,16 @@ func build(path string, f file, now time.Time) (*Set, error) {
 		}
 		s.conns = append(s.conns, conn)
 		s.refs[conn.ID] = c.Password
+		if g := c.GitOps; g != nil {
+			if g.Branch == "" {
+				g.Branch = "main"
+			}
+			owner, repo, ok := strings.Cut(g.Repo, "/")
+			if !ok || owner == "" || repo == "" || strings.Trim(g.Path, "/") == "" || g.Cluster == "" || g.Namespace == "" {
+				return nil, errs.Newf(errs.Invalid, "%s: [connections.%s.gitops] needs repo (owner/name), path, cluster and namespace", path, name)
+			}
+			s.gitops[conn.ID] = *g
+		}
 	}
 	return s, nil
 }
@@ -104,6 +134,13 @@ func build(path string, f file, now time.Time) (*Set, error) {
 // Connections returns the declared connections by name.
 func (s *Set) Connections() []connection.Connection {
 	return append([]connection.Connection(nil), s.conns...)
+}
+
+// GitOps returns where a declared connection's cluster is declared, if the
+// file says.
+func (s *Set) GitOps(id uuid.UUID) (GitOps, bool) {
+	g, ok := s.gitops[id]
+	return g, ok
 }
 
 // Has reports whether id is a declared connection.

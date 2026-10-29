@@ -15,6 +15,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/app/designer"
 	"github.com/felipemalacarne/mesa/internal/app/explore"
 	"github.com/felipemalacarne/mesa/internal/app/monitor"
+	"github.com/felipemalacarne/mesa/internal/app/provision"
 	"github.com/felipemalacarne/mesa/internal/app/query"
 	"github.com/felipemalacarne/mesa/internal/app/roles"
 	"github.com/felipemalacarne/mesa/internal/core/connection"
@@ -57,6 +58,7 @@ type App struct {
 	Monitor     *monitor.Service
 	Roles       *roles.Service
 	Designer    *designer.Service
+	Provision   *provision.Service
 }
 
 // Options configure New.
@@ -75,6 +77,9 @@ type Options struct {
 	// Accounts, when set, turns on sign-in through an identity provider
 	// (server mode).
 	Accounts *accounts.Options
+	// Repos opens the GitOps repositories declared connections provision
+	// into; nil when Mesa has no Git access.
+	Repos provision.RepoFactory
 }
 
 // New builds the application.
@@ -101,6 +106,7 @@ func New(o Options) *App {
 		Roles:       roles.New(sessions, ch),
 	}
 	a.Designer = designer.New(sessions, ch, o.Store.Layouts(), exp.Schema)
+	a.Provision = provision.New(sessions, ch, o.Store.Audit(), targets(o.Declared), o.Repos)
 	if o.Accounts != nil {
 		a.Accounts = accounts.New(o.Store, *o.Accounts)
 	}
@@ -158,4 +164,20 @@ func envName(s string) string {
 		}
 	}
 	return string(out)
+}
+
+// targets reads provisioning targets from the declared connections.
+func targets(d *declared.Set) func(uuid.UUID) (provision.Target, bool) {
+	return func(id uuid.UUID) (provision.Target, bool) {
+		if d == nil {
+			return provision.Target{}, false
+		}
+		g, ok := d.GitOps(id)
+		if !ok {
+			return provision.Target{}, false
+		}
+		return provision.Target{
+			Repo: g.Repo, Branch: g.Branch, Path: g.Path, Cluster: g.Cluster, Namespace: g.Namespace, PullRequest: g.PullRequest,
+		}, true
+	}
 }

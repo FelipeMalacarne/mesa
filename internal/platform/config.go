@@ -44,6 +44,10 @@ type Config struct {
 	// OIDC signs people in to the server through an identity provider; with
 	// no issuer the server has no sign-in.
 	OIDC OIDC
+	// GitHubToken lets Mesa commit to the repositories declared connections
+	// provision into; GitHubAPI is the API (github.com's when empty).
+	GitHubToken string
+	GitHubAPI   string
 	// PublicURL is where people reach the server (https://mesa.example.com),
 	// for the single sign-on callback; empty takes it from each request.
 	PublicURL string
@@ -80,6 +84,8 @@ func FromEnv(configDir string) Config {
 		Project:     env("MESA_PROJECT", ""),
 		Connections: env("MESA_CONNECTIONS", ""),
 		PublicURL:   strings.TrimRight(env("MESA_PUBLIC_URL", ""), "/"),
+		GitHubToken: env("MESA_GITHUB_TOKEN", ""),
+		GitHubAPI:   env("MESA_GITHUB_API", ""),
 		OIDC: OIDC{
 			Issuer:       strings.TrimRight(env("MESA_OIDC_ISSUER", ""), "/"),
 			ClientID:     env("MESA_OIDC_CLIENT_ID", ""),
