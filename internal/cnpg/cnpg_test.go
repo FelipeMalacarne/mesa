@@ -78,6 +78,16 @@ func TestIndex(t *testing.T) {
 	if len(empty) != 1 || strings.Contains(string(empty[cluster.Dir+"/kustomization.yaml"]), "resources") {
 		t.Errorf("an empty folder is a bare component: %v", empty)
 	}
+	// kustomize builds nothing from a kustomization holding only apiVersion and kind.
+	var bare map[string]any
+	if err := yaml.Unmarshal(empty[cluster.Dir+"/kustomization.yaml"], &bare); err != nil {
+		t.Fatal(err)
+	}
+	delete(bare, "apiVersion")
+	delete(bare, "kind")
+	if len(bare) == 0 {
+		t.Errorf("kustomize refuses an empty component:\n%s", empty[cluster.Dir+"/kustomization.yaml"])
+	}
 	files := cluster.Index([]string{"shop", "blog"})
 	k := string(files[cluster.Dir+"/kustomization.yaml"])
 	if !strings.Contains(k, "kind: Component") || strings.Index(k, "databases/blog.yaml") > strings.Index(k, "databases/shop.yaml") {

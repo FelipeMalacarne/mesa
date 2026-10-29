@@ -155,10 +155,14 @@ func (c Cluster) Index(names []string) map[string][]byte {
 	names = append([]string(nil), names...)
 	sort.Strings(names)
 	var k strings.Builder
+	// kustomize refuses a kustomization with nothing but apiVersion and
+	// kind, so the name keeps the folder valid before its first database.
 	k.WriteString(`# Databases Mesa provisioned on ` + c.Name + `. Mesa rewrites this file, roles.yaml and ksops.yaml
 # from databases/; the files in databases/ and secrets/ are written once.
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
+metadata:
+  name: mesa
 `)
 	files := map[string][]byte{}
 	if len(names) == 0 {
