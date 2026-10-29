@@ -203,18 +203,34 @@ export const ObjectSearch = React.forwardRef<ObjectSearchHandle, Props>(function
     [connectionId, navigate, onDone, reveal],
   );
 
+  // Enter before the schemas arrived (typing fast after ⌘P) opens the first hit once they do.
+  const openWhenReady = React.useRef<boolean | null>(null);
+  React.useEffect(() => {
+    if (openWhenReady.current === null || loading) return;
+    const inTree = openWhenReady.current;
+    openWhenReady.current = null;
+    if (hits[0]) openHit(hits[0], inTree);
+  }, [loading, hits, openHit]);
+  React.useEffect(() => {
+    openWhenReady.current = null;
+  }, [query]);
+
   React.useImperativeHandle(
     ref,
     () => ({
       move: (delta) => onActive(Math.max(0, Math.min(hits.length - 1, active + delta))),
       open: (inTree) => {
         const hit = hits[active];
+        if (!hit && loading) {
+          openWhenReady.current = inTree;
+          return true;
+        }
         if (!hit) return false;
         openHit(hit, inTree);
         return true;
       },
     }),
-    [hits, active, onActive, openHit],
+    [hits, active, loading, onActive, openHit],
   );
 
   const row = (hit: Hit, index: number) => (

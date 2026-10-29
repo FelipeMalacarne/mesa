@@ -13,9 +13,11 @@ import { useListHistory } from "@/lib/api/query/query";
 import { bytes, engineLabel, relativeTime } from "@/lib/format";
 import { useStatusFacts } from "@/app/status.store";
 import { EnvTag } from "@/ui/controls";
+import { newQueryTab } from "@/features/explorer/tabActions";
 import { useTabs, tabLink } from "@/features/explorer/tabs.store";
 
 import { useWorkspace } from "./context";
+import { focusMain } from "./focus";
 
 export function WorkspaceHome() {
   const { connection, connectionId } = useWorkspace();
@@ -33,10 +35,7 @@ export function WorkspaceHome() {
     if (active) void navigate({ ...tabLink(connectionId, active), replace: true });
   }, [connectionId, navigate]);
 
-  const newQuery = () => {
-    const tab = useTabs.getState().newQuery(connectionId);
-    void navigate(tabLink(connectionId, tab));
-  };
+  const newQuery = () => newQueryTab(navigate, connectionId);
 
   const tools = [
     { label: "New query", hint: "Run SQL with results, EXPLAIN and history", icon: SquareTerminal, onClick: newQuery },
@@ -129,6 +128,7 @@ export function WorkspaceHome() {
                     const tab = useTabs.getState().newQuery(connectionId);
                     useTabs.getState().update(connectionId, tab.id, { sql: h.sql, database: h.database });
                     void navigate(tabLink(connectionId, tab));
+                    focusMain();
                   }}
                 >
                   <span className="m-mono" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

@@ -4,6 +4,7 @@
  */
 import type { useNavigate } from "@tanstack/react-router";
 
+import { focusMain } from "../workspace/focus";
 import { tabLink, useTabs, type Tab } from "./tabs.store";
 
 type Navigate = ReturnType<typeof useNavigate>;
@@ -17,8 +18,10 @@ export function goToTab(navigate: Navigate, connectionId: string, tab: Tab): voi
   void navigate(tabLink(connectionId, tab));
 }
 
+/** Opens a fresh query tab with the caret in its editor. */
 export function newQueryTab(navigate: Navigate, connectionId: string): void {
   goToTab(navigate, connectionId, useTabs.getState().newQuery(connectionId));
+  focusMain();
 }
 
 /**
