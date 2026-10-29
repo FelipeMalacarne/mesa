@@ -8,6 +8,70 @@ policy decision), then applies it with the confirmation the policy asks for.
 
  * OpenAPI spec version: 1.0.0
  */
+/**
+ * local = no sign-in; oidc = people sign in through the identity provider
+ */
+export type AuthStateMode = typeof AuthStateMode[keyof typeof AuthStateMode];
+
+
+export const AuthStateMode = {
+  local: 'local',
+  oidc: 'oidc',
+} as const;
+
+/**
+ * viewer reads; editor also changes databases (still reviewed); admin also manages connections and provisions databases
+ */
+export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
+
+
+export const MemberRole = {
+  viewer: 'viewer',
+  editor: 'editor',
+  admin: 'admin',
+} as const;
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: MemberRole;
+  createdAt: string;
+  updatedAt: string;
+  lastSeenAt?: string;
+}
+
+export interface AuthState {
+  /** local = no sign-in; oidc = people sign in through the identity provider */
+  mode: AuthStateMode;
+  /** The provider's name for the sign-in button, in oidc mode */
+  provider?: string;
+  user?: User;
+}
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  createdAt: string;
+  expiresAt?: string;
+  lastUsedAt?: string;
+}
+
+export interface TokenInput {
+  name: string;
+  /**
+   * Absent or 0 never expires
+   * @minimum 0
+   */
+  expiresInDays?: number;
+}
+
+export interface CreatedToken {
+  token: ApiToken;
+  /** Send as Authorization: Bearer <secret>. Shown only once */
+  secret: string;
+}
+
 export type ErrorKind = typeof ErrorKind[keyof typeof ErrorKind];
 
 
@@ -19,6 +83,7 @@ export const ErrorKind = {
   unavailable: 'unavailable',
   unsupported: 'unsupported',
   needs_confirmation: 'needs_confirmation',
+  unauthenticated: 'unauthenticated',
   unknown: 'unknown',
 } as const;
 

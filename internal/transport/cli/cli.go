@@ -13,6 +13,7 @@ import (
 
 	"github.com/felipemalacarne/mesa/internal/app"
 	"github.com/felipemalacarne/mesa/internal/app/connections"
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/platform"
 )
@@ -59,7 +60,9 @@ func Run(ctx context.Context, d Deps, args []string) int {
 	d = d.withDefaults()
 	root := Root(d)
 	root.SetArgs(args)
-	if err := root.ExecuteContext(ctx); err != nil {
+	// The CLI opens Mesa's store itself: whoever runs it is the local
+	// principal, with no sign-in.
+	if err := root.ExecuteContext(account.With(ctx, account.Local())); err != nil {
 		fmt.Fprintf(d.Err, "%s %s\n", symbolErr, errs.Message(err))
 		if errs.Is(err, errs.NeedsConfirmation) {
 			fmt.Fprintf(d.Err, "  re-run with --confirm %s\n", errs.Hint(err))

@@ -45,6 +45,7 @@ const KINDS: ReadonlySet<string> = new Set([
   "unavailable",
   "unsupported",
   "needs_confirmation",
+  "unauthenticated",
   "unknown",
 ]);
 
@@ -53,6 +54,8 @@ function statusKind(status: number): ErrorKind {
     case 400:
     case 422:
       return "invalid";
+    case 401:
+      return "unauthenticated";
     case 403:
       return "forbidden";
     case 404:

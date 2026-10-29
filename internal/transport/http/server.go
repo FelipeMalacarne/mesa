@@ -29,6 +29,9 @@ type Options struct {
 	// MCP, when set, is mounted at /mcp so agents can reach the service over
 	// HTTP with the same tools the stdio binary offers.
 	MCP http.Handler
+	// PublicURL is where people reach the server, for the sign-in callback
+	// and secure cookies; empty reads it from each request.
+	PublicURL string
 }
 
 // New builds the HTTP handler: /api/* from the contract, /healthz, and the
@@ -53,11 +56,17 @@ func New(a *app.App, o Options) http.Handler {
 		RequestErrorHandlerFunc:  requestError,
 		ResponseErrorHandlerFunc: responseError(log),
 	})
-	r.Mount("/api", gen.HandlerWithOptions(api, gen.ChiServerOptions{
+	// Every API call and every MCP call runs as a principal: the signed-in
+	// member, or the local one when this Mesa has no accounts.
+	auth := authenticate(a, o)
+	r.With(auth).Mount("/api", gen.HandlerWithOptions(api, gen.ChiServerOptions{
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			writeError(w, errs.Wrap(errs.Invalid, "bad request", err))
 		},
 	}))
+	login, callback := signInRoutes(a, o)
+	r.Get(loginPath, login)
+	r.Get(callbackPath, callback)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			writeError(w, errs.New(errs.NotFound, "no such endpoint"))
@@ -66,8 +75,8 @@ func New(a *app.App, o Options) http.Handler {
 		http.NotFound(w, r)
 	})
 	if o.MCP != nil {
-		r.Handle("/mcp", o.MCP)
-		r.Handle("/mcp/*", o.MCP)
+		r.With(auth).Handle("/mcp", o.MCP)
+		r.With(auth).Handle("/mcp/*", o.MCP)
 	}
 	if o.Assets != nil {
 		r.Handle("/*", spa(o.Assets))
@@ -100,6 +109,8 @@ func statusOf(err error) int {
 		return http.StatusForbidden
 	case errs.Conflict, errs.NeedsConfirmation:
 		return http.StatusConflict
+	case errs.Unauthenticated:
+		return http.StatusUnauthorized
 	case errs.Unavailable:
 		return http.StatusBadGateway
 	case errs.Unsupported:
@@ -146,7 +157,8 @@ func cors(origins []string) func(http.Handler) http.Handler {
 			if o := r.Header.Get("Origin"); o != "" && (allowed["*"] || allowed[o]) {
 				w.Header().Set("Access-Control-Allow-Origin", o)
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Mesa-Actor")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Set("Vary", "Origin")
 				if r.Method == http.MethodOptions {
 					w.WriteHeader(http.StatusNoContent)

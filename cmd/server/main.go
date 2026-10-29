@@ -47,11 +47,16 @@ func run() error {
 	// Databases opened in Monitor keep being sampled, so its ranges have history.
 	go a.Monitor.Run(ctx)
 
+	if a.Accounts == nil {
+		log.Warn("no identity provider (MESA_OIDC_ISSUER): everyone who reaches this server may do everything; keep it on a private network or behind an authenticating proxy")
+	}
+
 	handler := httptransport.New(a, httptransport.Options{
 		Assets:      web.Assets(),
 		CORSOrigins: cfg.CORSOrigins,
 		Logger:      log,
 		MCP:         mcptransport.Handler(a, mcptransport.Options{AllowWrites: cfg.MCPWrites}),
+		PublicURL:   cfg.PublicURL,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Listen,

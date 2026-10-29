@@ -17,6 +17,7 @@ tags:
   - name: Roles
   - name: Designer
   - name: System
+  - name: Auth
 
 paths:
   /system/info:
@@ -717,6 +718,100 @@ paths:
                   dbml: { type: string }
         default: { $ref: "#/components/responses/Error" }
 
+  /auth/state:
+    get:
+      operationId: getAuthState
+      tags: [Auth]
+      summary: How people sign in to this Mesa, and who is signed in
+      description: >
+        Anyone may ask. Without an identity provider (desktop, CLI, or a server without
+        MESA_OIDC_ISSUER) there is no sign-in: mode is local. With one, the browser signs in
+        at /auth/login, which sends it to the provider and back.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthState" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /auth/sign-out:
+    post:
+      operationId: signOut
+      tags: [Auth]
+      summary: End this session
+      responses:
+        "204":
+          description: Signed out
+          headers:
+            Set-Cookie: { schema: { type: string } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [Auth]
+      summary: The signed-in person, with the role the identity provider gave them
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /me/tokens:
+    get:
+      operationId: listTokens
+      tags: [Auth]
+      summary: Your API tokens (for agents on /mcp and for scripts)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ApiToken" } }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createToken
+      tags: [Auth]
+      summary: Make an API token with your role; its secret is shown only now
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TokenInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedToken" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /me/tokens/{tokenId}:
+    parameters:
+      - { name: tokenId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      operationId: revokeToken
+      tags: [Auth]
+      responses:
+        "204": { description: Revoked }
+        default: { $ref: "#/components/responses/Error" }
+
+  /people:
+    get:
+      operationId: listPeople
+      tags: [Auth]
+      summary: Everyone who has signed in, with the role the identity provider last gave them (admins)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/User" } }
+        default: { $ref: "#/components/responses/Error" }
+
 components:
   parameters:
     ConnectionId:
@@ -739,13 +834,65 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
 
   schemas:
+    AuthState:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [local, oidc]
+          description: local = no sign-in; oidc = people sign in through the identity provider
+        provider: { type: string, description: The provider's name for the sign-in button, in oidc mode }
+        user: { $ref: "#/components/schemas/User" }
+
+    MemberRole:
+      type: string
+      enum: [viewer, editor, admin]
+      description: viewer reads; editor also changes databases (still reviewed); admin also manages connections and provisions databases
+
+    User:
+      type: object
+      required: [id, email, name, role, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/MemberRole" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+
+    ApiToken:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+
+    TokenInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        expiresInDays: { type: integer, minimum: 0, description: Absent or 0 never expires }
+
+    CreatedToken:
+      type: object
+      required: [token, secret]
+      properties:
+        token: { $ref: "#/components/schemas/ApiToken" }
+        secret: { type: string, description: "Send as Authorization: Bearer <secret>. Shown only once" }
+
     Error:
       type: object
       required: [kind, message]
       properties:
         kind:
           type: string
-          enum: [not_found, invalid, forbidden, conflict, unavailable, unsupported, needs_confirmation, unknown]
+          enum: [not_found, invalid, forbidden, conflict, unavailable, unsupported, needs_confirmation, unauthenticated, unknown]
         message: { type: string }
         confirmWith: { type: string, description: Text to type when kind is needs_confirmation }
 
