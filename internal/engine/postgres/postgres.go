@@ -48,6 +48,7 @@ func (*Engine) Capabilities() engine.Capabilities {
 		TransactionalDDL: true,
 		Databases:        true,
 		Roles:            true,
+		Types:            columnTypes,
 	}
 }
 
