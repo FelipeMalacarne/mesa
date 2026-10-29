@@ -74,8 +74,63 @@ connections:
 ```
 
 Outside the chart, point `MESA_CONNECTIONS` at a TOML file with the same fields under
-`[connections.<name>]`. Mesa has no sign-in of its own yet: keep the service on a private
-network (a VPN, a tailnet, a LAN-only ingress) or behind an authenticating proxy.
+`[connections.<name>]`.
+
+### Sign-in
+
+People sign in to `mesa-server` through your identity provider (Zitadel, Keycloak,
+Authentik, Google, any OpenID Connect provider), which also gives their role: **viewer**
+reads, **editor** also changes databases (every change still reviewed), **admin** also manages
+connections and provisions databases. Mesa keeps no passwords and no member list.
+
+```yaml
+config:
+  publicURL: https://mesa.example.com      # the redirect URI is <publicURL>/auth/callback
+oidc:
+  issuer: https://auth.example.com
+  label: Zitadel
+  scopes: urn:zitadel:iam:org:projects:roles
+# MESA_OIDC_CLIENT_ID and MESA_OIDC_CLIENT_SECRET in config.existingSecret
+```
+
+In Zitadel: a project with the roles `admin`, `editor` and `viewer` and *Assert Roles on
+Authentication* on, a Web application in it with that redirect URI, and the roles granted to
+people. Other providers: put the role in a `roles` or `groups` claim (`mesa-admin` works too),
+or name the claim with `MESA_OIDC_ROLES_CLAIM`. Sessions last 12 hours. Agents and scripts use
+an API token from Settings → API tokens, sent as `Authorization: Bearer <token>`. Without an
+issuer there is no sign-in and everyone who reaches the server may do everything: keep such a
+server on a private network.
+
+### App databases on CloudNativePG, kept in Git
+
+On a connection to a CloudNativePG cluster whose manifests live in Git (Argo CD, Flux), Mesa
+gives an app its database in one step, and keeps the repository in step: Users & roles → App
+database (or `mesa provision`) creates the login and the database now, and commits their
+declaration to the repository: the CNPG `Database`, the managed role, and, encrypted with sops
+for the recipients in `.sops.yaml`, the role's password and the app's Secret `<name>-db` (with
+`DATABASE_URL`) in the app's namespace. The cluster's sync applies them, so Git and the cluster
+stay the same.
+
+```yaml
+connections:
+  prod:
+    host: postgres-main-rw.databases.svc
+    user: mesa
+    password: env:MESA_PROD_PASSWORD
+    environment: production
+    gitops:
+      repo: acme/gitops                          # needs MESA_GITHUB_TOKEN in config.existingSecret
+      path: clusters/prod/apps/postgres/mesa     # a Kustomize component Mesa owns
+      cluster: postgres-main
+      namespace: databases
+      pull_request: false                        # true: open a pull request instead
+```
+
+The component goes in the kustomization that declares the cluster, once:
+`components: [mesa]`, with the namespace set only where unset (a `NamespaceTransformer`
+with `unsetOnly: true` instead of `namespace:`), since each app's Secret lives in its own
+namespace. The token is a GitHub fine-grained token with read and write access to the
+repository's contents (and pull requests).
 
 ### CLI
 
@@ -192,8 +247,11 @@ server's `/mcp` endpoint (streamable HTTP).
 
 ```json
 { "mcpServers": { "mesa": { "command": "mesa-mcp" } } }
-{ "mcpServers": { "mesa": { "url": "http://localhost:8080/mcp" } } }
+{ "mcpServers": { "mesa": { "url": "https://mesa.example.com/mcp",
+  "headers": { "Authorization": "Bearer mesa_…" } } } }
 ```
+
+With sign-in on, the `/mcp` endpoint takes an API token and acts with its owner's role.
 
 Tools: `list_connections`, `list_databases`, `get_schema` (DBML), `query`,
 `table_rows`, `explain`, `monitor`, `sessions`, `plan_sql`. `mesa-mcp
@@ -212,7 +270,15 @@ it still goes through policy and audit.
 | `MESA_SESSION_IDLE` | `10m` | Idle database sessions are closed after this |
 | `MESA_MCP_WRITES` | `false` | Expose `apply_sql` on the server's `/mcp` endpoint |
 | `MESA_HOME` | OS config dir + `/mesa` | CLI and MCP data directory |
-| `MESA_CONNECTIONS` | none | A TOML file of connections the deployment declares; read-only in Mesa, passwords as `env:NAME` |
+| `MESA_CONNECTIONS` | none | A TOML file of connections the deployment declares; read-only in Mesa, passwords as `env:NAME`; a `gitops` table per connection to provision |
+| `MESA_OIDC_ISSUER` | none | The identity provider people sign in with; none: no sign-in |
+| `MESA_OIDC_CLIENT_ID` / `MESA_OIDC_CLIENT_SECRET` | none | Mesa's client at the provider (no secret: a public client with PKCE) |
+| `MESA_OIDC_LABEL` | `single sign-on` | The provider's name on the sign-in button |
+| `MESA_OIDC_SCOPES` | none | Extra scopes, space-separated (Zitadel: `urn:zitadel:iam:org:projects:roles`) |
+| `MESA_OIDC_ROLES_CLAIM` | Zitadel's, then `roles`, then `groups` | The claim with `admin`, `editor` or `viewer` |
+| `MESA_OIDC_DEFAULT_ROLE` | none | Role for people the provider names none for; none keeps them out |
+| `MESA_PUBLIC_URL` | from each request | Where people reach the server; the sign-in callback is `<url>/auth/callback` |
+| `MESA_GITHUB_TOKEN` / `MESA_GITHUB_API` | none / github.com | Git access for provisioning into declared repositories |
 | `MESA_PROJECT` | working directory for `mesa` and `mesa-mcp`, none for the server | Where to look for a `.mesa/` folder; `off` disables it |
 | `MESA_UPDATE_CHECK` | on | Desktop: `off` stops the daily check for a new release |
 | `MESA_UPDATE_URL` | `https://api.github.com` | Desktop: a mirror of the GitHub releases API to check instead |

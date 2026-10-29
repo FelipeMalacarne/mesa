@@ -13,12 +13,17 @@ cmd/mcp             the MCP server on stdio → mesa-mcp
 cmd/desktop         the desktop app (Wails; build tag desktop, `make desktop`) → mesa-desktop
                     each main is wiring only, over internal/platform/bootstrap
 api/openapi.yaml    the HTTP contract (generated code lives next to its adapter)
-internal/core       pure Go, no I/O: ident, schema, value, changeset, policy, connection, errs
+internal/core       pure Go, no I/O: ident, schema, value, changeset, policy, connection, account, errs
 internal/engine     driver ports (catalog, exec, monitor, dialect) + postgres, mysql + enginetest
 internal/session    connection + secret → pooled Session per (connection, database)
 internal/secret     vault: local AES-GCM, env: references
 internal/dbml       DBML parse/print ↔ schema.Database
 internal/app        use cases, one package per feature; plain structs in and out
+                    (accounts: sign-in via OIDC; provision: CNPG databases committed to Git)
+internal/oidc       OpenID Connect provider (go-oidc) for app/accounts
+internal/github     GitHub repository (REST) for app/provision
+internal/sops       sops-format encryption for age recipients (pure)
+internal/cnpg       the Kustomize component Mesa writes for CloudNativePG (pure)
 internal/store      Mesa's own data: ports + sqlite (desktop/CLI) + postgres (server) + project (optional .mesa/ overlay)
                     + declared (connections a deployment declares in MESA_CONNECTIONS)
 internal/transport  thin adapters: http, cli, mcp
@@ -31,6 +36,7 @@ web/                React app: src/app (shell), src/features/*, src/ui (design s
 - Dependencies point inward: `core` imports nothing internal; `engine`, `dbml`, `secret` import only `core`; `app` imports those and `session`/`store`; `transport` imports only `app` (and `core` for types); `cmd/*` imports `platform/bootstrap` and one transport. `golangci-lint` (depguard) enforces this; do not loosen it.
 - Packages are named for what they provide, never by layer. Keep them small.
 - Secrets never reach a use case or a transport. `session.Manager` hands out a ready `engine.Session`.
+- Every request runs as an `account.Principal` in its context; use cases that change something call `account.Require`. Transports set the principal (the signed-in person, or `account.Local()` on local surfaces); a context without one is refused.
 - Every write goes through `app/changes`: ChangeSet → Plan → policy → apply → audit. No transport runs SQL on its own.
 - Engine-specific behaviour lives in the engine package. Use cases ask `Capabilities()` and never type-switch on the engine.
 - `core/value` is the only cell representation. Never pass `any` from a driver to a transport.
