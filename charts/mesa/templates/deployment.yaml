@@ -55,6 +55,40 @@ spec:
             - name: MESA_CONNECTIONS
               value: /etc/mesa/connections.toml
             {{- end }}
+            {{- with .Values.config.publicURL }}
+            - name: MESA_PUBLIC_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.oidc }}
+            {{- if .issuer }}
+            - name: MESA_OIDC_ISSUER
+              value: {{ .issuer | quote }}
+            {{- end }}
+            {{- if .clientId }}
+            - name: MESA_OIDC_CLIENT_ID
+              value: {{ .clientId | quote }}
+            {{- end }}
+            {{- if .label }}
+            - name: MESA_OIDC_LABEL
+              value: {{ .label | quote }}
+            {{- end }}
+            {{- if .scopes }}
+            - name: MESA_OIDC_SCOPES
+              value: {{ .scopes | quote }}
+            {{- end }}
+            {{- if .rolesClaim }}
+            - name: MESA_OIDC_ROLES_CLAIM
+              value: {{ .rolesClaim | quote }}
+            {{- end }}
+            {{- if .defaultRole }}
+            - name: MESA_OIDC_DEFAULT_ROLE
+              value: {{ .defaultRole | quote }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.github.api }}
+            - name: MESA_GITHUB_API
+              value: {{ . | quote }}
+            {{- end }}
             {{- with .Values.config.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

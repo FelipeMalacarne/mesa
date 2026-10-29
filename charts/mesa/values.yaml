@@ -18,10 +18,39 @@ config:
   storeDSN: /data/mesa.db
   logLevel: info
   logFormat: json
+  # Where people reach Mesa (https://mesa.example.com): the sign-in callback
+  # is <publicURL>/auth/callback. Empty reads it from each request.
+  publicURL: ""
   # Extra MESA_* variables, e.g. a password from another Secret:
   #   - name: MESA_PROD_PASSWORD
   #     valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
   extraEnv: []
+
+# Sign-in through an OpenID Connect provider (Zitadel, Keycloak, …). The
+# provider decides who gets in and with which role: admin, editor or viewer
+# (Zitadel: project roles with "Assert Roles on Authentication"). Without an
+# issuer, everyone who reaches Mesa may do everything. The client secret is
+# MESA_OIDC_CLIENT_SECRET in config.existingSecret (or the client is public,
+# PKCE only); the client ID may live there too as MESA_OIDC_CLIENT_ID.
+oidc:
+  issuer: ""
+  clientId: ""
+  # The button reads "Sign in with <label>".
+  label: ""
+  # Extra scopes; Zitadel: urn:zitadel:iam:org:projects:roles
+  scopes: ""
+  # The claim with the roles; empty reads Zitadel's, then roles, then groups.
+  rolesClaim: ""
+  # Role for people the provider names none for; empty keeps them out.
+  defaultRole: ""
+
+# Git access for provisioning databases into the repositories declared
+# connections name (connections.<name>.gitops). The token is
+# MESA_GITHUB_TOKEN in config.existingSecret: a fine-grained token with
+# read and write access to the repository's contents (and pull requests).
+github:
+  # GitHub Enterprise Server's API; empty is github.com.
+  api: ""
 
 # Connections this deployment declares, by name. They appear next to the ones
 # people add, cannot be edited from Mesa, and change with a new rollout.
@@ -37,6 +66,13 @@ config:
 #     password: env:MESA_ORDERS_PASSWORD
 #     tls: require              # disable, prefer, require, verify-ca, verify-full
 #     read_only: true           # production is always read-only until unlocked
+#     gitops:                   # optional: provision app databases on its CNPG cluster
+#       repo: owner/gitops      # the repository the cluster syncs from
+#       branch: main
+#       path: clusters/prod/apps/postgres/mesa   # a Kustomize component Mesa owns
+#       cluster: orders         # the CNPG Cluster
+#       namespace: databases    # its namespace
+#       pull_request: false     # true opens pull requests instead of committing
 connections: {}
 
 replicaCount: 1
@@ -51,8 +87,8 @@ service:
   type: ClusterIP
   port: 8080
 
-# Mesa has no login of its own yet: keep it on a private network (a VPN, a
-# tailnet, a LAN-only ingress) or behind an authenticating proxy.
+# Without oidc.issuer Mesa has no sign-in: then keep it on a private network
+# (a VPN, a tailnet, a LAN-only ingress) or behind an authenticating proxy.
 ingress:
   enabled: false
   className: ""
