@@ -21,12 +21,14 @@ import (
 )
 
 // updates checks for new releases once a day (MESA_UPDATE_CHECK=off turns
-// that off) and from the Help menu, and installs one when asked.
+// that off) and from the Help menu, and installs one when asked. A copy that
+// a package manager installed (Nix) is left to it.
 type updates struct {
-	u     *update.Updater
-	state string
-	log   *slog.Logger
-	busy  sync.Mutex
+	u       *update.Updater
+	state   string
+	managed bool
+	log     *slog.Logger
+	busy    sync.Mutex
 }
 
 func newUpdates(configDir string, log *slog.Logger) *updates {
@@ -35,11 +37,12 @@ func newUpdates(configDir string, log *slog.Logger) *updates {
 	if base := os.Getenv("MESA_UPDATE_URL"); base != "" {
 		u.APIBase = strings.TrimRight(base, "/")
 	}
-	return &updates{u: u, state: filepath.Join(configDir, "last-update-check"), log: log}
+	exe, _ := os.Executable()
+	return &updates{u: u, state: filepath.Join(configDir, "last-update-check"), managed: update.Managed(exe), log: log}
 }
 
 func (up *updates) background(ctx context.Context) {
-	if os.Getenv("MESA_UPDATE_CHECK") == "off" || up.u.Development() {
+	if os.Getenv("MESA_UPDATE_CHECK") == "off" || up.u.Development() || up.managed {
 		return
 	}
 	select {
@@ -65,6 +68,12 @@ func (up *updates) check(ctx context.Context, asked bool) {
 	if up.u.Development() {
 		if asked {
 			say("Development build", "This build of Mesa ("+platform.Version+") does not update itself.")
+		}
+		return
+	}
+	if up.managed {
+		if asked {
+			say("Installed with Nix", "Nix installed this copy of Mesa ("+platform.Version+"). Update it through your Nix configuration.")
 		}
 		return
 	}

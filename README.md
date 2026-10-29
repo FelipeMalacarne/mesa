@@ -119,6 +119,46 @@ time (or run `xattr -dr com.apple.quarantine /Applications/Mesa.app`).
 
 How releases are built and signed: [docs/releasing.md](docs/releasing.md).
 
+### Nix
+
+The flake installs the release builds on Linux (x86_64, aarch64) and Apple Silicon Macs: `mesa`
+(the CLI with `mesa-server` and `mesa-mcp`) and `mesa-desktop`.
+
+```bash
+nix run github:FelipeMalacarne/mesa -- --help
+nix profile install github:FelipeMalacarne/mesa#mesa-desktop
+```
+
+In a NixOS, nix-darwin or home-manager flake, add the input and its overlay:
+
+```nix
+{
+  inputs.mesa.url = "github:FelipeMalacarne/mesa";
+  inputs.mesa.inputs.nixpkgs.follows = "nixpkgs";
+
+  # nix-darwin here; nixpkgs.lib.nixosSystem takes the same modules
+  outputs = { nix-darwin, mesa, ... }: {
+    darwinConfigurations.my-mac = nix-darwin.lib.darwinSystem {
+      modules = [
+        { nixpkgs.overlays = [ mesa.overlays.default ]; }
+        ./configuration.nix
+      ];
+    };
+  };
+}
+```
+
+```nix
+# configuration.nix (home-manager: home.packages)
+environment.systemPackages = [ pkgs.mesa-sql pkgs.mesa-sql-desktop ];
+```
+
+The overlay names them `mesa-sql` and `mesa-sql-desktop` because nixpkgs' `mesa` is the OpenGL
+library; without it, use `mesa.packages.${system}.mesa` and `.mesa-desktop`. Nix owns these
+copies, so the desktop app does not update itself: `nix flake update mesa` moves to the latest
+release. nix-darwin puts the app in `/Applications/Nix Apps`. On an Intel Mac, which
+nixpkgs-unstable no longer supports, use the overlay with nixpkgs 26.05.
+
 ### MCP
 
 Local agents talk to the stdio binary; agents that reach the service use the

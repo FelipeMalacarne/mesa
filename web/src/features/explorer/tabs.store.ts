@@ -64,9 +64,12 @@ interface ConnectionTabs {
   tabs: Tab[];
   activeId: string | null;
   nextQuery: number;
+  /** Recently closed tabs, newest last, for reopening. */
+  closed?: Tab[];
 }
 
 const empty: ConnectionTabs = { tabs: [], activeId: null, nextQuery: 1 };
+const keepClosed = 20;
 
 interface TabsState {
   byConnection: Record<string, ConnectionTabs>;
@@ -75,6 +78,8 @@ interface TabsState {
   activate: (connectionId: string, id: string) => void;
   /** Closes a tab; returns the tab that is active afterwards (null when none are left). */
   close: (connectionId: string, id: string) => Tab | null;
+  /** Reopens the most recently closed tab that is not open; returns it, or null. */
+  reopen: (connectionId: string) => Tab | null;
   update: (connectionId: string, id: string, patch: Partial<Tab>) => void;
   /** Opens a fresh "Query N" tab and returns it. */
   newQuery: (connectionId: string) => QueryTab;
@@ -107,8 +112,17 @@ export const useTabs = create<TabsState>()(
           const next = tabs[Math.min(index, tabs.length - 1)];
           activeId = next ? next.id : null;
         }
-        set({ byConnection: { ...get().byConnection, [connectionId]: { ...conn, tabs, activeId } } });
+        const closed = [...(conn.closed ?? []).filter((t) => t.id !== id), conn.tabs[index]].slice(-keepClosed);
+        set({ byConnection: { ...get().byConnection, [connectionId]: { ...conn, tabs, activeId, closed } } });
         return tabs.find((t) => t.id === activeId) ?? null;
+      },
+      reopen: (connectionId) => {
+        const conn = get().byConnection[connectionId] ?? empty;
+        const closed = [...(conn.closed ?? [])];
+        let tab: Tab | undefined;
+        while ((tab = closed.pop()) && conn.tabs.some((t) => t.id === tab!.id));
+        set({ byConnection: { ...get().byConnection, [connectionId]: { ...conn, closed } } });
+        return tab ? get().open(connectionId, tab) : null;
       },
       update: (connectionId, id, patch) => {
         const conn = get().byConnection[connectionId] ?? empty;

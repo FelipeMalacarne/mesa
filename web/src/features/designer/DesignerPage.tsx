@@ -23,6 +23,7 @@ import { EmptyState, Kbd, Select } from "@/ui/controls";
 import { ReviewDialog } from "@/features/changes/ReviewDialog";
 import { useTabs } from "@/features/explorer/tabs.store";
 import { Editor } from "@/features/sql/Editor";
+import { shortcut } from "@/app/keys";
 
 import { useWorkspace } from "../workspace/context";
 import { AddRelationDialog, AddTableDialog, ImportDialog } from "./dialogs";
@@ -245,7 +246,7 @@ function Designer({ database, fresh }: { database: string; fresh: boolean }) {
           Export
         </Button>
         <Button variant="primary" size="sm" onClick={() => setReview(true)} disabled={changeCount === 0 || errorsCount > 0} title="Review & apply (⌘S)">
-          Review &amp; apply <Kbd>⌘S</Kbd>
+          Review &amp; apply <Kbd>{shortcut("KeyS")}</Kbd>
         </Button>
       </div>
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>

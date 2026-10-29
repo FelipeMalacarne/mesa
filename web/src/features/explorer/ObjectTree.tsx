@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 
 import { useWorkspace } from "../workspace/context";
 import { useNodeOpen, useTree } from "./tree.store";
+import { onTreeKeyDown } from "./treeKeys";
 
 interface TreeProps {
   filter: string;
@@ -44,7 +45,7 @@ export function ObjectTree({ filter, onNewDatabase }: TreeProps) {
   }, [dbs.data, connection.database]);
 
   return (
-    <div className="m-tree" role="tree" aria-label={`${connection.name} objects`}>
+    <div className="m-tree" role="tree" aria-label={`${connection.name} objects`} onKeyDown={onTreeKeyDown}>
       {dbs.isPending ? <div className="m-tree__item m-muted">Loading databases…</div> : null}
       {dbs.isError ? <div className="m-tree__item m-help--error" title={errorMessage(dbs.error)}>Cannot list databases</div> : null}
       {list.map((db) => (
@@ -218,7 +219,7 @@ function Folder_({ id, label, count, children, forceOpen, defaultOpen }: { id: s
 
 function Leaf({ icon, label, meta, title, muted }: { icon?: React.ReactNode; label: string; meta?: string; title?: string; muted?: boolean }) {
   return (
-    <div className={cn("m-tree__item", muted && "m-muted")} role="treeitem" style={{ cursor: "default" }} title={title ?? label}>
+    <div className={cn("m-tree__item", muted && "m-muted")} role="treeitem" tabIndex={-1} style={{ cursor: "default" }} title={title ?? label}>
       <span className="m-tree__chev" aria-hidden="true" />
       {icon}
       <span className="m-tree__name">{label}</span>
@@ -241,6 +242,7 @@ function ObjectLeaf({ icon, label, meta, database, schema, table, kind }: { icon
       type="button"
       className={cn("m-tree__item", selected && "is-selected")}
       role="treeitem"
+      data-open
       onClick={() => void navigate({ to: "/c/$connectionId/db/$database/t/$schema/$table", params: { connectionId, database, schema, table }, search: { view: "data", kind } })}
     >
       <span className="m-tree__chev" aria-hidden="true" />
@@ -262,12 +264,13 @@ function TableNode({ database, schema, table }: { database: string; schema: stri
   const pkCols = new Set(table.primaryKey?.columns ?? []);
   return (
     <>
-      <div className={cn("m-tree__item", selected && "is-selected")} role="treeitem" aria-expanded={open} style={{ paddingLeft: 0 }}>
-        <button type="button" aria-label={open ? `Collapse ${table.name}` : `Expand ${table.name}`} onClick={() => toggle(connectionId, id)} style={{ display: "grid", placeItems: "center", width: 22, height: "100%" }}>
+      <div className={cn("m-tree__item", selected && "is-selected")} role="treeitem" aria-expanded={open} tabIndex={-1} style={{ paddingLeft: 0 }}>
+        <button type="button" tabIndex={-1} data-toggle aria-label={open ? `Collapse ${table.name}` : `Expand ${table.name}`} onClick={() => toggle(connectionId, id)} style={{ display: "grid", placeItems: "center", width: 22, height: "100%" }}>
           <Chevron open={open} />
         </button>
         <button
           type="button"
+          data-open
           onClick={() => void navigate({ to: "/c/$connectionId/db/$database/t/$schema/$table", params: { connectionId, database, schema, table: table.name }, search: { view: "data", kind: "table" } })}
           style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0, height: "100%" }}
           title={table.comment || table.name}
@@ -280,7 +283,7 @@ function TableNode({ database, schema, table }: { database: string; schema: stri
       {open ? (
         <div className="m-tree__children" role="group">
           {table.columns.map((c) => (
-            <div key={c.name} className="m-tree__item m-tree__item--column" role="treeitem" style={{ cursor: "default" }} title={`${c.name} ${c.type}${c.nullable ? "" : " not null"}${c.default ? ` default ${c.default}` : ""}`}>
+            <div key={c.name} className="m-tree__item m-tree__item--column" role="treeitem" tabIndex={-1} style={{ cursor: "default" }} title={`${c.name} ${c.type}${c.nullable ? "" : " not null"}${c.default ? ` default ${c.default}` : ""}`}>
               <span className="m-tree__chev" aria-hidden="true" />
               {pkCols.has(c.name) ? (
                 <KeyRound className="m-icon" aria-label="Primary key" />
@@ -296,7 +299,7 @@ function TableNode({ database, schema, table }: { database: string; schema: stri
           {(table.indexes?.length ?? 0) > 0 ? (
             <Folder_ id={`${id}/indexes`} label="Indexes" count={table.indexes!.length}>
               {table.indexes!.map((ix) => (
-                <div key={ix.name} className="m-tree__item m-tree__item--column" role="treeitem" style={{ cursor: "default" }} title={ix.expression ?? ix.columns?.join(", ")}>
+                <div key={ix.name} className="m-tree__item m-tree__item--column" role="treeitem" tabIndex={-1} style={{ cursor: "default" }} title={ix.expression ?? ix.columns?.join(", ")}>
                   <span className="m-tree__chev" aria-hidden="true" />
                   <Hash className="m-icon" aria-hidden="true" />
                   <span className="m-tree__name">{ix.name}</span>
@@ -308,7 +311,7 @@ function TableNode({ database, schema, table }: { database: string; schema: stri
           {(table.foreignKeys?.length ?? 0) > 0 ? (
             <Folder_ id={`${id}/fks`} label="Foreign keys" count={table.foreignKeys!.length}>
               {table.foreignKeys!.map((fk, i) => (
-                <div key={fk.name ?? i} className="m-tree__item m-tree__item--column" role="treeitem" style={{ cursor: "default" }} title={fk.name}>
+                <div key={fk.name ?? i} className="m-tree__item m-tree__item--column" role="treeitem" tabIndex={-1} style={{ cursor: "default" }} title={fk.name}>
                   <span className="m-tree__chev" aria-hidden="true" />
                   <Link2 className="m-icon" aria-hidden="true" />
                   <span className="m-tree__name">{fk.columns.join(", ")}</span>
