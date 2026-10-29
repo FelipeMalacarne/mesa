@@ -66,6 +66,7 @@ export function Editor({ value, onChange, onKeyDown, textareaRef, language = "sq
         <textarea
           ref={ref}
           data-main-focus=""
+          data-pane=""
           aria-label={ariaLabel}
           value={value}
           placeholder={placeholder}

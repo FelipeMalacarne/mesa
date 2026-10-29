@@ -35,4 +35,14 @@ describe("matchShortcut", () => {
     expect(matchShortcut(key(",", { meta: true }), true)).toBe("settings");
     expect(matchShortcut(key("/", { ctrl: true }), false)).toBe("shortcuts");
   });
+
+  it("moves between panes only with vim keys on", () => {
+    expect(matchShortcut(key("h", { ctrl: true }), true)).toBeNull();
+    expect(matchShortcut(key("h", { ctrl: true }), true, true)).toBe("pane.left");
+    expect(matchShortcut(key("j", { ctrl: true }), true, true)).toBe("pane.down");
+    // Outside macOS Ctrl is ⌘, so panes take Alt.
+    expect(matchShortcut(key("k", { ctrl: true }), false, true)).toBe("palette");
+    expect(matchShortcut(key("˚", { alt: true, code: "KeyK" }), false, true)).toBe("pane.up");
+    expect(matchShortcut(key("l", { alt: true, code: "KeyL" }), false, true)).toBe("pane.right");
+  });
 });

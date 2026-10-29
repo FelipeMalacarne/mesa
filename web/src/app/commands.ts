@@ -2,14 +2,18 @@
  * App commands: what a shortcut, the palette and the desktop app's menu run. The native menu
  * sends them as `mesa:command` events (cmd/desktop/main.go), so a menu item and its key do the
  * same thing whichever of the two sees the key first. `SHORTCUTS` is the reference Settings shows.
+ * With vim keys on (vim.ts) a few more apply: Ctrl+h/j/k/l (Alt outside macOS) between panes,
+ * and, outside text fields, gt / gT for tabs and `:` for the palette.
  */
 import * as React from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { isMac } from "@/lib/utils";
 import { activeTab, closeTab, cycleTab, goToTabAt, newQueryTab, reopenTab } from "@/features/explorer/tabActions";
+import { focusPane } from "@/features/workspace/focus";
 
 import { useUi } from "./ui.store";
+import { useVim } from "./vim";
 
 export type Command =
   | "palette"
@@ -24,15 +28,29 @@ export type Command =
   | "tab.next"
   | "tab.prev"
   | "tab.last"
-  | `tab.${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
+  | `tab.${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`
+  | "pane.left"
+  | "pane.right"
+  | "pane.up"
+  | "pane.down";
 
 export const COMMAND_EVENT = "mesa:command";
 
 type KeyEventLike = Pick<KeyboardEvent, "key" | "code" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey">;
 
-/** The command a key press asks for, if any. `mod` is ⌘ on macOS and Ctrl elsewhere. */
-export function matchShortcut(e: KeyEventLike, mac: boolean = isMac): Command | null {
+const PANES: Record<string, Command> = { h: "pane.left", j: "pane.down", k: "pane.up", l: "pane.right" };
+
+/**
+ * The command a key press asks for, if any. `mod` is ⌘ on macOS and Ctrl elsewhere; with vim
+ * keys on, Ctrl+h/j/k/l (Alt+h/j/k/l outside macOS, where Ctrl is `mod`) move between panes.
+ */
+export function matchShortcut(e: KeyEventLike, mac: boolean = isMac, vim = false): Command | null {
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (vim && !e.shiftKey && !e.metaKey && (mac ? e.ctrlKey && !e.altKey : e.altKey && !e.ctrlKey)) {
+    // ⌥ changes the character outside macOS too on some layouts: read the physical key.
+    const pane = PANES[mac ? key : e.code.replace(/^Key/, "").toLowerCase()];
+    if (pane) return pane;
+  }
   // Ctrl+Tab and Ctrl+PageDown move between tabs on every platform (browsers keep them for
   // their own tabs; the desktop app gets them).
   if (e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -84,6 +102,10 @@ export function matchShortcut(e: KeyEventLike, mac: boolean = isMac): Command | 
   }
   if (key >= "1" && key <= "8" && key.length === 1) return `tab.${Number(key) as 1}`;
   return null;
+}
+
+function isTextField(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || target.matches("input, textarea, select"));
 }
 
 /** Commands that still run while a dialog is open; the rest wait until it closes. */
@@ -138,6 +160,16 @@ export function useCommands() {
           return cycleTab(navigate, connectionId, -1);
         case "tab.last":
           return goToTabAt(navigate, connectionId, -1);
+        case "pane.left":
+          if (document.activeElement?.closest(".m-rail")) return false;
+          ui.focusRail("tree");
+          return true;
+        case "pane.right":
+          return document.querySelector("main")?.contains(document.activeElement) ? false : focusPane(0);
+        case "pane.down":
+          return focusPane(1);
+        case "pane.up":
+          return focusPane(-1);
         default:
           return goToTabAt(navigate, connectionId, Number(cmd.slice("tab.".length)));
       }
@@ -145,10 +177,30 @@ export function useCommands() {
     [navigate, connectionId],
   );
 
+  const lastG = React.useRef(0);
+
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const vim = useVim.getState().vim;
+      // gt / gT and `:` with vim keys on, outside text fields. A grid or the tree may have taken
+      // the g (it starts their gg), so it is noted before looking at defaultPrevented.
+      const plain = vim && !e.metaKey && !e.ctrlKey && !e.altKey && !isTextField(e.target);
+      if (plain && e.key === "g") {
+        lastG.current = Date.now();
+        return;
+      }
+      if (plain && !e.defaultPrevented && (e.key === "t" || e.key === "T") && Date.now() - lastG.current < 1000) {
+        lastG.current = 0;
+        if (!document.querySelector(".m-overlay") && run(e.key === "t" ? "tab.next" : "tab.prev")) e.preventDefault();
+        return;
+      }
+      if (plain && !e.defaultPrevented && e.key === ":" && !document.querySelector(".m-overlay")) {
+        e.preventDefault();
+        run("palette");
+        return;
+      }
       if (e.defaultPrevented) return;
-      const cmd = matchShortcut(e);
+      const cmd = matchShortcut(e, isMac, vim);
       if (!cmd) return;
       if (!OVER_DIALOGS.has(cmd) && document.querySelector(".m-overlay")) return;
       // Holding ⌘W should not empty the strip.
@@ -181,7 +233,9 @@ export interface ShortcutHelp {
   nativeZoom?: boolean;
 }
 
-export const SHORTCUTS: { group: string; items: ShortcutHelp[] }[] = [
+const PANE_MOD = isMac ? "ctrl" : "alt";
+
+export const SHORTCUTS: { group: string; vim?: boolean; items: ShortcutHelp[] }[] = [
   {
     group: "General",
     items: [
@@ -239,6 +293,36 @@ export const SHORTCUTS: { group: string; items: ShortcutHelp[] }[] = [
       { keys: ["mod+enter"], label: "Run the statement under the cursor" },
       { keys: ["mod+shift+enter"], label: "Explain it" },
       { keys: ["mod+s"], label: "Save the query" },
+    ],
+  },
+  {
+    group: "Lists",
+    items: [
+      { keys: ["j", "k"], label: "Next / previous row (connections, activity)" },
+      { keys: ["enter", "o"], label: "Open the row" },
+      { keys: ["l", "h"], label: "Expand / collapse it" },
+    ],
+  },
+  {
+    group: "Vim keys",
+    vim: true,
+    items: [
+      { keys: ["h", "j", "k", "l"], label: "Grids: move between cells" },
+      { keys: ["w", "b"], label: "Grids: next / previous column" },
+      { keys: ["0", "$"], label: "Grids: first / last column" },
+      { keys: ["g g", "G"], label: "Grids: first / last row (5G: row 5)" },
+      { keys: ["ctrl+d", "ctrl+u"], label: "Grids: half a page down / up" },
+      { keys: ["5 j"], label: "Grids: a count repeats the move" },
+      { keys: ["i", "a"], label: "Grids: edit the cell (Esc leaves it)" },
+      { keys: ["s", "c"], label: "Grids: replace the cell" },
+      { keys: ["d d"], label: "Grids: mark the row for deletion" },
+      { keys: ["y", "Y"], label: "Grids: copy the cell / the row" },
+      { keys: ["o"], label: "Grids: add a row" },
+      { keys: ["/"], label: "Grids: go to the filter (Esc comes back)" },
+      { keys: ["g t", "g T"], label: "Next / previous tab" },
+      { keys: [`${PANE_MOD}+h`, `${PANE_MOD}+l`], label: "Sidebar / view" },
+      { keys: [`${PANE_MOD}+j`, `${PANE_MOD}+k`], label: "Next / previous pane in the view (SQL editor ↔ results)" },
+      { keys: [":"], label: "Command palette" },
     ],
   },
 ];

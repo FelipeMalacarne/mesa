@@ -13,13 +13,14 @@ import { engineLabel } from "@/lib/format";
 import { keyLabel } from "@/lib/keys";
 import { cn, isMac } from "@/lib/utils";
 import { Button } from "@/ui/Button";
-import { Kbd } from "@/ui/controls";
+import { Kbd, Switch } from "@/ui/controls";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/ui/primitives/dialog";
 
 import { SHORTCUTS } from "./commands";
 import { useDensity, type Density } from "./density";
 import { useTheme, type Theme } from "./theme";
 import { useUi, type SettingsSection } from "./ui.store";
+import { useVim } from "./vim";
 import { useDesktopZoom } from "./zoom";
 
 const SECTIONS: { id: SettingsSection; label: string; icon: typeof Palette }[] = [
@@ -206,15 +207,23 @@ function Keys({ combo }: { combo: string }) {
 
 function KeyboardHelp() {
   const { zoom } = useDesktopZoom();
+  const vim = useVim((s) => s.vim);
+  const setVim = useVim((s) => s.setVim);
   return (
     <>
       <h2 className="m-section-title">Keyboard</h2>
       <DialogDescription className="m-help" style={{ margin: 0 }}>
-        Everything in Mesa works from the keyboard. The object tree moves like a vim buffer; the search lists use the arrows or Ctrl with n/p or j/k.
+        Everything in Mesa works from the keyboard. The object tree and the lists move like a vim buffer; the search lists use the arrows or Ctrl with n/p or j/k.
       </DialogDescription>
+      <Row label="Vim keys" help={`h j k l, counts, gg/G, dd and y in the grids, gt/gT for tabs, ${isMac ? "Ctrl" : "Alt"}+h/j/k/l between panes, : for the palette. With them on, typing in a grid no longer starts editing: press i.`}>
+        <Switch checked={vim} onChange={setVim} aria-label="Vim keys" />
+      </Row>
       {SHORTCUTS.map((g) => (
-        <section key={g.group} aria-label={g.group}>
-          <h3 className="m-settings__group">{g.group}</h3>
+        <section key={g.group} aria-label={g.group} className={cn(g.vim && !vim && "m-settings__off")}>
+          <h3 className="m-settings__group">
+            {g.group}
+            {g.vim ? <span className="m-settings__state">{vim ? "on" : "off"}</span> : null}
+          </h3>
           <dl className="m-settings__shortcuts">
             {g.items
               .filter((s) => !s.nativeZoom || zoom?.native)

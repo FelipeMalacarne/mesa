@@ -58,9 +58,13 @@ interface Props {
   onChange: (drafts: FilterDraft[]) => void;
   onApply: () => void;
   applied: boolean;
+  /** The first condition's value field, for the grid's `/`. */
+  inputRef?: React.Ref<HTMLInputElement>;
+  /** Esc in a value field: back to the grid. */
+  onLeave?: () => void;
 }
 
-export function FilterBar({ columns, drafts, onChange, onApply, applied }: Props) {
+export function FilterBar({ columns, drafts, onChange, onApply, applied, inputRef, onLeave }: Props) {
   const options = columns.map((c) => ({ value: c.name, label: c.name }));
   const set = (i: number, patch: Partial<FilterDraft>) => onChange(drafts.map((d, j) => (j === i ? { ...d, ...patch } : d)));
   const list = drafts.length ? drafts : [{ column: columns[0]?.name ?? "", op: "=" as const, text: "" }];
@@ -73,13 +77,20 @@ export function FilterBar({ columns, drafts, onChange, onApply, applied }: Props
           <Select size="sm" mono aria-label="Operator" value={d.op} options={OPS} onChange={(v) => set(i, { op: v })} />
           {d.op !== "is null" && d.op !== "is not null" ? (
             <input
+              ref={i === 0 ? inputRef : undefined}
               className="m-input m-input--sm m-input--mono"
               aria-label="Value"
               style={{ width: 160 }}
               value={d.text}
               placeholder="value"
               onChange={(e) => (drafts.length ? set(i, { text: e.target.value }) : onChange([{ ...d, text: e.target.value }]))}
-              onKeyDown={(e) => e.key === "Enter" && onApply()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onApply();
+                else if (e.key === "Escape" && onLeave) {
+                  e.preventDefault();
+                  onLeave();
+                }
+              }}
             />
           ) : null}
           {drafts.length > 1 || (applied && drafts.length === 1) ? (

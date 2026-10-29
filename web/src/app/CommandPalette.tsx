@@ -19,6 +19,7 @@ import { useConnectionTabs } from "@/features/explorer/tabs.store";
 
 import { useTheme } from "./theme";
 import { useUi } from "./ui.store";
+import { useVim } from "./vim";
 
 export function CommandPalette() {
   const open = useUi((s) => s.paletteOpen);
@@ -29,6 +30,7 @@ export function CommandPalette() {
   const connectionId = params.connectionId;
   const connections = useListConnections({ query: { enabled: open } });
   const toggleTheme = useTheme((s) => s.toggle);
+  const vim = useVim((s) => s.vim);
   const openTabs = useConnectionTabs(connectionId ?? "");
 
   const tables = React.useMemo(() => {
@@ -179,6 +181,10 @@ export function CommandPalette() {
             <Keyboard className="m-icon m-icon--sm" aria-hidden="true" />
             Keyboard shortcuts
             <Kbd>{keyLabel("mod+/")}</Kbd>
+          </CommandItem>
+          <CommandItem value="vim keys hjkl toggle" onSelect={() => run(() => useVim.getState().setVim(!useVim.getState().vim))}>
+            <Keyboard className="m-icon m-icon--sm" aria-hidden="true" />
+            {vim ? "Turn vim keys off" : "Turn vim keys on"}
           </CommandItem>
           <CommandItem value="toggle theme dark light" onSelect={() => run(toggleTheme)}>
             <Moon className="m-icon m-icon--sm" aria-hidden="true" />

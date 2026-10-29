@@ -3,15 +3,20 @@
  * store and only reach the database through the review dialog.
  *
  * Keys: arrows move, Enter or typing edits, Escape cancels, Tab moves right, ⌘⌫ marks the row
- * for deletion, ⌘C copies the cell. Double-click edits too.
+ * for deletion, ⌘C copies the cell. Double-click edits too. With vim keys on (Settings), typing
+ * no longer edits: h j k l, gg G, 0 $, Ctrl+D/U and counts move, i/a edit, s/c replace, dd marks
+ * the row for deletion, y / Y copy the cell / the row, o adds a row and / goes to the filter
+ * (lib/gridKeys.ts).
  */
 import * as React from "react";
 import { ArrowDown, ArrowUp, KeyRound, Link2 } from "lucide-react";
 import { toast } from "sonner";
 
 import type { ResultColumn, Table } from "@/lib/api/mesaAPI.schemas";
+import { gridKey, newGridKeyState, visibleRows, type GridAction } from "@/lib/gridKeys";
 import { cn, isCmd } from "@/lib/utils";
 import { isNull, isNumeric, NULL_INPUT, parseInput, textOf, ValueInputError, type Value } from "@/lib/values";
+import { useVim } from "@/app/vim";
 
 import { rowKeyOf, useChanges, type RowValues, type TableChanges } from "./changes.store";
 
@@ -42,6 +47,10 @@ interface Props {
   selectedRow: string | null;
   onSelectRow: (id: string | null) => void;
   refetching: boolean;
+  /** Vim `o`: stage a new row. */
+  onInsertRow?: () => void;
+  /** Vim `/`: go to the filter. */
+  onFilter?: () => void;
 }
 
 /** The grid's rows: loaded rows then staged inserts, with keys for editing. */
@@ -82,7 +91,7 @@ interface Active {
   col: number;
 }
 
-export function DataGrid({ columns, rows, offset, meta, tableKey, changes, editable, sort, onSort, selectedRow, onSelectRow, refetching }: Props) {
+export function DataGrid({ columns, rows, offset, meta, tableKey, changes, editable, sort, onSort, selectedRow, onSelectRow, refetching, onInsertRow, onFilter }: Props) {
   const list = React.useMemo(() => gridRows(columns, rows, meta, changes), [columns, rows, meta, changes]);
   const setCell = useChanges((s) => s.setCell);
   const setInsertCell = useChanges((s) => s.setInsertCell);
@@ -91,6 +100,8 @@ export function DataGrid({ columns, rows, offset, meta, tableKey, changes, edita
   const [active, setActive] = React.useState<Active | null>(null);
   const [editing, setEditing] = React.useState<{ row: number; col: number; text: string } | null>(null);
   const gridRef = React.useRef<HTMLTableElement>(null);
+  const vim = useVim((s) => s.vim);
+  const keys = React.useRef(newGridKeyState());
   const metaCol = React.useMemo(() => new Map((meta?.columns ?? []).map((c) => [c.name, c])), [meta]);
   const pk = new Set(meta?.primaryKey?.columns ?? []);
   const fk = new Set((meta?.foreignKeys ?? []).flatMap((f) => f.columns));
@@ -155,68 +166,98 @@ export function DataGrid({ columns, rows, offset, meta, tableKey, changes, edita
     });
   };
 
+  const deleteRow = (row: GridRow) => {
+    if (row.kind === "insert") removeInsert(tableKey, row.insertId!);
+    else if (row.key && editable) toggleDelete(tableKey, row.key);
+  };
+
+  const copy = (text: string, what: string) =>
+    void navigator.clipboard.writeText(text).then(
+      () => what && toast.success(`Copied ${what}`),
+      () => toast.error("The clipboard is not available"),
+    );
+  const cellText = (row: GridRow, col: number) => {
+    const { value } = cellValue(row, col, columns, changes);
+    return isNull(value) ? "" : textOf(value);
+  };
+
+  const run = (action: GridAction) => {
+    const row = active ? list[active.row] : undefined;
+    switch (action.kind) {
+      case "move":
+        setActive(action.cell);
+        return;
+      case "edit":
+        if (active) startEdit(active.row, active.col, action.replace ? "" : undefined);
+        return;
+      case "delete-row":
+        if (row) deleteRow(row);
+        return;
+      case "copy-cell":
+        if (row && active) copy(cellText(row, active.col), "");
+        return;
+      case "copy-row":
+        if (row) copy(columns.map((_, c) => cellText(row, c)).join("\t"), "the row");
+        return;
+      case "insert-row":
+        if (editable) onInsertRow?.();
+        return;
+      case "filter":
+        onFilter?.();
+        return;
+    }
+  };
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (editing) return;
-    if (!active && ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+    const row = active ? list[active.row] : undefined;
+    if (row && active && isCmd(e) && (e.key === "Backspace" || e.key === "Delete")) {
       e.preventDefault();
-      setActive({ row: 0, col: 0 });
+      deleteRow(row);
       return;
     }
-    if (!active) return;
-    const row = list[active.row];
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        move(1, 0);
-        return;
-      case "ArrowUp":
-        e.preventDefault();
-        move(-1, 0);
-        return;
-      case "ArrowLeft":
-        e.preventDefault();
-        move(0, -1);
-        return;
-      case "ArrowRight":
-      case "Tab":
-        e.preventDefault();
-        move(0, e.shiftKey ? -1 : 1);
-        return;
-      case "Enter":
-      case "F2":
-        e.preventDefault();
-        startEdit(active.row, active.col);
-        return;
-      case "Escape":
-        setActive(null);
-        return;
-      case "Backspace":
-      case "Delete":
-        if (!row) return;
-        if (isCmd(e)) {
+    if (row && active && isCmd(e) && e.key.toLowerCase() === "c") {
+      e.preventDefault();
+      copy(cellText(row, active.col), "");
+      return;
+    }
+    if (active) {
+      switch (e.key) {
+        case "Tab":
           e.preventDefault();
-          if (row.kind === "insert") removeInsert(tableKey, row.insertId!);
-          else if (row.key && editable) toggleDelete(tableKey, row.key);
+          move(0, e.shiftKey ? -1 : 1);
           return;
-        }
-        e.preventDefault();
-        startEdit(active.row, active.col, "");
-        return;
+        case "Enter":
+        case "F2":
+          e.preventDefault();
+          startEdit(active.row, active.col);
+          return;
+        case "Escape":
+          keys.current = newGridKeyState();
+          setActive(null);
+          return;
+        case "Backspace":
+        case "Delete":
+          e.preventDefault();
+          startEdit(active.row, active.col, "");
+          return;
+      }
     }
-    if (isCmd(e) && e.key.toLowerCase() === "c" && row) {
+    const action = gridKey(e, active, { rows: list.length, cols: columns.length, page: visibleRows(gridRef.current) }, vim, keys.current);
+    if (action) {
       e.preventDefault();
-      const { value } = cellValue(row, active.col, columns, changes);
-      void navigator.clipboard.writeText(isNull(value) ? "" : textOf(value));
+      run(action);
       return;
     }
-    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    // Without vim keys, typing a character starts editing with it, like a spreadsheet.
+    if (!vim && active && e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
       e.preventDefault();
       startEdit(active.row, active.col, e.key);
     }
   };
 
   return (
-    <table ref={gridRef} data-main-focus="" className={cn("m-grid", refetching && "is-refetching", active && "is-focused")} tabIndex={0} onKeyDown={onKeyDown} aria-rowcount={list.length} role="grid">
+    <table ref={gridRef} data-main-focus="" data-pane="" className={cn("m-grid", refetching && "is-refetching", active && "is-focused")} tabIndex={0} onKeyDown={onKeyDown} aria-rowcount={list.length} role="grid">
       <thead>
         <tr>
           <th className="m-gutter">#</th>
