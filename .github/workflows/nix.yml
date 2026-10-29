@@ -1,0 +1,75 @@
+name: nix
+
+# Points the flake at a release: nix/update.sh writes nix/release.json from the
+# release's checksums.txt, the packages are built from the release files, and
+# the change is committed to the default branch. The release workflow calls
+# this after every final release; Run workflow here redoes it for a version
+# that is already published.
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Published release to point the flake at, e.g. 0.2.1"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: nix-flake
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      - name: Point nix/release.json at the release
+        id: update
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          v=${VERSION#v}
+          current=$(jq -r .version nix/release.json)
+          # A release older than the flake's (a fix to an earlier line) leaves it alone.
+          if [ "$(printf '%s\n%s\n' "$current" "$v" | sort -V | tail -n1)" != "$v" ]; then
+            echo "The flake is on $current, newer than $v; left as it is." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          nix/update.sh "$v"
+          if git diff --quiet; then
+            echo "The flake is already on v$v." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - uses: cachix/install-nix-action@v31
+        if: steps.update.outputs.version
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build the packages from the release files
+        if: steps.update.outputs.version
+        run: nix build --no-link .#mesa .#mesa-desktop
+      - name: Commit to the default branch
+        if: steps.update.outputs.version
+        env:
+          VERSION: ${{ steps.update.outputs.version }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -qm "chore(nix): point the flake at v$VERSION" nix/release.json
+          # The branch may have moved while the packages built.
+          for _ in 1 2 3; do
+            git push origin "HEAD:$BRANCH" && exit 0
+            git pull --rebase origin "$BRANCH"
+          done
+          exit 1

@@ -35,14 +35,20 @@ final release) for amd64 and arm64, and signed with cosign keyless.
 ## After the release: the Nix flake
 
 `flake.nix` installs the release files, so it points at one release through
-`nix/release.json`. Once the release is published, move it there and commit:
+`nix/release.json`. After a final release is published, the release workflow's
+`nix` job (`.github/workflows/nix.yml`) runs `nix/update.sh`, builds both
+packages from the new files and commits `nix/release.json` to the default
+branch; from then on `nix flake update mesa` installs the new release.
+Prereleases leave the flake alone, and so does a release older than the one it
+is on.
+
+If that job fails, Actions → nix → Run workflow with the version redoes it. By
+hand, it is:
 
 ```bash
 nix/update.sh 0.1.1          # writes nix/release.json from the release's checksums.txt
 nix build .#mesa .#mesa-desktop
 ```
-
-Until then, `nix flake update mesa` keeps people on the previous release.
 
 ## Keys and certificates
 

@@ -2,11 +2,11 @@ name: release
 
 # A tag v1.2.3, or a manual run on the default branch with "publish" ticked
 # (Actions → release → Run workflow), builds every binary, the desktop
-# installers and the image, signs what there are keys for, and publishes a
-# GitHub release. A branch push that touches packaging, the desktop app or
-# the updater, or a manual run without "publish", builds everything as a dry
-# run and keeps the files as an artifact. Secrets and variables are
-# described in docs/releasing.md.
+# installers and the image, signs what there are keys for, publishes a GitHub
+# release and, for a final release, points the Nix flake at it. A branch push
+# that touches packaging, the desktop app or the updater, or a manual run
+# without "publish", builds everything as a dry run and keeps the files as an
+# artifact. Secrets and variables are described in docs/releasing.md.
 
 on:
   push:
@@ -359,3 +359,13 @@ jobs:
           # From a tag push the tag exists; from the Actions tab this creates
           # it on the commit that was built.
           gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" --title "Mesa $VERSION" --generate-notes $flags
+
+  nix:
+    # A final release moves the flake to it; a prerelease leaves Nix users where they are.
+    needs: [meta, publish]
+    if: needs.meta.outputs.publish == 'true' && !contains(needs.meta.outputs.version, '-')
+    permissions:
+      contents: write
+    uses: ./.github/workflows/nix.yml
+    with:
+      version: ${{ needs.meta.outputs.version }}
