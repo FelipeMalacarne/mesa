@@ -86,7 +86,20 @@ const viewKeys: { title: string; rows: Row[] }[] = [
   },
   {
     title: "Schema designer",
-    rows: [{ title: "Review & apply the model", keys: [k("KeyS", { mod: true })] }],
+    rows: [
+      { title: "Review & apply the model", keys: [k("KeyS", { mod: true })] },
+      { title: "Zoom at the pointer", keys: ["scroll", `${isMac ? "⌘" : "Ctrl+"}scroll`, "pinch"] },
+      { title: "Zoom in or out", keys: ["+", "-"] },
+      { title: "Zoom to fit, to the selection, to 100%", keys: [k("Digit1", { shift: true }), k("Digit2", { shift: true }), k("Digit0", { shift: true })] },
+      { title: "Pan", keys: ["drag", "Shift+scroll"] },
+      { title: "Select several, or an area", keys: ["Shift+click", "Shift+drag"] },
+      { title: "Find a table", keys: ["/", k("KeyF", { mod: true })] },
+      { title: "Focus on the selection and its neighbours", keys: ["f"] },
+      { title: "Move the selected tables", keys: ["↑ ↓ ← →", "Shift+↑ ↓ ← →"] },
+      { title: "Drop the selected tables or relation", keys: ["Del", "⌫"] },
+      { title: "Undo or redo", keys: [k("KeyZ", { mod: true }), k("KeyZ", { mod: true, shift: true })] },
+      { title: "Clear the selection, leave focus", keys: ["Esc"] },
+    ],
   },
   {
     title: "Connections and activity",

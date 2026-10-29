@@ -44,6 +44,22 @@ type Capabilities struct {
 	TransactionalDDL bool `json:"transactionalDdl"`
 	Databases        bool `json:"databases"` // create/drop databases
 	Roles            bool `json:"roles"`
+	// Types are the column types the designer offers, most used first. Any
+	// other spelling the engine accepts can still be typed.
+	Types []ColumnType `json:"types"`
+}
+
+// ColumnType is one column type as the designer offers it.
+type ColumnType struct {
+	Name  string `json:"name"`  // "varchar", "bigint unsigned"
+	Group string `json:"group"` // "Numeric", "Text", "Date & time"…
+	// Args names what goes in parentheses: "length", "precision" (p,s),
+	// "values" (MySQL enum/set), or "" when the type takes none.
+	Args string `json:"args,omitempty"`
+	// Spelling is what is inserted when the type is picked: "varchar(255)".
+	Spelling string `json:"spelling"`
+	// Integer types can be auto-incremented (identity / AUTO_INCREMENT).
+	Integer bool `json:"integer,omitempty"`
 }
 
 // Engine creates sessions for one database engine.

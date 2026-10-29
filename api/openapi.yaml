@@ -781,6 +781,21 @@ components:
         transactionalDdl: { type: boolean }
         databases: { type: boolean }
         roles: { type: boolean }
+        types:
+          type: array
+          description: Column types the designer offers, most used first.
+          items: { $ref: "#/components/schemas/ColumnType" }
+    ColumnType:
+      type: object
+      x-go-type: engine.ColumnType
+      x-go-type-import: { path: github.com/felipemalacarne/mesa/internal/engine }
+      required: [name, group, spelling]
+      properties:
+        name: { type: string }
+        group: { type: string }
+        args: { type: string, enum: [length, precision, values] }
+        spelling: { type: string, description: What is inserted when the type is picked }
+        integer: { type: boolean, description: Integer types can auto-increment }
 
     Engine:
       type: string

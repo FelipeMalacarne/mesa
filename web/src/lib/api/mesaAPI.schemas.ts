@@ -38,6 +38,25 @@ export const SystemInfoMode = {
   cli: 'cli',
 } as const;
 
+export type ColumnTypeArgs = typeof ColumnTypeArgs[keyof typeof ColumnTypeArgs];
+
+
+export const ColumnTypeArgs = {
+  length: 'length',
+  precision: 'precision',
+  values: 'values',
+} as const;
+
+export interface ColumnType {
+  name: string;
+  group: string;
+  args?: ColumnTypeArgs;
+  /** What is inserted when the type is picked */
+  spelling: string;
+  /** Integer types can auto-increment */
+  integer?: boolean;
+}
+
 export interface Capabilities {
   schemas?: boolean;
   enums?: boolean;
@@ -51,6 +70,8 @@ export interface Capabilities {
   transactionalDdl?: boolean;
   databases?: boolean;
   roles?: boolean;
+  /** Column types the designer offers, most used first. */
+  types?: ColumnType[];
 }
 
 export type SystemInfoEnginesItem = {
