@@ -490,3 +490,10 @@
 .m-settings__shortcut dt { min-width: 0; }
 .m-settings__shortcut dd { flex: none; display: flex; align-items: center; gap: var(--space-1); margin: 0; font-size: 12px; }
 .m-settings__keys { display: inline-flex; gap: 2px; }
+.m-settings__state { margin-left: var(--space-2); padding: 0 var(--space-1\.5); border: 1px solid var(--border); border-radius: var(--radius-full); letter-spacing: 0; text-transform: none; }
+.m-settings__off .m-settings__shortcuts { opacity: .55; }
+
+/* Lists that move with j/k (connections, activity): the focused row reads like a hovered one. */
+.m-list tbody tr[data-row]:focus { outline: none; }
+.m-list tbody tr[data-row]:focus-visible td { background: var(--muted); }
+.m-list tbody tr[data-row]:focus-visible td:first-child { box-shadow: inset 2px 0 0 var(--primary); }
