@@ -9,11 +9,13 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/felipemalacarne/mesa/internal/app/accounts"
 	"github.com/felipemalacarne/mesa/internal/app/changes"
 	"github.com/felipemalacarne/mesa/internal/app/connections"
 	"github.com/felipemalacarne/mesa/internal/app/designer"
 	"github.com/felipemalacarne/mesa/internal/app/explore"
 	"github.com/felipemalacarne/mesa/internal/app/monitor"
+	"github.com/felipemalacarne/mesa/internal/app/provision"
 	"github.com/felipemalacarne/mesa/internal/app/query"
 	"github.com/felipemalacarne/mesa/internal/app/roles"
 	"github.com/felipemalacarne/mesa/internal/core/connection"
@@ -21,6 +23,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/secret"
 	"github.com/felipemalacarne/mesa/internal/session"
 	"github.com/felipemalacarne/mesa/internal/store"
+	"github.com/felipemalacarne/mesa/internal/store/declared"
 	"github.com/felipemalacarne/mesa/internal/store/project"
 )
 
@@ -43,6 +46,11 @@ type App struct {
 	// Project is the .mesa/ folder in use, or nil: it is always optional.
 	Project *project.Project
 
+	// Accounts is sign-in through the identity provider; nil when every
+	// request runs as the local principal (desktop, CLI, MCP on stdio, or a
+	// server without a provider).
+	Accounts *accounts.Service
+
 	Connections *connections.Service
 	Explore     *explore.Service
 	Changes     *changes.Service
@@ -50,6 +58,7 @@ type App struct {
 	Monitor     *monitor.Service
 	Roles       *roles.Service
 	Designer    *designer.Service
+	Provision   *provision.Service
 }
 
 // Options configure New.
@@ -62,12 +71,21 @@ type Options struct {
 	Session session.Options
 	// Project, when set, layers a .mesa/ folder over Store and Vault.
 	Project *project.Project
+	// Declared, when set, adds the connections a deployment declares in a
+	// file (MESA_CONNECTIONS).
+	Declared *declared.Set
+	// Accounts, when set, turns on sign-in through an identity provider
+	// (server mode).
+	Accounts *accounts.Options
+	// Repos opens the GitOps repositories declared connections provision
+	// into; nil when Mesa has no Git access.
+	Repos provision.RepoFactory
 }
 
 // New builds the application.
 func New(o Options) *App {
-	o.Store = project.Overlay(o.Store, o.Project)
-	o.Vault = project.Vault(o.Vault, o.Project)
+	o.Store = declared.Overlay(project.Overlay(o.Store, o.Project), o.Declared)
+	o.Vault = declared.Vault(project.Vault(o.Vault, o.Project), o.Declared)
 	sessions := session.New(o.Engines, o.Store.Connections(), o.Vault, o.Session)
 	unlocks := changes.NewMemoryUnlocks()
 	exp := explore.New(sessions, 30*time.Second)
@@ -88,11 +106,20 @@ func New(o Options) *App {
 		Roles:       roles.New(sessions, ch),
 	}
 	a.Designer = designer.New(sessions, ch, o.Store.Layouts(), exp.Schema)
-	if p := o.Project; p != nil {
-		file := p.Rel(filepath.Join(p.Dir, project.ConfigName))
+	a.Provision = provision.New(sessions, ch, o.Store.Audit(), targets(o.Declared), o.Repos)
+	if o.Accounts != nil {
+		a.Accounts = accounts.New(o.Store, *o.Accounts)
+	}
+	if o.Project != nil || o.Declared != nil {
+		p, d := o.Project, o.Declared
 		a.Connections.SetDefinedIn(func(id uuid.UUID) string {
-			if _, ok := p.EnvOf(id); ok {
-				return file
+			if d != nil && d.Has(id) {
+				return d.Path
+			}
+			if p != nil {
+				if _, ok := p.EnvOf(id); ok {
+					return p.Rel(filepath.Join(p.Dir, project.ConfigName))
+				}
 			}
 			return ""
 		})
@@ -137,4 +164,20 @@ func envName(s string) string {
 		}
 	}
 	return string(out)
+}
+
+// targets reads provisioning targets from the declared connections.
+func targets(d *declared.Set) func(uuid.UUID) (provision.Target, bool) {
+	return func(id uuid.UUID) (provision.Target, bool) {
+		if d == nil {
+			return provision.Target{}, false
+		}
+		g, ok := d.GitOps(id)
+		if !ok {
+			return provision.Target{}, false
+		}
+		return provision.Target{
+			Repo: g.Repo, Branch: g.Branch, Path: g.Path, Cluster: g.Cluster, Namespace: g.Namespace, PullRequest: g.PullRequest,
+		}, true
+	}
 }

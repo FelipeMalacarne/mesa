@@ -4,6 +4,7 @@ import { createRootRouteWithContext, Link, Outlet } from "@tanstack/react-router
 import { EmptyState } from "@/ui/controls";
 import { errorMessage } from "@/lib/api/fetch";
 
+import { AuthGate } from "../auth";
 import { CommandPalette } from "../CommandPalette";
 import { SettingsDialog } from "../SettingsDialog";
 import { ShortcutsDialog } from "../ShortcutsDialog";
@@ -42,11 +43,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function Root() {
   useShortcuts();
   return (
-    <>
+    <AuthGate>
       <Outlet />
       <CommandPalette />
       <ShortcutsDialog />
       <SettingsDialog />
-    </>
+    </AuthGate>
   );
 }

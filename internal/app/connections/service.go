@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/connection"
 	"github.com/felipemalacarne/mesa/internal/engine"
 	"github.com/felipemalacarne/mesa/internal/secret"
@@ -112,6 +113,9 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (*Item, error) {
 
 // Create stores a new connection and its secret.
 func (s *Service) Create(ctx context.Context, in Input) (*Item, error) {
+	if err := account.Require(ctx, account.Manage); err != nil {
+		return nil, err
+	}
 	c, err := connection.New(in.Input, s.now())
 	if err != nil {
 		return nil, err
@@ -130,6 +134,9 @@ func (s *Service) Create(ctx context.Context, in Input) (*Item, error) {
 
 // Update changes settings; the secret changes only when given.
 func (s *Service) Update(ctx context.Context, id uuid.UUID, in Input) (*Item, error) {
+	if err := account.Require(ctx, account.Manage); err != nil {
+		return nil, err
+	}
 	c, err := s.conns.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -152,6 +159,9 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in Input) (*Item, er
 
 // Delete removes the connection, its secret and its sessions.
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+	if err := account.Require(ctx, account.Manage); err != nil {
+		return err
+	}
 	if _, err := s.conns.Get(ctx, id); err != nil {
 		return err
 	}
@@ -161,8 +171,12 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.conns.Delete(ctx, id)
 }
 
-// Test reaches a server with explicit settings and secret; nothing is stored.
+// Test reaches a server with explicit settings and secret; nothing is
+// stored. It is part of adding a connection, so it takes the same right.
 func (s *Service) Test(ctx context.Context, in Input) (*TestResult, error) {
+	if err := account.Require(ctx, account.Manage); err != nil {
+		return nil, err
+	}
 	c, err := connection.New(in.Input, s.now())
 	if err != nil {
 		return nil, err
@@ -198,6 +212,9 @@ func (s *Service) TouchOpened(ctx context.Context, id uuid.UUID) error {
 
 // Unlock allows writes on a read-only connection for ttl.
 func (s *Service) Unlock(ctx context.Context, id uuid.UUID, ttl time.Duration) (*Item, error) {
+	if err := account.Require(ctx, account.Write); err != nil {
+		return nil, err
+	}
 	if _, err := s.conns.Get(ctx, id); err != nil {
 		return nil, err
 	}
@@ -213,6 +230,9 @@ func (s *Service) Unlock(ctx context.Context, id uuid.UUID, ttl time.Duration) (
 
 // Lock ends an unlock early.
 func (s *Service) Lock(ctx context.Context, id uuid.UUID) (*Item, error) {
+	if err := account.Require(ctx, account.Write); err != nil {
+		return nil, err
+	}
 	s.unlocks.Lock(id)
 	return s.Get(ctx, id)
 }

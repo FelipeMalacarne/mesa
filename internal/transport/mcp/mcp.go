@@ -15,6 +15,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/app"
 	"github.com/felipemalacarne/mesa/internal/app/changes"
 	"github.com/felipemalacarne/mesa/internal/app/query"
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/changeset"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/core/ident"
@@ -50,9 +51,10 @@ func NewServer(a *app.App, o Options) *mcp.Server {
 	return s
 }
 
-// Serve runs the server on stdio until the client disconnects.
+// Serve runs the server on stdio until the client disconnects. On stdio the
+// agent acts for the person who started it: the local principal.
 func Serve(ctx context.Context, s *mcp.Server) error {
-	return s.Run(ctx, &mcp.StdioTransport{})
+	return s.Run(account.With(ctx, account.Local()), &mcp.StdioTransport{})
 }
 
 // Handler serves the same tools over streamable HTTP, for mesa-server.
@@ -309,7 +311,7 @@ func (t *tools) plan(ctx context.Context, in sqlIn, dryRun bool) (*planOut, erro
 	}
 	res, err := t.app.Changes.Apply(ctx, changes.ApplyInput{
 		ConnectionID: id, Database: in.Database, Plan: p, Confirmation: in.Confirmation,
-		Transaction: true, DryRun: dryRun, Actor: "agent", Surface: surface,
+		Transaction: true, DryRun: dryRun, Actor: account.Actor(ctx, "agent"), Surface: surface,
 	})
 	if res == nil && err != nil {
 		return nil, err

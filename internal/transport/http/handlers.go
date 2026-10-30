@@ -13,6 +13,7 @@ import (
 	"github.com/felipemalacarne/mesa/internal/app/monitor"
 	"github.com/felipemalacarne/mesa/internal/app/query"
 	"github.com/felipemalacarne/mesa/internal/app/roles"
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/changeset"
 	"github.com/felipemalacarne/mesa/internal/core/connection"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
@@ -32,16 +33,9 @@ type handlers struct {
 
 var _ gen.StrictServerInterface = (*handlers)(nil)
 
-// actor names the person behind a request; without authentication it is the
-// surface itself. Authentication, when added, sets it from the session.
-func actor(ctx context.Context) string {
-	if a, ok := ctx.Value(actorKey{}).(string); ok && a != "" {
-		return a
-	}
-	return "web"
-}
-
-type actorKey struct{}
+// actor names the person behind a request for the audit log: the signed-in
+// member, or the surface itself when this Mesa has no accounts.
+func actor(ctx context.Context) string { return account.Actor(ctx, "web") }
 
 // --- conversions ----------------------------------------------------------
 

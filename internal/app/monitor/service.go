@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/engine"
 	"github.com/felipemalacarne/mesa/internal/session"
@@ -260,6 +261,9 @@ func (s *Service) Sessions(ctx context.Context, connID uuid.UUID, database strin
 // Kill cancels or terminates a backend. It is a write: read-only connections
 // must be unlocked first.
 func (s *Service) Kill(ctx context.Context, connID uuid.UUID, database string, pid int, terminate bool) error {
+	if err := account.Require(ctx, account.Write); err != nil {
+		return err
+	}
 	sess, conn, err := s.sessions.Session(ctx, connID, database)
 	if err != nil {
 		return err

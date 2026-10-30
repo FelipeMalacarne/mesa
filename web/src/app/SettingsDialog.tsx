@@ -5,7 +5,7 @@
  * zoom instead.
  */
 import * as React from "react";
-import { Info, Keyboard, Minus, Palette, Plus } from "lucide-react";
+import { Info, KeyRound, Keyboard, Minus, Palette, Plus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import type { Engine } from "@/lib/api/mesaAPI.schemas";
@@ -16,6 +16,9 @@ import { Button } from "@/ui/Button";
 import { Kbd, Switch } from "@/ui/controls";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/ui/primitives/dialog";
 
+import { AccountSettings, TokenSettings } from "./AccountSettings";
+import { Row } from "./SettingsRow";
+import { useAuth } from "./auth";
 import { useDensity, type Density } from "./density";
 import { shortcut } from "./keys";
 import { useTheme, type Theme } from "./theme";
@@ -23,15 +26,20 @@ import { useUi, type SettingsSection } from "./ui.store";
 import { useVim } from "./vim";
 import { useDesktopZoom } from "./zoom";
 
-const SECTIONS: { id: SettingsSection; label: string; icon: typeof Palette }[] = [
+const ALL_SECTIONS: { id: SettingsSection; label: string; icon: typeof Palette; signedIn?: boolean }[] = [
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "keyboard", label: "Keyboard", icon: Keyboard },
+  { id: "account", label: "Account", icon: UserRound, signedIn: true },
+  { id: "tokens", label: "API tokens", icon: KeyRound, signedIn: true },
   { id: "about", label: "About", icon: Info },
 ];
 
 export function SettingsDialog() {
   const open = useUi((s) => s.settingsOpen);
-  const section = useUi((s) => s.settingsSection);
+  const signedIn = !!useAuth().data?.user;
+  const SECTIONS = ALL_SECTIONS.filter((s) => signedIn || !s.signedIn);
+  const wanted = useUi((s) => s.settingsSection);
+  const section = SECTIONS.some((s) => s.id === wanted) ? wanted : "appearance";
   const setOpen = useUi((s) => s.setSettingsOpen);
   const openSettings = useUi((s) => s.openSettings);
 
@@ -68,22 +76,20 @@ export function SettingsDialog() {
           ))}
         </nav>
         <div className="m-settings__body" role="tabpanel">
-          {section === "appearance" ? <Appearance /> : section === "keyboard" ? <KeyboardSettings /> : <About />}
+          {section === "appearance" ? (
+            <Appearance />
+          ) : section === "keyboard" ? (
+            <KeyboardSettings />
+          ) : section === "account" ? (
+            <AccountSettings />
+          ) : section === "tokens" ? (
+            <TokenSettings />
+          ) : (
+            <About />
+          )}
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function Row({ label, help, children }: { label: string; help?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="m-settings__row">
-      <div style={{ minWidth: 0 }}>
-        <div className="m-label">{label}</div>
-        {help ? <div className="m-help">{help}</div> : null}
-      </div>
-      <div className="m-settings__control">{children}</div>
-    </div>
   );
 }
 

@@ -22,7 +22,8 @@ Mesa is one Go application layer shipped as one binary per surface, one director
 | `changeset` | `ChangeSet` (row inserts/updates/deletes + schema changes) and `Plan` (ordered statements, down statements, risks) |
 | `policy` | `Environment`, read-only rules, confirmation rules → `Decision` |
 | `connection` | The `Connection` entity (never holds secrets) |
-| `errs` | Error kinds: `NotFound`, `Invalid`, `Forbidden`, `Conflict`, `Unavailable`, `Unsupported` |
+| `account` | People, roles (viewer, editor, admin) and the `Principal` a request runs as; `Require` checks a permission |
+| `errs` | Error kinds: `NotFound`, `Invalid`, `Forbidden`, `Conflict`, `Unavailable`, `Unsupported`, `Unauthenticated` |
 
 ### `internal/engine` — driver ports
 
@@ -49,11 +50,15 @@ type Session interface {
 
 ### `internal/app` — use cases
 
-One package per feature: `connections`, `explore`, `changes`, `query`, `monitor`, `designer`. Inputs and outputs are plain structs. `changes` is the single write path; `designer` builds on `schema.Diff`, `dbml` and `Dialect.Compile`.
+One package per feature: `connections`, `explore`, `changes`, `query`, `monitor`, `designer`, `accounts` (sign-in through an OpenID Connect provider, sessions, API tokens; ADR 0011), `provision` (an app's database on a CloudNativePG cluster, created now and committed to the GitOps repository; ADR 0012). Use cases that change something call `account.Require` with the principal in the context; transports set it (the signed-in person, or the local principal on desktop, CLI and stdio MCP). Inputs and outputs are plain structs. `changes` is the single write path; `designer` builds on `schema.Diff`, `dbml` and `Dialect.Compile`.
 
 ### `internal/store`
 
-Mesa's own data behind ports: `Connections`, `Secrets`, `Audit`, `Layouts` (diagram positions), `History` (queries). `store/sqlite` for desktop and CLI (`~/.config/mesa/mesa.db`), `store/postgres` for server mode, `store/project` reads an optional `.mesa/` folder and overlays it on the store and vault: its connections (secrets only as `env:`/`keychain:` references, stable IDs from project name and environment), layouts as `models/*.layout.json`, saved queries as `queries/*.sql`. The CLI finds it from the working directory; the server takes `MESA_PROJECT`.
+Mesa's own data behind ports: `Connections`, `Secrets`, `Audit`, `Layouts` (diagram positions), `History` (queries). `store/sqlite` for desktop and CLI (`~/.config/mesa/mesa.db`), `store/postgres` for server mode, `store/project` reads an optional `.mesa/` folder and overlays it on the store and vault: its connections (secrets only as `env:`/`keychain:` references, stable IDs from project name and environment), layouts as `models/*.layout.json`, saved queries as `queries/*.sql`. The CLI finds it from the working directory; the server takes `MESA_PROJECT`. `store/declared` overlays the connections a deployment declares in a file (`MESA_CONNECTIONS`, ADR 0009) the same way: read-only, passwords as references.
+
+### Adapters for the platform
+
+`internal/oidc` implements the identity provider port of `app/accounts` on go-oidc. `internal/github` implements the repository port of `app/provision` on GitHub's REST API. `internal/sops` encrypts YAML for age recipients in the sops format, and `internal/cnpg` renders the Kustomize component Mesa owns in a repository (CNPG `Database`, managed roles, Secrets); both are pure.
 
 ### `internal/transport`
 

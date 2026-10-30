@@ -17,6 +17,8 @@ tags:
   - name: Roles
   - name: Designer
   - name: System
+  - name: Auth
+  - name: Provision
 
 paths:
   /system/info:
@@ -717,6 +719,135 @@ paths:
                   dbml: { type: string }
         default: { $ref: "#/components/responses/Error" }
 
+  /auth/state:
+    get:
+      operationId: getAuthState
+      tags: [Auth]
+      summary: How people sign in to this Mesa, and who is signed in
+      description: >
+        Anyone may ask. Without an identity provider (desktop, CLI, or a server without
+        MESA_OIDC_ISSUER) there is no sign-in: mode is local. With one, the browser signs in
+        at /auth/login, which sends it to the provider and back.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthState" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /auth/sign-out:
+    post:
+      operationId: signOut
+      tags: [Auth]
+      summary: End this session
+      responses:
+        "204":
+          description: Signed out
+          headers:
+            Set-Cookie: { schema: { type: string } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [Auth]
+      summary: The signed-in person, with the role the identity provider gave them
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /me/tokens:
+    get:
+      operationId: listTokens
+      tags: [Auth]
+      summary: Your API tokens (for agents on /mcp and for scripts)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ApiToken" } }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createToken
+      tags: [Auth]
+      summary: Make an API token with your role; its secret is shown only now
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TokenInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedToken" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /me/tokens/{tokenId}:
+    parameters:
+      - { name: tokenId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      operationId: revokeToken
+      tags: [Auth]
+      responses:
+        "204": { description: Revoked }
+        default: { $ref: "#/components/responses/Error" }
+
+  /people:
+    get:
+      operationId: listPeople
+      tags: [Auth]
+      summary: Everyone who has signed in, with the role the identity provider last gave them (admins)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/User" } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /connections/{connectionId}/provisioning:
+    parameters: [{ $ref: "#/components/parameters/ConnectionId" }]
+    get:
+      operationId: getProvisioningTarget
+      tags: [Provision]
+      summary: Where this connection provisions app databases (its GitOps repository); not_found when it does not
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProvisioningTarget" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: provisionDatabase
+      tags: [Provision]
+      summary: Create an app's database and role now, and declare them in the GitOps repository (admins)
+      description: >
+        The role gets a generated password, never shown. The commit adds a CNPG Database, the managed
+        role, and two sops-encrypted Secrets: the role's password for CNPG, and <name>-db in the app's
+        namespace with DATABASE_URL. With dryRun nothing runs and nothing is committed; the result
+        shows the statements, the files and the policy's decision.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProvisionRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProvisionResult" }
+        default: { $ref: "#/components/responses/Error" }
+
 components:
   parameters:
     ConnectionId:
@@ -739,13 +870,105 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
 
   schemas:
+    ProvisioningTarget:
+      type: object
+      required: [repo, branch, path, cluster, namespace, pullRequest]
+      properties:
+        repo: { type: string, description: owner/name on GitHub }
+        branch: { type: string }
+        path: { type: string, description: The folder Mesa owns in the repository }
+        cluster: { type: string, description: The CloudNativePG Cluster }
+        namespace: { type: string, description: The Cluster's namespace }
+        pullRequest: { type: boolean, description: Opens a pull request instead of committing to the branch }
+
+    ProvisionRequest:
+      type: object
+      required: [name, namespace]
+      properties:
+        name: { type: string, description: "The database and its role: lowercase letters, digits and _" }
+        namespace: { type: string, description: The app's Kubernetes namespace; it gets the Secret <name>-db }
+        confirmation: { type: string }
+        dryRun: { type: boolean }
+
+    ProvisionResult:
+      type: object
+      required: [target, statements, files, decision, roleSecret, appSecret, applied]
+      properties:
+        target: { $ref: "#/components/schemas/ProvisioningTarget" }
+        statements: { type: array, items: { type: string }, description: The SQL that runs now; the password is hidden }
+        files: { type: array, items: { type: string }, description: Paths written to the repository }
+        decision: { $ref: "#/components/schemas/Decision" }
+        roleSecret: { type: string }
+        appSecret: { type: string }
+        commit:
+          type: object
+          required: [sha, url]
+          properties:
+            sha: { type: string }
+            url: { type: string }
+            pullRequestUrl: { type: string }
+        applied: { type: boolean, description: The role and database exist now }
+        note: { type: string }
+
+    AuthState:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [local, oidc]
+          description: local = no sign-in; oidc = people sign in through the identity provider
+        provider: { type: string, description: The provider's name for the sign-in button, in oidc mode }
+        user: { $ref: "#/components/schemas/User" }
+
+    MemberRole:
+      type: string
+      enum: [viewer, editor, admin]
+      description: viewer reads; editor also changes databases (still reviewed); admin also manages connections and provisions databases
+
+    User:
+      type: object
+      required: [id, email, name, role, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/MemberRole" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+
+    ApiToken:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+
+    TokenInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        expiresInDays: { type: integer, minimum: 0, description: Absent or 0 never expires }
+
+    CreatedToken:
+      type: object
+      required: [token, secret]
+      properties:
+        token: { $ref: "#/components/schemas/ApiToken" }
+        secret: { type: string, description: "Send as Authorization: Bearer <secret>. Shown only once" }
+
     Error:
       type: object
       required: [kind, message]
       properties:
         kind:
           type: string
-          enum: [not_found, invalid, forbidden, conflict, unavailable, unsupported, needs_confirmation, unknown]
+          enum: [not_found, invalid, forbidden, conflict, unavailable, unsupported, needs_confirmation, unauthenticated, unknown]
         message: { type: string }
         confirmWith: { type: string, description: Text to type when kind is needs_confirmation }
 
@@ -842,7 +1065,7 @@ components:
         lastOpenedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-        definedIn: { type: string, description: "The project file that defines this connection (.mesa/mesa.toml); it cannot be edited through the API" }
+        definedIn: { type: string, description: "The file that defines this connection: a project's .mesa/mesa.toml, or the connections file the server was started with (MESA_CONNECTIONS). It cannot be edited through the API" }
 
     TestResult:
       type: object

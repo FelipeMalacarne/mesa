@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type SettingsSection = "appearance" | "keyboard" | "about";
+export type SettingsSection = "appearance" | "keyboard" | "account" | "tokens" | "about";
 
 /** Where in the rail keyboard focus should go; `n` changes on every request so a repeat still fires. */
 export interface FocusRequest {

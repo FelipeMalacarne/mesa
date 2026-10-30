@@ -39,11 +39,16 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           version: latest
+      - name: sops, to check that it decrypts what Mesa encrypts
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/sops" https://github.com/getsops/sops/releases/download/v3.11.0/sops-v3.11.0.linux.amd64
+          chmod +x "$RUNNER_TEMP/sops"
       - name: Test
         run: go test ./...
         env:
           MESA_TEST_PG: postgres://postgres@localhost:5432/postgres?sslmode=disable
           MESA_TEST_MYSQL: root:mesa@tcp(127.0.0.1:3306)/
+          MESA_TEST_SOPS: ${{ runner.temp }}/sops
 
   platform:
     # The updater and deep-link code swap executables and app bundles, which

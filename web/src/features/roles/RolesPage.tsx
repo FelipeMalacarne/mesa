@@ -1,8 +1,9 @@
 /** Users and roles on the server. Creating and dropping a role are reviewed writes. */
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Users } from "lucide-react";
+import { DatabaseZap, Plus, Trash2, Users } from "lucide-react";
 
+import { useGetProvisioningTarget } from "@/lib/api/provision/provision";
 import { createRole, dropRole, getListRolesQueryKey, useListRoles } from "@/lib/api/roles/roles";
 import type { Role, RoleRequest } from "@/lib/api/mesaAPI.schemas";
 import { errorMessage } from "@/lib/api/fetch";
@@ -11,7 +12,9 @@ import { useStatusFacts } from "@/app/status.store";
 import { Button } from "@/ui/Button";
 import { EmptyState, Field, Switch } from "@/ui/controls";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFoot, DialogHead, DialogTitle } from "@/ui/primitives/dialog";
+import { useCan } from "@/app/auth";
 import { ReviewDialog } from "@/features/changes/ReviewDialog";
+import { ProvisionDialog } from "@/features/provision/ProvisionDialog";
 import { useTabs } from "@/features/explorer/tabs.store";
 
 import { useWorkspace } from "../workspace/context";
@@ -23,6 +26,10 @@ export function RolesPage() {
   const [form, setForm] = React.useState(false);
   const [pending, setPending] = React.useState<{ kind: "create"; req: RoleRequest } | { kind: "drop"; role: Role } | null>(null);
   const [search, setSearch] = React.useState("");
+  const [provision, setProvision] = React.useState(false);
+  const admin = useCan("admin");
+  // Connections declared with a GitOps repository can provision app databases.
+  const target = useGetProvisioningTarget(connectionId, { query: { enabled: admin, retry: false, staleTime: 5 * 60_000 } });
 
   React.useEffect(() => {
     useTabs.getState().open(connectionId, { id: "roles", kind: "roles", title: "Users & roles" });
@@ -37,6 +44,12 @@ export function RolesPage() {
       <div className="m-toolbar" style={{ height: "var(--size-toolbar)", flex: "none" }}>
         <input className="m-input m-input--sm" style={{ width: 240 }} placeholder="Filter roles" aria-label="Filter roles" value={search} onChange={(e) => setSearch(e.target.value)} />
         <span className="m-spacer" />
+        {target.data ? (
+          <Button variant="secondary" size="sm" onClick={() => setProvision(true)} title={`Login and database, declared in ${target.data.repo}`}>
+            <DatabaseZap className="m-icon m-icon--sm" aria-hidden="true" />
+            App database
+          </Button>
+        ) : null}
         <Button variant="primary" size="sm" onClick={() => setForm(true)}>
           <Plus className="m-icon m-icon--sm" aria-hidden="true" />
           Role
@@ -104,6 +117,7 @@ export function RolesPage() {
           await qc.invalidateQueries({ queryKey: getListRolesQueryKey(connectionId) });
         }}
       />
+      {target.data ? <ProvisionDialog open={provision} onOpenChange={setProvision} connection={connection} target={target.data} /> : null}
     </>
   );
 }

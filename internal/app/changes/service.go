@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/changeset"
 	"github.com/felipemalacarne/mesa/internal/core/connection"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
@@ -115,8 +116,14 @@ func (s *Service) judge(conn *connection.Connection, database string, plan *chan
 	})
 }
 
-// Apply runs the change set (or plan) after the policy allows it.
+// Apply runs the change set (or plan) after the policy allows it. A dry run
+// only plans, so anyone may ask for one; running takes the right to write.
 func (s *Service) Apply(ctx context.Context, in ApplyInput) (*ApplyResult, error) {
+	if !in.DryRun {
+		if err := account.Require(ctx, account.Write); err != nil {
+			return nil, err
+		}
+	}
 	sess, conn, err := s.sessions.Session(ctx, in.ConnectionID, in.Database)
 	if err != nil {
 		return nil, err

@@ -3,12 +3,23 @@
  * The theme needs no provider (see theme.ts); the command palette and shortcuts mount in __root.
  */
 import * as React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
+
+import { getGetAuthStateQueryKey } from "@/lib/api/auth/auth";
+import { isApiError } from "@/lib/api/fetch";
 
 import { useTheme } from "./theme";
 
+// A session that ended (or a role taken away) shows up as "unauthenticated" on any request:
+// asking for the auth state again brings back the sign-in page.
+const onError = (e: unknown) => {
+  if (isApiError(e) && e.kind === "unauthenticated") void queryClient.invalidateQueries({ queryKey: getGetAuthStateQueryKey() });
+};
+
 export const queryClient = new QueryClient({
+  queryCache: new QueryCache({ onError }),
+  mutationCache: new MutationCache({ onError }),
   defaultOptions: {
     queries: {
       retry: 1,

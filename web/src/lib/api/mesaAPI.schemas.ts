@@ -8,6 +8,129 @@ policy decision), then applies it with the confirmation the policy asks for.
 
  * OpenAPI spec version: 1.0.0
  */
+export interface ProvisioningTarget {
+  /** owner/name on GitHub */
+  repo: string;
+  branch: string;
+  /** The folder Mesa owns in the repository */
+  path: string;
+  /** The CloudNativePG Cluster */
+  cluster: string;
+  /** The Cluster's namespace */
+  namespace: string;
+  /** Opens a pull request instead of committing to the branch */
+  pullRequest: boolean;
+}
+
+export interface ProvisionRequest {
+  /** The database and its role: lowercase letters, digits and _ */
+  name: string;
+  /** The app's Kubernetes namespace; it gets the Secret <name>-db */
+  namespace: string;
+  confirmation?: string;
+  dryRun?: boolean;
+}
+
+export type ProvisionResultCommit = {
+  sha: string;
+  url: string;
+  pullRequestUrl?: string;
+};
+
+export type DecisionOutcome = typeof DecisionOutcome[keyof typeof DecisionOutcome];
+
+
+export const DecisionOutcome = {
+  allow: 'allow',
+  needs_confirmation: 'needs_confirmation',
+  deny: 'deny',
+} as const;
+
+export interface Decision {
+  outcome: DecisionOutcome;
+  reason?: string;
+  confirmWith?: string;
+}
+
+export interface ProvisionResult {
+  target: ProvisioningTarget;
+  /** The SQL that runs now; the password is hidden */
+  statements: string[];
+  /** Paths written to the repository */
+  files: string[];
+  decision: Decision;
+  roleSecret: string;
+  appSecret: string;
+  commit?: ProvisionResultCommit;
+  /** The role and database exist now */
+  applied: boolean;
+  note?: string;
+}
+
+/**
+ * local = no sign-in; oidc = people sign in through the identity provider
+ */
+export type AuthStateMode = typeof AuthStateMode[keyof typeof AuthStateMode];
+
+
+export const AuthStateMode = {
+  local: 'local',
+  oidc: 'oidc',
+} as const;
+
+/**
+ * viewer reads; editor also changes databases (still reviewed); admin also manages connections and provisions databases
+ */
+export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
+
+
+export const MemberRole = {
+  viewer: 'viewer',
+  editor: 'editor',
+  admin: 'admin',
+} as const;
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: MemberRole;
+  createdAt: string;
+  updatedAt: string;
+  lastSeenAt?: string;
+}
+
+export interface AuthState {
+  /** local = no sign-in; oidc = people sign in through the identity provider */
+  mode: AuthStateMode;
+  /** The provider's name for the sign-in button, in oidc mode */
+  provider?: string;
+  user?: User;
+}
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  createdAt: string;
+  expiresAt?: string;
+  lastUsedAt?: string;
+}
+
+export interface TokenInput {
+  name: string;
+  /**
+   * Absent or 0 never expires
+   * @minimum 0
+   */
+  expiresInDays?: number;
+}
+
+export interface CreatedToken {
+  token: ApiToken;
+  /** Send as Authorization: Bearer <secret>. Shown only once */
+  secret: string;
+}
+
 export type ErrorKind = typeof ErrorKind[keyof typeof ErrorKind];
 
 
@@ -19,6 +142,7 @@ export const ErrorKind = {
   unavailable: 'unavailable',
   unsupported: 'unsupported',
   needs_confirmation: 'needs_confirmation',
+  unauthenticated: 'unauthenticated',
   unknown: 'unknown',
 } as const;
 
@@ -144,7 +268,7 @@ export interface Connection {
   lastOpenedAt?: string;
   createdAt: string;
   updatedAt: string;
-  /** The project file that defines this connection (.mesa/mesa.toml); it cannot be edited through the API */
+  /** The file that defines this connection: a project's .mesa/mesa.toml, or the connections file the server was started with (MESA_CONNECTIONS). It cannot be edited through the API */
   definedIn?: string;
 }
 
@@ -477,21 +601,6 @@ export interface Plan {
   down?: Statement[];
   risks?: Risk[];
   summary: PlanSummary;
-}
-
-export type DecisionOutcome = typeof DecisionOutcome[keyof typeof DecisionOutcome];
-
-
-export const DecisionOutcome = {
-  allow: 'allow',
-  needs_confirmation: 'needs_confirmation',
-  deny: 'deny',
-} as const;
-
-export interface Decision {
-  outcome: DecisionOutcome;
-  reason?: string;
-  confirmWith?: string;
 }
 
 export interface PlanResult {

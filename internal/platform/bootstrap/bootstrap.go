@@ -14,14 +14,20 @@ import (
 	"github.com/zalando/go-keyring"
 
 	"github.com/felipemalacarne/mesa/internal/app"
+	"github.com/felipemalacarne/mesa/internal/app/accounts"
+	"github.com/felipemalacarne/mesa/internal/app/provision"
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/engine"
 	"github.com/felipemalacarne/mesa/internal/engine/mysql"
 	"github.com/felipemalacarne/mesa/internal/engine/postgres"
+	"github.com/felipemalacarne/mesa/internal/github"
+	"github.com/felipemalacarne/mesa/internal/oidc"
 	"github.com/felipemalacarne/mesa/internal/platform"
 	"github.com/felipemalacarne/mesa/internal/secret"
 	"github.com/felipemalacarne/mesa/internal/session"
 	"github.com/felipemalacarne/mesa/internal/store"
+	"github.com/felipemalacarne/mesa/internal/store/declared"
 	storepg "github.com/felipemalacarne/mesa/internal/store/postgres"
 	"github.com/felipemalacarne/mesa/internal/store/project"
 	"github.com/felipemalacarne/mesa/internal/store/sqlite"
@@ -107,13 +113,58 @@ func Build(ctx context.Context, c platform.Config, mode app.Mode, configDir stri
 			return nil, err
 		}
 	}
+	var decl *declared.Set
+	if c.Connections != "" {
+		if decl, err = declared.Load(c.Connections); err != nil {
+			_ = st.Close()
+			return nil, err
+		}
+	}
+	var acc *accounts.Options
+	if mode == app.ModeServer && c.OIDC.Issuer != "" {
+		if acc, err = accountOptions(c.OIDC); err != nil {
+			_ = st.Close()
+			return nil, err
+		}
+	}
+	var repos provision.RepoFactory
+	if c.GitHubToken != "" {
+		repos = github.New(c.GitHubToken, c.GitHubAPI).Repo
+	}
 	return app.New(app.Options{
-		Project: proj,
-		Version: platform.Version,
-		Mode:    mode,
-		Engines: Engines(),
-		Store:   st,
-		Vault:   vault,
-		Session: session.Options{IdleTimeout: c.SessionIdle, AppName: "mesa-" + string(mode)},
+		Project:  proj,
+		Declared: decl,
+		Accounts: acc,
+		Repos:    repos,
+		Version:  platform.Version,
+		Mode:     mode,
+		Engines:  Engines(),
+		Store:    st,
+		Vault:    vault,
+		Session:  session.Options{IdleTimeout: c.SessionIdle, AppName: "mesa-" + string(mode)},
 	}), nil
+}
+
+// accountOptions turns the identity provider settings into sign-in.
+func accountOptions(o platform.OIDC) (*accounts.Options, error) {
+	if o.ClientID == "" {
+		return nil, errs.New(errs.Invalid, "MESA_OIDC_CLIENT_ID is required with MESA_OIDC_ISSUER")
+	}
+	var def account.Role
+	if o.DefaultRole != "" {
+		r, err := account.ParseRole(o.DefaultRole)
+		if err != nil {
+			return nil, errs.Wrap(errs.Invalid, "MESA_OIDC_DEFAULT_ROLE", err)
+		}
+		def = r
+	}
+	return &accounts.Options{
+		Provider: accounts.ProviderConfig{
+			Issuer: o.Issuer, ClientID: o.ClientID, ClientSecret: o.ClientSecret, Scopes: o.Scopes,
+		},
+		Label:       o.Label,
+		RolesClaim:  o.RolesClaim,
+		DefaultRole: def,
+		Providers:   oidc.New,
+	}, nil
 }

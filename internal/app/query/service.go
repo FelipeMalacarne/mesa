@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/engine"
 	"github.com/felipemalacarne/mesa/internal/session"
@@ -120,6 +121,9 @@ func (s *Service) Saved(ctx context.Context) ([]store.SavedQuery, error) {
 
 // Save creates or updates a saved query.
 func (s *Service) Save(ctx context.Context, q store.SavedQuery) (*store.SavedQuery, error) {
+	if err := account.Require(ctx, account.Write); err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(q.Name) == "" {
 		return nil, errs.New(errs.Invalid, "name is required")
 	}
@@ -138,5 +142,8 @@ func (s *Service) Save(ctx context.Context, q store.SavedQuery) (*store.SavedQue
 
 // DeleteSaved removes a saved query.
 func (s *Service) DeleteSaved(ctx context.Context, id uuid.UUID) error {
+	if err := account.Require(ctx, account.Write); err != nil {
+		return err
+	}
 	return s.saved.Delete(ctx, id)
 }

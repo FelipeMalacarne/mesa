@@ -1,5 +1,6 @@
 // Package store holds Mesa's own data behind ports: connections, encrypted
-// secrets, the audit log, diagram layouts, query history and saved queries.
+// secrets, the audit log, diagram layouts, query history, saved queries, and
+// in server mode the people who signed in and their tokens.
 // Implementations: sqlite (desktop, CLI), postgres (server mode).
 package store
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/connection"
 )
 
@@ -21,6 +23,8 @@ type Store interface {
 	History() History
 	Queries() SavedQueries
 	Metrics() Metrics
+	Users() Users
+	Tokens() Tokens
 	Close() error
 }
 
@@ -142,5 +146,53 @@ type Metrics interface {
 	// points, oldest first.
 	Range(ctx context.Context, connectionID uuid.UUID, database string, from, to time.Time, buckets int) ([]MetricPoint, error)
 	// Prune drops samples older than before.
+	Prune(ctx context.Context, before time.Time) error
+}
+
+// Users records the people who signed in, as the identity provider last
+// described them.
+type Users interface {
+	List(ctx context.Context) ([]account.User, error)
+	Get(ctx context.Context, id uuid.UUID) (*account.User, error)            // errs.NotFound when missing
+	GetBySubject(ctx context.Context, subject string) (*account.User, error) // errs.NotFound when missing
+	// Put inserts or updates by ID.
+	Put(ctx context.Context, u account.User) error
+	TouchSeen(ctx context.Context, id uuid.UUID, at time.Time) error
+}
+
+// TokenKind tells a browser session from a token a person made for an agent
+// or a script.
+type TokenKind string
+
+const (
+	SessionToken TokenKind = "session"
+	APIToken     TokenKind = "api"
+)
+
+// Token is a credential that stands for a user. Only the SHA-256 of its
+// secret is kept: whoever holds the store cannot sign in with it.
+type Token struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	Kind       TokenKind
+	Name       string
+	Hash       []byte
+	CreatedAt  time.Time
+	ExpiresAt  *time.Time
+	LastUsedAt *time.Time
+}
+
+// Tokens persists sessions and API tokens.
+type Tokens interface {
+	Create(ctx context.Context, t Token) error
+	ByHash(ctx context.Context, hash []byte) (*Token, error) // errs.NotFound when missing
+	// List returns a user's tokens of one kind, newest first.
+	List(ctx context.Context, userID uuid.UUID, kind TokenKind) ([]Token, error)
+	Touch(ctx context.Context, id uuid.UUID, at time.Time) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	// DeleteForUser removes a user's tokens of one kind, or of every kind
+	// when kind is empty.
+	DeleteForUser(ctx context.Context, userID uuid.UUID, kind TokenKind) error
+	// Prune removes tokens that expired before the given time.
 	Prune(ctx context.Context, before time.Time) error
 }

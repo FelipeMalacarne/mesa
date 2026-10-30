@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/felipemalacarne/mesa/internal/core/account"
 	"github.com/felipemalacarne/mesa/internal/core/connection"
 	"github.com/felipemalacarne/mesa/internal/core/errs"
 	"github.com/felipemalacarne/mesa/internal/store"
@@ -27,6 +28,8 @@ func Run(t *testing.T, open func(t *testing.T) store.Store) {
 	t.Run("history", func(t *testing.T) { testHistory(t, open(t)) })
 	t.Run("saved queries", func(t *testing.T) { testSavedQueries(t, open(t)) })
 	t.Run("metrics", func(t *testing.T) { testMetrics(t, open(t)) })
+	t.Run("users", func(t *testing.T) { testUsers(t, open(t)) })
+	t.Run("tokens", func(t *testing.T) { testTokens(t, open(t)) })
 }
 
 func testMetrics(t *testing.T, s store.Store) {
@@ -540,4 +543,114 @@ func queryIDs(queries []store.SavedQuery) []uuid.UUID {
 		out[i] = q.ID
 	}
 	return out
+}
+
+func newUser(t *testing.T, subject, email string, role account.Role) account.User {
+	t.Helper()
+	u, err := account.New(account.Input{Subject: subject, Email: email, Role: role}, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u
+}
+
+func testUsers(t *testing.T, st store.Store) {
+	ctx := context.Background()
+	users := st.Users()
+
+	if list, err := users.List(ctx); err != nil || len(list) != 0 {
+		t.Fatalf("List on an empty store = %v, %v", list, err)
+	}
+	ana := newUser(t, "https://auth.example.com 1", "ana@example.com", account.Admin)
+	bo := newUser(t, "https://auth.example.com 2", "bo@example.com", account.Viewer)
+	for _, u := range []account.User{bo, ana} {
+		if err := users.Put(ctx, u); err != nil {
+			t.Fatalf("Put %s: %v", u.Email, err)
+		}
+	}
+	list, err := users.List(ctx)
+	if err != nil || len(list) != 2 || list[0].Name != "ana" || list[1].Name != "bo" {
+		t.Fatalf("List = %+v, %v", list, err)
+	}
+	got, err := users.GetBySubject(ctx, bo.Subject)
+	if err != nil || got.ID != bo.ID || got.Role != account.Viewer || got.Email != "bo@example.com" || !got.CreatedAt.Equal(base) {
+		t.Fatalf("GetBySubject = %+v, %v", got, err)
+	}
+	if _, err := users.GetBySubject(ctx, "nobody"); !errs.Is(err, errs.NotFound) {
+		t.Fatalf("GetBySubject of a stranger = %v, want NotFound", err)
+	}
+	if _, err := users.Get(ctx, uuid.New()); !errs.Is(err, errs.NotFound) {
+		t.Fatalf("Get of a missing user = %v, want NotFound", err)
+	}
+
+	// The provider changed their role and name: Put updates in place.
+	if err := ana.Update(account.Input{Subject: ana.Subject, Email: ana.Email, Name: "Ana Lima", Role: account.Editor}, at(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if err := users.Put(ctx, ana); err != nil {
+		t.Fatalf("Put update: %v", err)
+	}
+	got, err = users.Get(ctx, ana.ID)
+	if err != nil || got.Name != "Ana Lima" || got.Role != account.Editor || !got.UpdatedAt.Equal(at(time.Hour)) {
+		t.Fatalf("Get after update = %+v, %v", got, err)
+	}
+	if err := users.TouchSeen(ctx, ana.ID, at(2*time.Hour)); err != nil {
+		t.Fatalf("TouchSeen: %v", err)
+	}
+	if got, _ := users.Get(ctx, ana.ID); got.LastSeenAt == nil || !got.LastSeenAt.Equal(at(2*time.Hour)) {
+		t.Fatalf("LastSeenAt = %v", got.LastSeenAt)
+	}
+}
+
+func testTokens(t *testing.T, st store.Store) {
+	ctx := context.Background()
+	ana := newUser(t, "https://auth.example.com 1", "ana@example.com", account.Editor)
+	if err := st.Users().Put(ctx, ana); err != nil {
+		t.Fatal(err)
+	}
+	tokens := st.Tokens()
+	expires := at(time.Hour)
+	session := store.Token{ID: uuid.New(), UserID: ana.ID, Kind: store.SessionToken, Hash: []byte{1, 2, 3}, CreatedAt: at(0), ExpiresAt: &expires}
+	agent := store.Token{ID: uuid.New(), UserID: ana.ID, Kind: store.APIToken, Name: "claude", Hash: []byte{4, 5, 6}, CreatedAt: at(time.Minute)}
+	older := store.Token{ID: uuid.New(), UserID: ana.ID, Kind: store.APIToken, Name: "ci", Hash: []byte{7}, CreatedAt: at(0)}
+	for _, tok := range []store.Token{session, agent, older} {
+		if err := tokens.Create(ctx, tok); err != nil {
+			t.Fatalf("Create %s: %v", tok.Name, err)
+		}
+	}
+	got, err := tokens.ByHash(ctx, []byte{1, 2, 3})
+	if err != nil || got.ID != session.ID || got.Kind != store.SessionToken || got.ExpiresAt == nil || !got.ExpiresAt.Equal(expires) {
+		t.Fatalf("ByHash = %+v, %v", got, err)
+	}
+	if _, err := tokens.ByHash(ctx, []byte{9}); !errs.Is(err, errs.NotFound) {
+		t.Fatalf("ByHash of an unknown hash = %v, want NotFound", err)
+	}
+	list, err := tokens.List(ctx, ana.ID, store.APIToken)
+	if err != nil || len(list) != 2 || list[0].Name != "claude" || list[1].Name != "ci" {
+		t.Fatalf("List = %+v, %v", list, err)
+	}
+	if err := tokens.Touch(ctx, agent.ID, at(2*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := tokens.ByHash(ctx, agent.Hash); got.LastUsedAt == nil || !got.LastUsedAt.Equal(at(2*time.Minute)) {
+		t.Fatalf("LastUsedAt = %v", got.LastUsedAt)
+	}
+	if err := tokens.Prune(ctx, at(2*time.Hour)); err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if _, err := tokens.ByHash(ctx, session.Hash); !errs.Is(err, errs.NotFound) {
+		t.Fatalf("expired session after Prune = %v, want NotFound", err)
+	}
+	if err := tokens.Delete(ctx, older.ID); err != nil {
+		t.Fatal(err)
+	}
+	if list, _ := tokens.List(ctx, ana.ID, store.APIToken); len(list) != 1 {
+		t.Fatalf("List after Delete = %d tokens", len(list))
+	}
+	if err := tokens.DeleteForUser(ctx, ana.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if list, _ := tokens.List(ctx, ana.ID, store.APIToken); len(list) != 0 {
+		t.Fatalf("List after DeleteForUser = %d tokens", len(list))
+	}
 }
